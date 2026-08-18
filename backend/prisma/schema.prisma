@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+// ======================================================
+// MÓDULO: USUARIOS
+// ======================================================
+
+model UsuarioRol {
+  rolId              Int      @id @default(autoincrement()) @map("rol_id")
+  nombre             String   @unique @db.NVarChar(100)
+  descripcion        String?  @db.NVarChar(500)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  usuarios      UsuarioCuenta[]
+  rolesPermisos UsuarioRolPermiso[]
+
+  @@map("usuarios_roles")
+}
+
+model UsuarioPermiso {
+  permisoId     Int      @id @default(autoincrement()) @map("permiso_id")
+  codigo        String   @unique @db.NVarChar(100)
+  nombre        String   @db.NVarChar(150)
+  modulo        String   @db.NVarChar(100)
+  accion        String   @db.NVarChar(100)
+  activo        Boolean  @default(true)
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+
+  rolesPermisos UsuarioRolPermiso[]
+
+  @@map("usuarios_permisos")
+}
+
+model UsuarioCuenta {
+  usuarioId          Int      @id @default(autoincrement()) @map("usuario_id")
+  rolId              Int      @map("rol_id")
+  nombreCompleto     String   @map("nombre_completo") @db.NVarChar(200)
+  nombreUsuario      String   @unique @map("nombre_usuario") @db.NVarChar(100)
+  correo             String   @unique @db.NVarChar(200)
+  contrasenaHash     String   @map("contrasena_hash") @db.NVarChar(255)
+  estado             String   @default("ACTIVO") @db.NVarChar(20)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  rol UsuarioRol @relation(fields: [rolId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
+
+  sesiones  UsuarioSesion[]
+  bitacoras UsuarioBitacora[]
+
+  permisosAsignados UsuarioRolPermiso[] @relation("UsuarioAsignadorRolPermiso")
+
+  @@index([rolId])
+  @@map("usuarios_cuentas")
+}
+
+model UsuarioRolPermiso {
+  rolPermisoId       Int      @id @default(autoincrement()) @map("rol_permiso_id")
+  rolId              Int      @map("rol_id")
+  permisoId          Int      @map("permiso_id")
+  usuarioAsignadorId Int      @map("usuario_asignador_id")
+  fechaAsignacion    DateTime @default(now()) @map("fecha_asignacion") @db.DateTime2
+
+  rol UsuarioRol @relation(fields: [rolId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
+
+  permiso UsuarioPermiso @relation(fields: [permisoId], references: [permisoId], onDelete: NoAction, onUpdate: NoAction)
+
+  usuarioAsignador UsuarioCuenta @relation("UsuarioAsignadorRolPermiso", fields: [usuarioAsignadorId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([rolId, permisoId])
+  @@index([rolId])
+  @@index([permisoId])
+  @@index([usuarioAsignadorId])
+  @@map("usuarios_roles_permisos")
+}
+
+model UsuarioSesion {
+  sesionId        Int       @id @default(autoincrement()) @map("sesion_id")
+  usuarioId       Int       @map("usuario_id")
+  token           String    @unique @db.NVarChar(500)
+  fechaInicio     DateTime  @default(now()) @map("fecha_inicio") @db.DateTime2
+  fechaExpiracion DateTime  @map("fecha_expiracion") @db.DateTime2
+  fechaCierre     DateTime? @map("fecha_cierre") @db.DateTime2
+  estado          String    @default("ACTIVA") @db.NVarChar(20)
+  direccionIp     String?   @map("direccion_ip") @db.NVarChar(45)
+
+  usuario UsuarioCuenta @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([usuarioId])
+  @@index([estado])
+  @@map("usuarios_sesiones")
+}
+
+model UsuarioBitacora {
+  bitacoraId  Int      @id @default(autoincrement()) @map("bitacora_id")
+  usuarioId   Int?     @map("usuario_id")
+  modulo      String   @db.NVarChar(100)
+  accion      String   @db.NVarChar(100)
+  descripcion String   @db.NVarChar(1000)
+  resultado   String   @db.NVarChar(50)
+  fecha       DateTime @default(now()) @db.DateTime2
+  direccionIp String?  @map("direccion_ip") @db.NVarChar(45)
+
+  usuario UsuarioCuenta? @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([usuarioId])
+  @@index([modulo])
+  @@index([fecha])
+  @@map("usuarios_bitacora")
+}

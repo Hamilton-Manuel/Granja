@@ -1,0 +1,72 @@
+# ======================================================
+# VARIABLES DE ENTORNO / SECRETOS
+# ======================================================
+.env
+.env.*
+!.env.example
+
+
+# ======================================================
+# NODE.JS
+# ======================================================
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+
+# ======================================================
+# PRISMA
+# ======================================================
+backend/generated/
+
+
+# Las migraciones SÍ se versionan
+# NO ignorar:
+# backend/prisma/migrations/
+
+
+# ======================================================
+# COMPILACIÓN
+# ======================================================
+dist/
+build/
+backend/dist/
+frontend/dist/
+
+
+# ======================================================
+# LOGS
+# ======================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# ======================================================
+# VS CODE
+# ======================================================
+.vscode/
+
+
+# ======================================================
+# SISTEMA OPERATIVO
+# ======================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ======================================================
+# ARCHIVOS TEMPORALES
+# ======================================================
+*.tmp
+*.temp
+*.swp
+
+# Configuraciones locales de agentes / asistentes
+backend/.agents/
+backend/.claude/
+backend/.windsurf/
+backend/skills-lock.json
