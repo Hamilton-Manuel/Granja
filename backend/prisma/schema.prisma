@@ -54,6 +54,7 @@ model UsuarioCuenta {
 
   sesiones  UsuarioSesion[]
   bitacoras UsuarioBitacora[]
+  ventas    VentaRegistro[]
 
   permisosAsignados          UsuarioRolPermiso[]         @relation("UsuarioAsignadorRolPermiso")
   asignacionesProduccion     ProduccionAsignacionLote[]
@@ -139,6 +140,8 @@ model ClienteRegistro {
   activo             Boolean  @default(true)
   fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  ventas VentaRegistro[]
 
   @@index([nombreCompleto])
   @@index([nit])
@@ -351,6 +354,7 @@ model ProduccionLote {
   alimentacionAsignaciones AlimentacionAsignacion[]
   alimentacionRegistros    AlimentacionRegistro[]
   sanidadAplicaciones      SanidadAplicacion[]
+  ventasDetalles           VentaDetalle[]
 
   @@index([estado])
   @@index([fechaInicio])
@@ -586,4 +590,70 @@ model SanidadAplicacion {
   @@index([tipoAplicacion])
   @@index([fechaAplicacion])
   @@map("sanidad_aplicaciones")
+}
+
+// ======================================================
+// MÓDULO: VENTAS
+// ======================================================
+
+model VentaRegistro {
+  ventaId            Int      @id @default(autoincrement()) @map("venta_id")
+  clienteId          Int      @map("cliente_id")
+  usuarioId          Int      @map("usuario_id")
+  fechaVenta         DateTime @default(now()) @map("fecha_venta") @db.DateTime2
+  subtotal           Decimal  @db.Decimal(18, 2)
+  descuento          Decimal  @default(0) @db.Decimal(18, 2)
+  total              Decimal  @db.Decimal(18, 2)
+  formaPago          String   @map("forma_pago") @db.NVarChar(50)
+  estado             String   @default("PENDIENTE") @db.NVarChar(20)
+  observaciones      String?  @db.NVarChar(1000)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  cliente  ClienteRegistro @relation(fields: [clienteId], references: [clienteId], onDelete: NoAction, onUpdate: NoAction)
+  usuario  UsuarioCuenta   @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  detalles VentaDetalle[]
+  recibo   VentaRecibo?
+
+  @@index([clienteId])
+  @@index([usuarioId])
+  @@index([fechaVenta])
+  @@index([estado])
+  @@map("ventas_registros")
+}
+
+model VentaDetalle {
+  detalleVentaId   Int      @id @default(autoincrement()) @map("detalle_venta_id")
+  ventaId          Int      @map("venta_id")
+  loteProduccionId Int      @map("lote_produccion_id")
+  cantidadAnimales Int      @map("cantidad_animales")
+  precioUnitario   Decimal  @map("precio_unitario") @db.Decimal(18, 2)
+  subtotal         Decimal  @db.Decimal(18, 2)
+  descripcion      String?  @db.NVarChar(500)
+  fechaCreacion    DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+
+  venta VentaRegistro  @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
+  lote  ProduccionLote @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([ventaId, loteProduccionId])
+  @@index([ventaId])
+  @@index([loteProduccionId])
+  @@map("ventas_detalles")
+}
+
+model VentaRecibo {
+  reciboId      Int      @id @default(autoincrement()) @map("recibo_id")
+  ventaId       Int      @unique @map("venta_id")
+  numeroRecibo  String   @unique @map("numero_recibo") @db.NVarChar(50)
+  fechaEmision  DateTime @default(now()) @map("fecha_emision") @db.DateTime2
+  monto         Decimal  @db.Decimal(18, 2)
+  concepto      String   @db.NVarChar(1000)
+  estado        String   @default("EMITIDO") @db.NVarChar(20)
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+
+  venta VentaRegistro @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([fechaEmision])
+  @@index([estado])
+  @@map("ventas_recibos")
 }
