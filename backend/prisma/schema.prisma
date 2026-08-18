@@ -55,7 +55,10 @@ model UsuarioCuenta {
   sesiones  UsuarioSesion[]
   bitacoras UsuarioBitacora[]
 
-  permisosAsignados UsuarioRolPermiso[] @relation("UsuarioAsignadorRolPermiso")
+  permisosAsignados          UsuarioRolPermiso[]         @relation("UsuarioAsignadorRolPermiso")
+  asignacionesProduccion     ProduccionAsignacionLote[]
+  historialEstadosProduccion ProduccionHistorialEstado[]
+  medicionesProduccion       ProduccionMedicion[]
 
   @@index([rolId])
   @@map("usuarios_cuentas")
@@ -287,4 +290,146 @@ model ProveedorProducto {
   @@index([productoId])
   @@index([activo])
   @@map("proveedores_productos")
+}
+
+// ======================================================
+// MÓDULO: PRODUCCIÓN
+// ======================================================
+
+model ProduccionTipoAnimal {
+  tipoAnimalId       Int      @id @default(autoincrement()) @map("tipo_animal_id")
+  nombre             String   @unique @db.NVarChar(100)
+  descripcion        String?  @db.NVarChar(500)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  razas    ProduccionRaza[]
+  animales ProduccionAnimal[]
+
+  @@index([activo])
+  @@map("produccion_tipos_animales")
+}
+
+model ProduccionRaza {
+  razaId             Int      @id @default(autoincrement()) @map("raza_id")
+  tipoAnimalId       Int      @map("tipo_animal_id")
+  nombre             String   @db.NVarChar(150)
+  descripcion        String?  @db.NVarChar(500)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  tipoAnimal ProduccionTipoAnimal @relation(fields: [tipoAnimalId], references: [tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
+  animales   ProduccionAnimal[]
+
+  @@unique([tipoAnimalId, nombre])
+  @@index([tipoAnimalId])
+  @@index([activo])
+  @@map("produccion_razas")
+}
+
+model ProduccionLote {
+  loteProduccionId   Int       @id @default(autoincrement()) @map("lote_produccion_id")
+  codigo             String    @unique @db.NVarChar(50)
+  nombre             String    @db.NVarChar(150)
+  descripcion        String?   @db.NVarChar(500)
+  fechaInicio        DateTime  @default(now()) @map("fecha_inicio") @db.DateTime2
+  fechaCierre        DateTime? @map("fecha_cierre") @db.DateTime2
+  estado             String    @default("ACTIVO") @db.NVarChar(20)
+  fechaCreacion      DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  asignaciones ProduccionAsignacionLote[]
+  mediciones   ProduccionMedicion[]
+
+  @@index([estado])
+  @@index([fechaInicio])
+  @@map("produccion_lotes")
+}
+
+model ProduccionAnimal {
+  animalId           Int       @id @default(autoincrement()) @map("animal_id")
+  tipoAnimalId       Int       @map("tipo_animal_id")
+  razaId             Int?      @map("raza_id")
+  identificacion     String    @unique @db.NVarChar(100)
+  sexo               String    @db.NVarChar(20)
+  fechaNacimiento    DateTime? @map("fecha_nacimiento") @db.Date
+  fechaIngreso       DateTime  @default(now()) @map("fecha_ingreso") @db.DateTime2
+  estadoActual       String    @default("ACTIVO") @map("estado_actual") @db.NVarChar(20)
+  observaciones      String?   @db.NVarChar(1000)
+  fechaCreacion      DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  tipoAnimal       ProduccionTipoAnimal        @relation(fields: [tipoAnimalId], references: [tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
+  raza             ProduccionRaza?             @relation(fields: [razaId], references: [razaId], onDelete: NoAction, onUpdate: NoAction)
+  asignaciones     ProduccionAsignacionLote[]
+  historialEstados ProduccionHistorialEstado[]
+  mediciones       ProduccionMedicion[]
+
+  @@index([tipoAnimalId])
+  @@index([razaId])
+  @@index([estadoActual])
+  @@map("produccion_animales")
+}
+
+model ProduccionAsignacionLote {
+  asignacionLoteId Int       @id @default(autoincrement()) @map("asignacion_lote_id")
+  animalId         Int       @map("animal_id")
+  loteProduccionId Int       @map("lote_produccion_id")
+  usuarioId        Int       @map("usuario_id")
+  fechaInicio      DateTime  @default(now()) @map("fecha_inicio") @db.DateTime2
+  fechaFin         DateTime? @map("fecha_fin") @db.DateTime2
+  motivoCambio     String?   @map("motivo_cambio") @db.NVarChar(500)
+  estado           String    @default("VIGENTE") @db.NVarChar(20)
+
+  animal  ProduccionAnimal @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  lote    ProduccionLote   @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  usuario UsuarioCuenta    @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([animalId])
+  @@index([loteProduccionId])
+  @@index([usuarioId])
+  @@index([estado])
+  @@map("produccion_asignaciones_lotes")
+}
+
+model ProduccionHistorialEstado {
+  historialEstadoId Int      @id @default(autoincrement()) @map("historial_estado_id")
+  animalId          Int      @map("animal_id")
+  usuarioId         Int      @map("usuario_id")
+  estadoAnterior    String?  @map("estado_anterior") @db.NVarChar(30)
+  estadoNuevo       String   @map("estado_nuevo") @db.NVarChar(30)
+  motivo            String?  @db.NVarChar(500)
+  fechaCambio       DateTime @default(now()) @map("fecha_cambio") @db.DateTime2
+
+  animal  ProduccionAnimal @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  usuario UsuarioCuenta    @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([animalId])
+  @@index([usuarioId])
+  @@index([fechaCambio])
+  @@map("produccion_historial_estados")
+}
+
+model ProduccionMedicion {
+  medicionId       Int      @id @default(autoincrement()) @map("medicion_id")
+  animalId         Int?     @map("animal_id")
+  loteProduccionId Int?     @map("lote_produccion_id")
+  usuarioId        Int      @map("usuario_id")
+  tipoMedicion     String   @map("tipo_medicion") @db.NVarChar(50)
+  valor            Decimal  @db.Decimal(18, 4)
+  unidadMedida     String   @map("unidad_medida") @db.NVarChar(30)
+  fechaMedicion    DateTime @default(now()) @map("fecha_medicion") @db.DateTime2
+  observaciones    String?  @db.NVarChar(1000)
+
+  animal  ProduccionAnimal? @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  lote    ProduccionLote?   @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  usuario UsuarioCuenta     @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([animalId])
+  @@index([loteProduccionId])
+  @@index([usuarioId])
+  @@index([fechaMedicion])
+  @@map("produccion_mediciones")
 }
