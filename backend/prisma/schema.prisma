@@ -59,6 +59,9 @@ model UsuarioCuenta {
   asignacionesProduccion     ProduccionAsignacionLote[]
   historialEstadosProduccion ProduccionHistorialEstado[]
   medicionesProduccion       ProduccionMedicion[]
+  alimentacionAsignaciones   AlimentacionAsignacion[]
+  alimentacionRegistros      AlimentacionRegistro[]
+  sanidadAplicaciones        SanidadAplicacion[]
 
   @@index([rolId])
   @@map("usuarios_cuentas")
@@ -199,8 +202,11 @@ model InventarioProducto {
 
   categoria InventarioCategoria @relation(fields: [categoriaId], references: [categoriaId], onDelete: NoAction, onUpdate: NoAction)
 
-  proveedores ProveedorProducto[]
-  existencias InventarioExistencia[]
+  proveedores          ProveedorProducto[]
+  existencias          InventarioExistencia[]
+  formulaDetalles      AlimentacionFormulaDetalle[]
+  alimentacionDetalles AlimentacionDetalle[]
+  sanidadAplicaciones  SanidadAplicacion[]
 
   @@index([categoriaId])
   @@index([nombre])
@@ -340,8 +346,11 @@ model ProduccionLote {
   fechaCreacion      DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
 
-  asignaciones ProduccionAsignacionLote[]
-  mediciones   ProduccionMedicion[]
+  asignaciones             ProduccionAsignacionLote[]
+  mediciones               ProduccionMedicion[]
+  alimentacionAsignaciones AlimentacionAsignacion[]
+  alimentacionRegistros    AlimentacionRegistro[]
+  sanidadAplicaciones      SanidadAplicacion[]
 
   @@index([estado])
   @@index([fechaInicio])
@@ -361,11 +370,14 @@ model ProduccionAnimal {
   fechaCreacion      DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
 
-  tipoAnimal       ProduccionTipoAnimal        @relation(fields: [tipoAnimalId], references: [tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
-  raza             ProduccionRaza?             @relation(fields: [razaId], references: [razaId], onDelete: NoAction, onUpdate: NoAction)
-  asignaciones     ProduccionAsignacionLote[]
-  historialEstados ProduccionHistorialEstado[]
-  mediciones       ProduccionMedicion[]
+  tipoAnimal               ProduccionTipoAnimal        @relation(fields: [tipoAnimalId], references: [tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
+  raza                     ProduccionRaza?             @relation(fields: [razaId], references: [razaId], onDelete: NoAction, onUpdate: NoAction)
+  asignaciones             ProduccionAsignacionLote[]
+  historialEstados         ProduccionHistorialEstado[]
+  mediciones               ProduccionMedicion[]
+  alimentacionAsignaciones AlimentacionAsignacion[]
+  alimentacionRegistros    AlimentacionRegistro[]
+  sanidadAplicaciones      SanidadAplicacion[]
 
   @@index([tipoAnimalId])
   @@index([razaId])
@@ -432,4 +444,146 @@ model ProduccionMedicion {
   @@index([usuarioId])
   @@index([fechaMedicion])
   @@map("produccion_mediciones")
+}
+
+// ======================================================
+// MÓDULO: ALIMENTACIÓN
+// ======================================================
+
+model AlimentacionFormula {
+  formulaId          Int      @id @default(autoincrement()) @map("formula_id")
+  nombre             String   @unique @db.NVarChar(150)
+  descripcion        String?  @db.NVarChar(500)
+  cantidadBase       Decimal  @map("cantidad_base") @db.Decimal(18, 4)
+  unidadBase         String   @map("unidad_base") @db.NVarChar(30)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  detalles     AlimentacionFormulaDetalle[]
+  asignaciones AlimentacionAsignacion[]
+  registros    AlimentacionRegistro[]
+
+  @@index([activo])
+  @@map("alimentacion_formulas")
+}
+
+model AlimentacionFormulaDetalle {
+  detalleFormulaId   Int      @id @default(autoincrement()) @map("detalle_formula_id")
+  formulaId          Int      @map("formula_id")
+  productoId         Int      @map("producto_id")
+  cantidad           Decimal  @db.Decimal(18, 4)
+  unidadMedida       String   @map("unidad_medida") @db.NVarChar(30)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  formula  AlimentacionFormula @relation(fields: [formulaId], references: [formulaId], onDelete: NoAction, onUpdate: NoAction)
+  producto InventarioProducto  @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([formulaId, productoId])
+  @@index([formulaId])
+  @@index([productoId])
+  @@index([activo])
+  @@map("alimentacion_formulas_detalles")
+}
+
+model AlimentacionAsignacion {
+  asignacionFormulaId Int       @id @default(autoincrement()) @map("asignacion_formula_id")
+  formulaId           Int       @map("formula_id")
+  animalId            Int?      @map("animal_id")
+  loteProduccionId    Int?      @map("lote_produccion_id")
+  usuarioId           Int       @map("usuario_id")
+  fechaInicio         DateTime  @map("fecha_inicio") @db.Date
+  fechaFin            DateTime? @map("fecha_fin") @db.Date
+  estado              String    @default("VIGENTE") @db.NVarChar(20)
+  observaciones       String?   @db.NVarChar(1000)
+
+  formula AlimentacionFormula @relation(fields: [formulaId], references: [formulaId], onDelete: NoAction, onUpdate: NoAction)
+  animal  ProduccionAnimal?   @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  lote    ProduccionLote?     @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  usuario UsuarioCuenta       @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([formulaId])
+  @@index([animalId])
+  @@index([loteProduccionId])
+  @@index([usuarioId])
+  @@index([estado])
+  @@map("alimentacion_asignaciones")
+}
+
+model AlimentacionRegistro {
+  alimentacionId       Int      @id @default(autoincrement()) @map("alimentacion_id")
+  formulaId            Int      @map("formula_id")
+  animalId             Int?     @map("animal_id")
+  loteProduccionId     Int?     @map("lote_produccion_id")
+  usuarioId            Int      @map("usuario_id")
+  fechaAlimentacion    DateTime @map("fecha_alimentacion") @db.Date
+  cantidadSuministrada Decimal  @map("cantidad_suministrada") @db.Decimal(18, 4)
+  unidadMedida         String   @map("unidad_medida") @db.NVarChar(30)
+  observaciones        String?  @db.NVarChar(1000)
+  fechaRegistro        DateTime @default(now()) @map("fecha_registro") @db.DateTime2
+
+  formula  AlimentacionFormula   @relation(fields: [formulaId], references: [formulaId], onDelete: NoAction, onUpdate: NoAction)
+  animal   ProduccionAnimal?     @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  lote     ProduccionLote?       @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  usuario  UsuarioCuenta         @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  detalles AlimentacionDetalle[]
+
+  @@index([formulaId])
+  @@index([animalId])
+  @@index([loteProduccionId])
+  @@index([usuarioId])
+  @@index([fechaAlimentacion])
+  @@map("alimentacion_registros")
+}
+
+model AlimentacionDetalle {
+  detalleAlimentacionId Int      @id @default(autoincrement()) @map("detalle_alimentacion_id")
+  alimentacionId        Int      @map("alimentacion_id")
+  productoId            Int      @map("producto_id")
+  cantidadConsumida     Decimal  @map("cantidad_consumida") @db.Decimal(18, 4)
+  unidadMedida          String   @map("unidad_medida") @db.NVarChar(30)
+  fechaRegistro         DateTime @default(now()) @map("fecha_registro") @db.DateTime2
+
+  alimentacion AlimentacionRegistro @relation(fields: [alimentacionId], references: [alimentacionId], onDelete: NoAction, onUpdate: NoAction)
+  producto     InventarioProducto   @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([alimentacionId, productoId])
+  @@index([alimentacionId])
+  @@index([productoId])
+  @@map("alimentacion_detalles")
+}
+
+// ======================================================
+// MÓDULO: SANIDAD
+// ======================================================
+
+model SanidadAplicacion {
+  aplicacionSanitariaId  Int       @id @default(autoincrement()) @map("aplicacion_sanitaria_id")
+  animalId               Int?      @map("animal_id")
+  loteProduccionId       Int?      @map("lote_produccion_id")
+  productoId             Int       @map("producto_id")
+  usuarioId              Int       @map("usuario_id")
+  tipoAplicacion         String    @map("tipo_aplicacion") @db.NVarChar(50)
+  dosis                  Decimal   @db.Decimal(18, 4)
+  unidadMedida           String    @map("unidad_medida") @db.NVarChar(30)
+  cantidadTotalUtilizada Decimal   @map("cantidad_total_utilizada") @db.Decimal(18, 4)
+  fechaAplicacion        DateTime  @map("fecha_aplicacion") @db.Date
+  proximaAplicacion      DateTime? @map("proxima_aplicacion") @db.Date
+  observaciones          String?   @db.NVarChar(1000)
+  fechaRegistro          DateTime  @default(now()) @map("fecha_registro") @db.DateTime2
+
+  animal   ProduccionAnimal?  @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  lote     ProduccionLote?    @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  producto InventarioProducto @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  usuario  UsuarioCuenta      @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([animalId])
+  @@index([loteProduccionId])
+  @@index([productoId])
+  @@index([usuarioId])
+  @@index([tipoAplicacion])
+  @@index([fechaAplicacion])
+  @@map("sanidad_aplicaciones")
 }
