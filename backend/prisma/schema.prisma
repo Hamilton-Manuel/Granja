@@ -115,3 +115,176 @@ model UsuarioBitacora {
   @@index([fecha])
   @@map("usuarios_bitacora")
 }
+
+// ======================================================
+// MÓDULO: CLIENTES Y PROVEEDORES
+// ======================================================
+
+model ClienteRegistro {
+  clienteId          Int      @id @default(autoincrement()) @map("cliente_id")
+  nombreCompleto     String   @map("nombre_completo") @db.NVarChar(200)
+  numeroDocumento    String?  @map("numero_documento") @db.NVarChar(50)
+  nit                String?  @db.NVarChar(20)
+  telefono           String?  @db.NVarChar(30)
+  correo             String?  @db.NVarChar(200)
+  direccion          String?  @db.NVarChar(500)
+  tipoCliente        String?  @map("tipo_cliente") @db.NVarChar(50)
+  observaciones      String?  @db.NVarChar(1000)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  @@index([nombreCompleto])
+  @@index([nit])
+  @@index([activo])
+  @@map("clientes_registros")
+}
+
+model ProveedorRegistro {
+  proveedorId        Int      @id @default(autoincrement()) @map("proveedor_id")
+  nombre             String   @db.NVarChar(200)
+  nombreComercial    String?  @map("nombre_comercial") @db.NVarChar(200)
+  numeroDocumento    String?  @map("numero_documento") @db.NVarChar(50)
+  nit                String?  @db.NVarChar(20)
+  telefono           String?  @db.NVarChar(30)
+  correo             String?  @db.NVarChar(200)
+  direccion          String?  @db.NVarChar(500)
+  tipoProveedor      String?  @map("tipo_proveedor") @db.NVarChar(50)
+  observaciones      String?  @db.NVarChar(1000)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  productos       ProveedorProducto[]
+  lotesInventario InventarioLote[]
+
+  @@index([nombre])
+  @@index([nit])
+  @@index([activo])
+  @@map("proveedores_registros")
+}
+
+// ======================================================
+// MÓDULO: INVENTARIO
+// ======================================================
+
+model InventarioCategoria {
+  categoriaId        Int      @id @default(autoincrement()) @map("categoria_id")
+  nombre             String   @unique @db.NVarChar(150)
+  descripcion        String?  @db.NVarChar(500)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  productos InventarioProducto[]
+
+  @@index([activo])
+  @@map("inventario_categorias")
+}
+
+model InventarioProducto {
+  productoId         Int      @id @default(autoincrement()) @map("producto_id")
+  categoriaId        Int      @map("categoria_id")
+  codigo             String   @unique @db.NVarChar(50)
+  nombre             String   @db.NVarChar(200)
+  descripcion        String?  @db.NVarChar(500)
+  unidadMedida       String   @map("unidad_medida") @db.NVarChar(50)
+  manejaLotes        Boolean  @default(false) @map("maneja_lotes")
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  categoria InventarioCategoria @relation(fields: [categoriaId], references: [categoriaId], onDelete: NoAction, onUpdate: NoAction)
+
+  proveedores ProveedorProducto[]
+  existencias InventarioExistencia[]
+
+  @@index([categoriaId])
+  @@index([nombre])
+  @@index([activo])
+  @@map("inventario_productos")
+}
+
+model InventarioAlmacen {
+  inventarioId       Int      @id @default(autoincrement()) @map("inventario_id")
+  nombre             String   @db.NVarChar(150)
+  descripcion        String?  @db.NVarChar(500)
+  ubicacion          String?  @db.NVarChar(300)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  existencias InventarioExistencia[]
+
+  @@index([activo])
+  @@map("inventario_almacenes")
+}
+
+model InventarioExistencia {
+  inventarioProductoId Int      @id @default(autoincrement()) @map("inventario_producto_id")
+  inventarioId         Int      @map("inventario_id")
+  productoId           Int      @map("producto_id")
+  existenciaActual     Decimal  @default(0) @map("existencia_actual") @db.Decimal(18, 4)
+  existenciaMinima     Decimal  @default(0) @map("existencia_minima") @db.Decimal(18, 4)
+  activo               Boolean  @default(true)
+  fechaCreacion        DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion   DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  almacen  InventarioAlmacen  @relation(fields: [inventarioId], references: [inventarioId], onDelete: NoAction, onUpdate: NoAction)
+  producto InventarioProducto @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+
+  lotes InventarioLote[]
+
+  @@unique([inventarioId, productoId])
+  @@index([inventarioId])
+  @@index([productoId])
+  @@index([activo])
+  @@map("inventario_existencias")
+}
+
+model InventarioLote {
+  loteInventarioId     Int       @id @default(autoincrement()) @map("lote_inventario_id")
+  inventarioProductoId Int       @map("inventario_producto_id")
+  proveedorId          Int?      @map("proveedor_id")
+  codigoLote           String    @map("codigo_lote") @db.NVarChar(100)
+  fechaIngreso         DateTime  @default(now()) @map("fecha_ingreso") @db.DateTime2
+  fechaFabricacion     DateTime? @map("fecha_fabricacion") @db.Date
+  fechaVencimiento     DateTime? @map("fecha_vencimiento") @db.Date
+  costoUnitario        Decimal?  @map("costo_unitario") @db.Decimal(18, 4)
+  existenciaActual     Decimal   @default(0) @map("existencia_actual") @db.Decimal(18, 4)
+  activo               Boolean   @default(true)
+  observaciones        String?   @db.NVarChar(1000)
+  fechaCreacion        DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion   DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  existencia InventarioExistencia @relation(fields: [inventarioProductoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
+
+  proveedor ProveedorRegistro? @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([inventarioProductoId])
+  @@index([proveedorId])
+  @@index([codigoLote])
+  @@index([fechaVencimiento])
+  @@index([activo])
+  @@map("inventario_lotes")
+}
+
+model ProveedorProducto {
+  proveedorProductoId Int      @id @default(autoincrement()) @map("proveedor_producto_id")
+  proveedorId         Int      @map("proveedor_id")
+  productoId          Int      @map("producto_id")
+  precioReferencia    Decimal? @map("precio_referencia") @db.Decimal(18, 4)
+  activo              Boolean  @default(true)
+  fechaRelacion       DateTime @default(now()) @map("fecha_relacion") @db.DateTime2
+  fechaActualizacion  DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+
+  proveedor ProveedorRegistro @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
+
+  producto InventarioProducto @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([proveedorId, productoId])
+  @@index([proveedorId])
+  @@index([productoId])
+  @@index([activo])
+  @@map("proveedores_productos")
+}
