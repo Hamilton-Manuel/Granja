@@ -52,9 +52,12 @@ model UsuarioCuenta {
 
   rol UsuarioRol @relation(fields: [rolId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
 
-  sesiones  UsuarioSesion[]
-  bitacoras UsuarioBitacora[]
-  ventas    VentaRegistro[]
+  sesiones                UsuarioSesion[]
+  bitacoras               UsuarioBitacora[]
+  ventas                  VentaRegistro[]
+  inventarioTransacciones InventarioTransaccion[]
+  produccionTransacciones ProduccionTransaccion[]
+  produccionEventos       ProduccionEvento[]
 
   permisosAsignados          UsuarioRolPermiso[]         @relation("UsuarioAsignadorRolPermiso")
   asignacionesProduccion     ProduccionAsignacionLote[]
@@ -164,8 +167,9 @@ model ProveedorRegistro {
   fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
 
-  productos       ProveedorProducto[]
-  lotesInventario InventarioLote[]
+  productos               ProveedorProducto[]
+  lotesInventario         InventarioLote[]
+  inventarioTransacciones InventarioTransaccion[]
 
   @@index([nombre])
   @@index([nit])
@@ -245,7 +249,8 @@ model InventarioExistencia {
   almacen  InventarioAlmacen  @relation(fields: [inventarioId], references: [inventarioId], onDelete: NoAction, onUpdate: NoAction)
   producto InventarioProducto @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
 
-  lotes InventarioLote[]
+  lotes         InventarioLote[]
+  transacciones InventarioTransaccion[]
 
   @@unique([inventarioId, productoId])
   @@index([inventarioId])
@@ -271,7 +276,8 @@ model InventarioLote {
 
   existencia InventarioExistencia @relation(fields: [inventarioProductoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
 
-  proveedor ProveedorRegistro? @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
+  proveedor     ProveedorRegistro?      @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
+  transacciones InventarioTransaccion[]
 
   @@index([inventarioProductoId])
   @@index([proveedorId])
@@ -355,6 +361,9 @@ model ProduccionLote {
   alimentacionRegistros    AlimentacionRegistro[]
   sanidadAplicaciones      SanidadAplicacion[]
   ventasDetalles           VentaDetalle[]
+  inventarioTransacciones  InventarioTransaccion[]
+  produccionTransacciones  ProduccionTransaccion[]
+  produccionEventos        ProduccionEvento[]
 
   @@index([estado])
   @@index([fechaInicio])
@@ -382,6 +391,8 @@ model ProduccionAnimal {
   alimentacionAsignaciones AlimentacionAsignacion[]
   alimentacionRegistros    AlimentacionRegistro[]
   sanidadAplicaciones      SanidadAplicacion[]
+  inventarioTransacciones  InventarioTransaccion[]
+  produccionEventos        ProduccionEvento[]
 
   @@index([tipoAnimalId])
   @@index([razaId])
@@ -550,8 +561,9 @@ model AlimentacionDetalle {
   unidadMedida          String   @map("unidad_medida") @db.NVarChar(30)
   fechaRegistro         DateTime @default(now()) @map("fecha_registro") @db.DateTime2
 
-  alimentacion AlimentacionRegistro @relation(fields: [alimentacionId], references: [alimentacionId], onDelete: NoAction, onUpdate: NoAction)
-  producto     InventarioProducto   @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  alimentacion            AlimentacionRegistro    @relation(fields: [alimentacionId], references: [alimentacionId], onDelete: NoAction, onUpdate: NoAction)
+  producto                InventarioProducto      @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  inventarioTransacciones InventarioTransaccion[]
 
   @@unique([alimentacionId, productoId])
   @@index([alimentacionId])
@@ -578,10 +590,11 @@ model SanidadAplicacion {
   observaciones          String?   @db.NVarChar(1000)
   fechaRegistro          DateTime  @default(now()) @map("fecha_registro") @db.DateTime2
 
-  animal   ProduccionAnimal?  @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
-  lote     ProduccionLote?    @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
-  producto InventarioProducto @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
-  usuario  UsuarioCuenta      @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  animal                  ProduccionAnimal?       @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  lote                    ProduccionLote?         @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  producto                InventarioProducto      @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  usuario                 UsuarioCuenta           @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  inventarioTransacciones InventarioTransaccion[]
 
   @@index([animalId])
   @@index([loteProduccionId])
@@ -632,8 +645,9 @@ model VentaDetalle {
   descripcion      String?  @db.NVarChar(500)
   fechaCreacion    DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
 
-  venta VentaRegistro  @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
-  lote  ProduccionLote @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  venta                   VentaRegistro           @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
+  lote                    ProduccionLote          @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  produccionTransacciones ProduccionTransaccion[]
 
   @@unique([ventaId, loteProduccionId])
   @@index([ventaId])
@@ -656,4 +670,104 @@ model VentaRecibo {
   @@index([fechaEmision])
   @@index([estado])
   @@map("ventas_recibos")
+}
+
+// ======================================================
+// MÓDULO: INVENTARIO - TRANSACCIONES
+// ======================================================
+
+model InventarioTransaccion {
+  transaccionInventarioId Int      @id @default(autoincrement()) @map("transaccion_inventario_id")
+  inventarioProductoId    Int      @map("inventario_producto_id")
+  loteInventarioId        Int?     @map("lote_inventario_id")
+  usuarioId               Int      @map("usuario_id")
+  proveedorId             Int?     @map("proveedor_id")
+  loteProduccionId        Int?     @map("lote_produccion_id")
+  animalId                Int?     @map("animal_id")
+  alimentacionDetalleId   Int?     @map("alimentacion_detalle_id")
+  aplicacionSanitariaId   Int?     @map("aplicacion_sanitaria_id")
+  tipoTransaccion         String   @map("tipo_transaccion") @db.NVarChar(30)
+  cantidad                Decimal  @db.Decimal(18, 4)
+  costoUnitario           Decimal? @map("costo_unitario") @db.Decimal(18, 4)
+  documentoReferencia     String?  @map("documento_referencia") @db.NVarChar(150)
+  motivo                  String?  @db.NVarChar(500)
+  observaciones           String?  @db.NVarChar(1000)
+  fechaTransaccion        DateTime @default(now()) @map("fecha_transaccion") @db.DateTime2
+
+  existencia          InventarioExistencia @relation(fields: [inventarioProductoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
+  loteInventario      InventarioLote?      @relation(fields: [loteInventarioId], references: [loteInventarioId], onDelete: NoAction, onUpdate: NoAction)
+  usuario             UsuarioCuenta        @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  proveedor           ProveedorRegistro?   @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
+  loteProduccion      ProduccionLote?      @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  animal              ProduccionAnimal?    @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  alimentacionDetalle AlimentacionDetalle? @relation(fields: [alimentacionDetalleId], references: [detalleAlimentacionId], onDelete: NoAction, onUpdate: NoAction)
+  aplicacionSanitaria SanidadAplicacion?   @relation(fields: [aplicacionSanitariaId], references: [aplicacionSanitariaId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([inventarioProductoId])
+  @@index([loteInventarioId])
+  @@index([usuarioId])
+  @@index([proveedorId])
+  @@index([loteProduccionId])
+  @@index([animalId])
+  @@index([alimentacionDetalleId])
+  @@index([aplicacionSanitariaId])
+  @@index([tipoTransaccion])
+  @@index([fechaTransaccion])
+  @@map("inventario_transacciones")
+}
+
+// ======================================================
+// MÓDULO: PRODUCCIÓN - TRANSACCIONES
+// ======================================================
+
+model ProduccionTransaccion {
+  transaccionProduccionId Int      @id @default(autoincrement()) @map("transaccion_produccion_id")
+  loteProduccionId        Int      @map("lote_produccion_id")
+  usuarioId               Int      @map("usuario_id")
+  ventaDetalleId          Int?     @map("venta_detalle_id")
+  tipoTransaccion         String   @map("tipo_transaccion") @db.NVarChar(30)
+  cantidad                Int
+  documentoReferencia     String?  @map("documento_referencia") @db.NVarChar(150)
+  motivo                  String?  @db.NVarChar(500)
+  observaciones           String?  @db.NVarChar(1000)
+  fechaTransaccion        DateTime @default(now()) @map("fecha_transaccion") @db.DateTime2
+
+  lote         ProduccionLote @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  usuario      UsuarioCuenta  @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  ventaDetalle VentaDetalle?  @relation(fields: [ventaDetalleId], references: [detalleVentaId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([loteProduccionId])
+  @@index([usuarioId])
+  @@index([ventaDetalleId])
+  @@index([tipoTransaccion])
+  @@index([fechaTransaccion])
+  @@map("produccion_transacciones")
+}
+
+// ======================================================
+// MÓDULO: PRODUCCIÓN - EVENTOS
+// ======================================================
+
+model ProduccionEvento {
+  eventoProduccionId Int      @id @default(autoincrement()) @map("evento_produccion_id")
+  loteProduccionId   Int?     @map("lote_produccion_id")
+  animalId           Int?     @map("animal_id")
+  usuarioId          Int      @map("usuario_id")
+  tipoEvento         String   @map("tipo_evento") @db.NVarChar(50)
+  referenciaTipo     String?  @map("referencia_tipo") @db.NVarChar(100)
+  referenciaId       Int?     @map("referencia_id")
+  fechaEvento        DateTime @default(now()) @map("fecha_evento") @db.DateTime2
+  descripcion        String   @db.NVarChar(1000)
+
+  lote    ProduccionLote?   @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  animal  ProduccionAnimal? @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  usuario UsuarioCuenta     @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([loteProduccionId])
+  @@index([animalId])
+  @@index([usuarioId])
+  @@index([tipoEvento])
+  @@index([fechaEvento])
+  @@index([referenciaTipo, referenciaId])
+  @@map("produccion_eventos")
 }
