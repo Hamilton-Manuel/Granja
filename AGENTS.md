@@ -196,6 +196,11 @@ La organización esperada por módulo será similar a:
 
 ```text
 backend/src/modules/
+├── salud/
+│   ├── salud.routes.ts
+│   ├── salud.controller.ts
+│   ├── salud.service.ts
+│   └── salud.repository.ts
 ├── usuarios/
 │   ├── usuarios.routes.ts
 │   ├── usuarios.controller.ts
@@ -212,6 +217,37 @@ backend/src/modules/
     ├── ventas.service.ts
     └── ventas.repository.ts
 ```
+
+### Convención del módulo de salud
+
+El módulo interno encargado del Health Check debe utilizar nombres en español.
+
+La carpeta y archivos serán:
+
+```text
+backend/src/modules/salud/
+├── salud.routes.ts
+├── salud.controller.ts
+├── salud.service.ts
+└── salud.repository.ts
+```
+
+Las funciones propias del módulo utilizarán el prefijo `Salud_`.
+
+Ejemplos:
+
+```typescript
+Salud_obtenerEstado();
+Salud_verificarBaseDatos();
+```
+
+Aunque internamente el módulo se denomine `salud`, el endpoint HTTP público se mantendrá como:
+
+```text
+GET /api/health
+```
+
+Se conserva `/health` por ser una convención técnica común para endpoints de comprobación de estado, mientras que el código interno mantiene la nomenclatura en español definida para el proyecto.
 
 ---
 
@@ -490,6 +526,39 @@ Ventas_confirmarVenta();
 Inventario_registrarEntrada();
 ```
 
+### Prefijos transversales y de infraestructura
+
+- `Configuracion_` para carga y validación de configuración.
+- `BaseDatos_` para conexión, comprobación y cierre de base de datos.
+- `Servidor_` para inicio, cierre y ciclo de vida del servidor.
+- `Api_` para infraestructura general de rutas y API.
+- `Middleware_` para middleware transversal.
+- `Salud_` para el módulo de Health Check.
+
+Ejemplos:
+
+```typescript
+Configuracion_validarVariablesEntorno();
+
+BaseDatos_verificarConexion();
+BaseDatos_desconectar();
+
+Servidor_iniciar();
+Servidor_cerrar();
+
+Api_configurarRutas();
+
+Middleware_manejarErrores();
+Middleware_rutaNoEncontrada();
+
+Salud_obtenerEstado();
+Salud_verificarBaseDatos();
+```
+
+Los prefijos transversales siguen la misma regla que los módulos de negocio.
+
+No crear funciones propias del sistema sin prefijo solamente porque pertenezcan a infraestructura, configuración o middleware.
+
 ### Funciones que interactúan con varios módulos
 
 Cuando una operación involucre varios módulos, el prefijo corresponde al módulo responsable de la operación.
@@ -628,6 +697,7 @@ Las convenciones `Str`, `Int`, `Dec`, `Bool`, `Dt`, `Arr` y `Obj` aplican princi
 Ejemplo conceptual:
 
 ```text
+/api/health
 /api/usuarios
 /api/clientes
 /api/proveedores
@@ -638,6 +708,10 @@ Ejemplo conceptual:
 /api/ventas
 /api/reportes
 ```
+
+El endpoint `/api/health` pertenece internamente al módulo `salud`.
+
+El nombre externo del endpoint no obliga a utilizar nombres en inglés para carpetas, archivos, variables o funciones internas.
 
 ---
 
