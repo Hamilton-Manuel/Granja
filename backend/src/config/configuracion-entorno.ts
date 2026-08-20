@@ -44,6 +44,7 @@ const ObjEsquemaEntorno = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
+  SESSION_DURATION_HOURS: z.coerce.number().int().min(1).max(24).default(8),
 });
 
 export type ConfiguracionEntorno = z.infer<typeof ObjEsquemaEntorno>;

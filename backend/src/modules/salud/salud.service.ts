@@ -1,4 +1,8 @@
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
+import {
+  Fecha_formatearInstanteGuatemala,
+  Fecha_obtenerInstanteActual,
+} from "../../datetime/fecha.js";
 import { Salud_verificarConexionBaseDatos } from "./salud.repository.js";
 
 export interface EstadoSalud {
@@ -21,6 +25,6 @@ export async function Salud_consultarEstado(): Promise<EstadoSalud> {
   return {
     estado: "ok",
     baseDatos: "conectada",
-    fecha: new Date().toISOString(),
+    fecha: Fecha_formatearInstanteGuatemala(Fecha_obtenerInstanteActual()),
   };
 }

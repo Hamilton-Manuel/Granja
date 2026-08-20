@@ -23,6 +23,20 @@ export async function BaseDatos_verificarConexion(): Promise<void> {
   await ObjClientePrisma.$queryRaw`SELECT 1 AS estado`;
 }
 
+export async function BaseDatos_exigirBaseActual(
+  StrNombreEsperado: string,
+): Promise<void> {
+  const ArrResultado = await BaseDatos_obtenerCliente().$queryRaw<
+    Array<{ base_actual: string }>
+  >`SELECT DB_NAME() AS base_actual`;
+  const StrBaseActual = ArrResultado[0]?.base_actual;
+  if (StrBaseActual !== StrNombreEsperado) {
+    throw new Error(
+      `Operación cancelada: la base actual no coincide con la base esperada.`,
+    );
+  }
+}
+
 export async function BaseDatos_desconectar(): Promise<void> {
   if (ObjPrisma === undefined) {
     return;

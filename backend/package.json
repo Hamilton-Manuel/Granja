@@ -8,7 +8,9 @@
     "prisma:generate": "prisma generate",
     "build": "npm run prisma:generate && tsc",
     "start": "node dist/src/server.js",
-    "test": "tsx --test src/app.test.ts",
+    "test": "tsx --test src/app.test.ts src/auth/autenticacion.test.ts src/datetime/fecha.test.ts src/middleware/limite-login.middleware.test.ts",
+    "usuarios:bootstrap": "tsx src/scripts/bootstrap-usuarios.ts",
+    "usuarios:expirar-sesiones": "tsx src/scripts/expirar-sesiones.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
@@ -26,8 +28,11 @@
   "dependencies": {
     "@prisma/adapter-mssql": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "argon2": "0.44.0",
+    "cookie": "1.0.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "8.6.2",
     "zod": "^4.4.3"
   }
 }

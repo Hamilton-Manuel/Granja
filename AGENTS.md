@@ -275,6 +275,18 @@ Se conserva `/health` por ser una convención técnica común para endpoints de 
 - No modificar manualmente datos de producción.
 - Nunca asumir que un cambio en Prisma es seguro sin revisar las relaciones y restricciones existentes.
 
+### Política temporal
+
+- La zona funcional única es `America/Guatemala`, equivalente a `Central America Standard Time` en SQL Server.
+- Toda columna `DATETIME2(7)` representa componentes de hora civil Guatemala.
+- Toda columna `DATE` representa una fecha civil sin hora ni conversión de zona.
+- Utilizar exclusivamente la infraestructura transversal `Fecha_` para convertir entre instantes de JavaScript y valores `DATETIME2` usados por Prisma.
+- No tratar directamente un `Date` leído desde un `DATETIME2` Guatemala como instante real mediante `getTime()` o `toISOString()` sin convertirlo primero con `Fecha_`.
+- No utilizar `@default(now())` para nuevos timestamps ni `@updatedAt`; los defaults SQL deben usar `SYSUTCDATETIME() AT TIME ZONE 'UTC' AT TIME ZONE 'Central America Standard Time'` convertido a `DATETIME2(7)` y los Repositories deben asignar `fechaActualizacion` mediante `Fecha_`.
+- No utilizar triggers para normalizar zonas horarias.
+- No depender del timezone predeterminado de Windows, Docker, Node, Azure SQL u otro host.
+- No restar ni sumar seis horas manualmente en módulos del sistema.
+
 ### Migraciones
 
 Cuando se autorice modificar el modelo de datos:

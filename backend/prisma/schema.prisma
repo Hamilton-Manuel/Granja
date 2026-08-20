@@ -16,8 +16,8 @@ model UsuarioRol {
   nombre             String   @unique @db.NVarChar(100)
   descripcion        String?  @db.NVarChar(500)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   usuarios      UsuarioCuenta[]
   rolesPermisos UsuarioRolPermiso[]
@@ -32,7 +32,7 @@ model UsuarioPermiso {
   modulo        String   @db.NVarChar(100)
   accion        String   @db.NVarChar(100)
   activo        Boolean  @default(true)
-  fechaCreacion DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaCreacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
 
   rolesPermisos UsuarioRolPermiso[]
 
@@ -47,8 +47,8 @@ model UsuarioCuenta {
   correo             String   @unique @db.NVarChar(200)
   contrasenaHash     String   @map("contrasena_hash") @db.NVarChar(255)
   estado             String   @default("ACTIVO") @db.NVarChar(20)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   rol UsuarioRol @relation(fields: [rolId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
 
@@ -76,7 +76,7 @@ model UsuarioRolPermiso {
   rolId              Int      @map("rol_id")
   permisoId          Int      @map("permiso_id")
   usuarioAsignadorId Int      @map("usuario_asignador_id")
-  fechaAsignacion    DateTime @default(now()) @map("fecha_asignacion") @db.DateTime2
+  fechaAsignacion    DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_asignacion") @db.DateTime2
 
   rol UsuarioRol @relation(fields: [rolId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
 
@@ -95,7 +95,7 @@ model UsuarioSesion {
   sesionId        Int       @id @default(autoincrement()) @map("sesion_id")
   usuarioId       Int       @map("usuario_id")
   token           String    @unique @db.NVarChar(500)
-  fechaInicio     DateTime  @default(now()) @map("fecha_inicio") @db.DateTime2
+  fechaInicio     DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_inicio") @db.DateTime2
   fechaExpiracion DateTime  @map("fecha_expiracion") @db.DateTime2
   fechaCierre     DateTime? @map("fecha_cierre") @db.DateTime2
   estado          String    @default("ACTIVA") @db.NVarChar(20)
@@ -115,7 +115,7 @@ model UsuarioBitacora {
   accion      String   @db.NVarChar(100)
   descripcion String   @db.NVarChar(1000)
   resultado   String   @db.NVarChar(50)
-  fecha       DateTime @default(now()) @db.DateTime2
+  fecha       DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @db.DateTime2
   direccionIp String?  @map("direccion_ip") @db.NVarChar(45)
 
   usuario UsuarioCuenta? @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
@@ -141,8 +141,8 @@ model ClienteRegistro {
   tipoCliente        String?  @map("tipo_cliente") @db.NVarChar(50)
   observaciones      String?  @db.NVarChar(1000)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   ventas VentaRegistro[]
 
@@ -164,8 +164,8 @@ model ProveedorRegistro {
   tipoProveedor      String?  @map("tipo_proveedor") @db.NVarChar(50)
   observaciones      String?  @db.NVarChar(1000)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   productos               ProveedorProducto[]
   lotesInventario         InventarioLote[]
@@ -186,8 +186,8 @@ model InventarioCategoria {
   nombre             String   @unique @db.NVarChar(150)
   descripcion        String?  @db.NVarChar(500)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   productos InventarioProducto[]
 
@@ -204,8 +204,8 @@ model InventarioProducto {
   unidadMedida       String   @map("unidad_medida") @db.NVarChar(50)
   manejaLotes        Boolean  @default(false) @map("maneja_lotes")
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   categoria InventarioCategoria @relation(fields: [categoriaId], references: [categoriaId], onDelete: NoAction, onUpdate: NoAction)
 
@@ -227,8 +227,8 @@ model InventarioAlmacen {
   descripcion        String?  @db.NVarChar(500)
   ubicacion          String?  @db.NVarChar(300)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   existencias InventarioExistencia[]
 
@@ -243,8 +243,8 @@ model InventarioExistencia {
   existenciaActual     Decimal  @default(0) @map("existencia_actual") @db.Decimal(18, 4)
   existenciaMinima     Decimal  @default(0) @map("existencia_minima") @db.Decimal(18, 4)
   activo               Boolean  @default(true)
-  fechaCreacion        DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion   DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion   DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   almacen  InventarioAlmacen  @relation(fields: [inventarioId], references: [inventarioId], onDelete: NoAction, onUpdate: NoAction)
   producto InventarioProducto @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
@@ -264,15 +264,15 @@ model InventarioLote {
   inventarioProductoId Int       @map("inventario_producto_id")
   proveedorId          Int?      @map("proveedor_id")
   codigoLote           String    @map("codigo_lote") @db.NVarChar(100)
-  fechaIngreso         DateTime  @default(now()) @map("fecha_ingreso") @db.DateTime2
+  fechaIngreso         DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_ingreso") @db.DateTime2
   fechaFabricacion     DateTime? @map("fecha_fabricacion") @db.Date
   fechaVencimiento     DateTime? @map("fecha_vencimiento") @db.Date
   costoUnitario        Decimal?  @map("costo_unitario") @db.Decimal(18, 4)
   existenciaActual     Decimal   @default(0) @map("existencia_actual") @db.Decimal(18, 4)
   activo               Boolean   @default(true)
   observaciones        String?   @db.NVarChar(1000)
-  fechaCreacion        DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion   DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion        DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion   DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   existencia InventarioExistencia @relation(fields: [inventarioProductoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
 
@@ -293,8 +293,8 @@ model ProveedorProducto {
   productoId          Int      @map("producto_id")
   precioReferencia    Decimal? @map("precio_referencia") @db.Decimal(18, 4)
   activo              Boolean  @default(true)
-  fechaRelacion       DateTime @default(now()) @map("fecha_relacion") @db.DateTime2
-  fechaActualizacion  DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaRelacion       DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_relacion") @db.DateTime2
+  fechaActualizacion  DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   proveedor ProveedorRegistro @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
 
@@ -316,8 +316,8 @@ model ProduccionTipoAnimal {
   nombre             String   @unique @db.NVarChar(100)
   descripcion        String?  @db.NVarChar(500)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   razas    ProduccionRaza[]
   animales ProduccionAnimal[]
@@ -332,8 +332,8 @@ model ProduccionRaza {
   nombre             String   @db.NVarChar(150)
   descripcion        String?  @db.NVarChar(500)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   tipoAnimal ProduccionTipoAnimal @relation(fields: [tipoAnimalId], references: [tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
   animales   ProduccionAnimal[]
@@ -349,11 +349,11 @@ model ProduccionLote {
   codigo             String    @unique @db.NVarChar(50)
   nombre             String    @db.NVarChar(150)
   descripcion        String?   @db.NVarChar(500)
-  fechaInicio        DateTime  @default(now()) @map("fecha_inicio") @db.DateTime2
+  fechaInicio        DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_inicio") @db.DateTime2
   fechaCierre        DateTime? @map("fecha_cierre") @db.DateTime2
   estado             String    @default("ACTIVO") @db.NVarChar(20)
-  fechaCreacion      DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   asignaciones             ProduccionAsignacionLote[]
   mediciones               ProduccionMedicion[]
@@ -377,11 +377,11 @@ model ProduccionAnimal {
   identificacion     String    @unique @db.NVarChar(100)
   sexo               String    @db.NVarChar(20)
   fechaNacimiento    DateTime? @map("fecha_nacimiento") @db.Date
-  fechaIngreso       DateTime  @default(now()) @map("fecha_ingreso") @db.DateTime2
+  fechaIngreso       DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_ingreso") @db.DateTime2
   estadoActual       String    @default("ACTIVO") @map("estado_actual") @db.NVarChar(20)
   observaciones      String?   @db.NVarChar(1000)
-  fechaCreacion      DateTime  @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime  @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   tipoAnimal               ProduccionTipoAnimal        @relation(fields: [tipoAnimalId], references: [tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
   raza                     ProduccionRaza?             @relation(fields: [razaId], references: [razaId], onDelete: NoAction, onUpdate: NoAction)
@@ -405,7 +405,7 @@ model ProduccionAsignacionLote {
   animalId         Int       @map("animal_id")
   loteProduccionId Int       @map("lote_produccion_id")
   usuarioId        Int       @map("usuario_id")
-  fechaInicio      DateTime  @default(now()) @map("fecha_inicio") @db.DateTime2
+  fechaInicio      DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_inicio") @db.DateTime2
   fechaFin         DateTime? @map("fecha_fin") @db.DateTime2
   motivoCambio     String?   @map("motivo_cambio") @db.NVarChar(500)
   estado           String    @default("VIGENTE") @db.NVarChar(20)
@@ -428,7 +428,7 @@ model ProduccionHistorialEstado {
   estadoAnterior    String?  @map("estado_anterior") @db.NVarChar(30)
   estadoNuevo       String   @map("estado_nuevo") @db.NVarChar(30)
   motivo            String?  @db.NVarChar(500)
-  fechaCambio       DateTime @default(now()) @map("fecha_cambio") @db.DateTime2
+  fechaCambio       DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_cambio") @db.DateTime2
 
   animal  ProduccionAnimal @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
   usuario UsuarioCuenta    @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
@@ -447,7 +447,7 @@ model ProduccionMedicion {
   tipoMedicion     String   @map("tipo_medicion") @db.NVarChar(50)
   valor            Decimal  @db.Decimal(18, 4)
   unidadMedida     String   @map("unidad_medida") @db.NVarChar(30)
-  fechaMedicion    DateTime @default(now()) @map("fecha_medicion") @db.DateTime2
+  fechaMedicion    DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_medicion") @db.DateTime2
   observaciones    String?  @db.NVarChar(1000)
 
   animal  ProduccionAnimal? @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
@@ -472,8 +472,8 @@ model AlimentacionFormula {
   cantidadBase       Decimal  @map("cantidad_base") @db.Decimal(18, 4)
   unidadBase         String   @map("unidad_base") @db.NVarChar(30)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   detalles     AlimentacionFormulaDetalle[]
   asignaciones AlimentacionAsignacion[]
@@ -490,8 +490,8 @@ model AlimentacionFormulaDetalle {
   cantidad           Decimal  @db.Decimal(18, 4)
   unidadMedida       String   @map("unidad_medida") @db.NVarChar(30)
   activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   formula  AlimentacionFormula @relation(fields: [formulaId], references: [formulaId], onDelete: NoAction, onUpdate: NoAction)
   producto InventarioProducto  @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
@@ -537,7 +537,7 @@ model AlimentacionRegistro {
   cantidadSuministrada Decimal  @map("cantidad_suministrada") @db.Decimal(18, 4)
   unidadMedida         String   @map("unidad_medida") @db.NVarChar(30)
   observaciones        String?  @db.NVarChar(1000)
-  fechaRegistro        DateTime @default(now()) @map("fecha_registro") @db.DateTime2
+  fechaRegistro        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_registro") @db.DateTime2
 
   formula  AlimentacionFormula   @relation(fields: [formulaId], references: [formulaId], onDelete: NoAction, onUpdate: NoAction)
   animal   ProduccionAnimal?     @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
@@ -559,7 +559,7 @@ model AlimentacionDetalle {
   productoId            Int      @map("producto_id")
   cantidadConsumida     Decimal  @map("cantidad_consumida") @db.Decimal(18, 4)
   unidadMedida          String   @map("unidad_medida") @db.NVarChar(30)
-  fechaRegistro         DateTime @default(now()) @map("fecha_registro") @db.DateTime2
+  fechaRegistro         DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_registro") @db.DateTime2
 
   alimentacion            AlimentacionRegistro    @relation(fields: [alimentacionId], references: [alimentacionId], onDelete: NoAction, onUpdate: NoAction)
   producto                InventarioProducto      @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
@@ -588,7 +588,7 @@ model SanidadAplicacion {
   fechaAplicacion        DateTime  @map("fecha_aplicacion") @db.Date
   proximaAplicacion      DateTime? @map("proxima_aplicacion") @db.Date
   observaciones          String?   @db.NVarChar(1000)
-  fechaRegistro          DateTime  @default(now()) @map("fecha_registro") @db.DateTime2
+  fechaRegistro          DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_registro") @db.DateTime2
 
   animal                  ProduccionAnimal?       @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
   lote                    ProduccionLote?         @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
@@ -613,15 +613,15 @@ model VentaRegistro {
   ventaId            Int      @id @default(autoincrement()) @map("venta_id")
   clienteId          Int      @map("cliente_id")
   usuarioId          Int      @map("usuario_id")
-  fechaVenta         DateTime @default(now()) @map("fecha_venta") @db.DateTime2
+  fechaVenta         DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_venta") @db.DateTime2
   subtotal           Decimal  @db.Decimal(18, 2)
   descuento          Decimal  @default(0) @db.Decimal(18, 2)
   total              Decimal  @db.Decimal(18, 2)
   formaPago          String   @map("forma_pago") @db.NVarChar(50)
   estado             String   @default("PENDIENTE") @db.NVarChar(20)
   observaciones      String?  @db.NVarChar(1000)
-  fechaCreacion      DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @updatedAt @map("fecha_actualizacion") @db.DateTime2
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
   cliente  ClienteRegistro @relation(fields: [clienteId], references: [clienteId], onDelete: NoAction, onUpdate: NoAction)
   usuario  UsuarioCuenta   @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
@@ -643,7 +643,7 @@ model VentaDetalle {
   precioUnitario   Decimal  @map("precio_unitario") @db.Decimal(18, 2)
   subtotal         Decimal  @db.Decimal(18, 2)
   descripcion      String?  @db.NVarChar(500)
-  fechaCreacion    DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaCreacion    DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
 
   venta                   VentaRegistro           @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
   lote                    ProduccionLote          @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
@@ -659,11 +659,11 @@ model VentaRecibo {
   reciboId      Int      @id @default(autoincrement()) @map("recibo_id")
   ventaId       Int      @unique @map("venta_id")
   numeroRecibo  String   @unique @map("numero_recibo") @db.NVarChar(50)
-  fechaEmision  DateTime @default(now()) @map("fecha_emision") @db.DateTime2
+  fechaEmision  DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_emision") @db.DateTime2
   monto         Decimal  @db.Decimal(18, 2)
   concepto      String   @db.NVarChar(1000)
   estado        String   @default("EMITIDO") @db.NVarChar(20)
-  fechaCreacion DateTime @default(now()) @map("fecha_creacion") @db.DateTime2
+  fechaCreacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
 
   venta VentaRegistro @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
 
@@ -692,7 +692,7 @@ model InventarioTransaccion {
   documentoReferencia     String?  @map("documento_referencia") @db.NVarChar(150)
   motivo                  String?  @db.NVarChar(500)
   observaciones           String?  @db.NVarChar(1000)
-  fechaTransaccion        DateTime @default(now()) @map("fecha_transaccion") @db.DateTime2
+  fechaTransaccion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_transaccion") @db.DateTime2
 
   existencia          InventarioExistencia @relation(fields: [inventarioProductoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
   loteInventario      InventarioLote?      @relation(fields: [loteInventarioId], references: [loteInventarioId], onDelete: NoAction, onUpdate: NoAction)
@@ -730,7 +730,7 @@ model ProduccionTransaccion {
   documentoReferencia     String?  @map("documento_referencia") @db.NVarChar(150)
   motivo                  String?  @db.NVarChar(500)
   observaciones           String?  @db.NVarChar(1000)
-  fechaTransaccion        DateTime @default(now()) @map("fecha_transaccion") @db.DateTime2
+  fechaTransaccion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_transaccion") @db.DateTime2
 
   lote         ProduccionLote @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
   usuario      UsuarioCuenta  @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
@@ -756,7 +756,7 @@ model ProduccionEvento {
   tipoEvento         String   @map("tipo_evento") @db.NVarChar(50)
   referenciaTipo     String?  @map("referencia_tipo") @db.NVarChar(100)
   referenciaId       Int?     @map("referencia_id")
-  fechaEvento        DateTime @default(now()) @map("fecha_evento") @db.DateTime2
+  fechaEvento        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_evento") @db.DateTime2
   descripcion        String   @db.NVarChar(1000)
 
   lote    ProduccionLote?   @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)

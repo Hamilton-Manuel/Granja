@@ -75,6 +75,14 @@ test("una ruta inexistente devuelve el error 404 uniforme", async () => {
   });
 });
 
+test("una ruta protegida sin sesión devuelve 401 y no permite caché", async () => {
+  const ObjRespuesta = await fetch(`${StrUrlBase}/api/usuarios/sesion`);
+  const ObjContenido = (await ObjRespuesta.json()) as { error: { codigo: string } };
+  assert.equal(ObjRespuesta.status, 401);
+  assert.equal(ObjContenido.error.codigo, "NO_AUTENTICADO");
+  assert.equal(ObjRespuesta.headers.get("cache-control"), "no-store");
+});
+
 test("un cuerpo JSON mal formado devuelve un error 400 sanitizado", async () => {
   const StrDetalleSensible =
     "DATABASE_URL=sqlserver://usuario:contrasena@servidor";
