@@ -1,0 +1,44 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1d2a22;
+  background: #f4f2e9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --verde-900: #183b2a;
+  --verde-800: #234b36;
+  --verde-700: #316448;
+  --verde-100: #e2ede4;
+  --crema-50: #fbfaf5;
+  --crema-100: #f4f2e9;
+  --tierra-500: #a76d3e;
+  --texto: #1d2a22;
+  --texto-suave: #607066;
+  --borde: #d8ddd7;
+  --error: #9f2d2d;
+  --sombra: 0 16px 40px rgba(24, 59, 42, 0.1);
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--crema-100); }
+button, input { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid rgba(49, 100, 72, 0.35); outline-offset: 2px; }
+h1, h2, p { margin-top: 0; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.7rem); line-height: 1.12; letter-spacing: -0.035em; }
+h2 { color: var(--verde-900); }
+.etiqueta { color: var(--tierra-500); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
+.boton-primario, .boton-secundario { border: 0; border-radius: 0.75rem; cursor: pointer; font-weight: 750; min-height: 2.8rem; padding: 0.72rem 1.15rem; transition: background-color 150ms ease, opacity 150ms ease; }
+.boton-primario { background: var(--verde-800); color: #fff; }
+.boton-primario:hover:not(:disabled) { background: var(--verde-900); }
+.boton-secundario { background: var(--verde-100); color: var(--verde-900); }
+.boton-secundario:hover:not(:disabled) { background: #d4e4d7; }
+button:disabled { cursor: not-allowed; opacity: 0.62; }
+.enlace-boton { display: inline-flex; align-items: center; text-decoration: none; }
+.estado-pantalla { align-items: center; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 2rem; text-align: center; }
+.indicador-carga { animation: giro 900ms linear infinite; border: 3px solid #cbd7ce; border-top-color: var(--verde-700); border-radius: 50%; height: 2.4rem; margin-bottom: 1rem; width: 2.4rem; }
+.estado-simbolo { align-items: center; background: #f5dddd; border-radius: 50%; color: var(--error); display: flex; font-size: 1.5rem; font-weight: 800; height: 3.5rem; justify-content: center; margin-bottom: 1rem; width: 3.5rem; }
+.estado-error-sesion p { color: var(--texto-suave); max-width: 34rem; }
+.mensaje-error { background: #fceded; border: 1px solid #efc8c8; border-radius: 0.7rem; color: #7f2626; display: flex; flex-direction: column; font-size: 0.9rem; gap: 0.2rem; padding: 0.8rem 1rem; }
+@keyframes giro { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }

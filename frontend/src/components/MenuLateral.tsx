@@ -1,0 +1,64 @@
+import { NavLink } from "react-router-dom";
+
+import { useSesion } from "../hooks/useSesion";
+
+interface PropiedadesMenuLateral {
+  BoolAbierto: boolean;
+  Autenticacion_cerrarMenu: () => void;
+}
+
+const ArrModulosFuturos = [
+  "Clientes",
+  "Proveedores",
+  "Inventario",
+  "Producción",
+  "Alimentación",
+  "Sanidad",
+  "Ventas",
+  "Reportes",
+];
+
+export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: PropiedadesMenuLateral) {
+  const { Autenticacion_tienePermiso } = useSesion();
+  const BoolMostrarUsuarios = Autenticacion_tienePermiso("USUARIOS_CONSULTAR");
+
+  return (
+    <>
+      <button
+        className={`menu-fondo ${BoolAbierto ? "menu-fondo--visible" : ""}`}
+        type="button"
+        aria-label="Cerrar menú"
+        onClick={Autenticacion_cerrarMenu}
+      />
+      <aside className={`menu-lateral ${BoolAbierto ? "menu-lateral--abierto" : ""}`} aria-label="Navegación principal">
+        <div className="marca">
+          <span className="marca-sello" aria-hidden="true">EC</span>
+          <div>
+            <strong>El Chiflón</strong>
+            <span>Gestión de granja</span>
+          </div>
+        </div>
+        <nav className="menu-navegacion">
+          <NavLink
+            to="/inicio"
+            className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`}
+            onClick={Autenticacion_cerrarMenu}
+          >
+            <span aria-hidden="true">⌂</span> Inicio
+          </NavLink>
+          {BoolMostrarUsuarios && (
+            <span className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
+              <span aria-hidden="true">♙</span> Usuarios <small>Próximamente</small>
+            </span>
+          )}
+          {ArrModulosFuturos.map((StrModulo) => (
+            <span key={StrModulo} className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
+              <span aria-hidden="true">•</span> {StrModulo} <small>Próximamente</small>
+            </span>
+          ))}
+        </nav>
+        <div className="menu-pie">Rabinal, Baja Verapaz</div>
+      </aside>
+    </>
+  );
+}

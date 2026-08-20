@@ -90,6 +90,33 @@ La zona funcional única del sistema es `America/Guatemala`, equivalente a
 - No se deben restar o sumar seis horas manualmente en Controllers, Services o
   Repositories.
 
+### Frontend local
+
+El frontend utiliza React, TypeScript y Vite. En desarrollo se sirve en
+`http://localhost:5173` y reenvía las solicitudes `/api` a la API local en
+`http://localhost:3000`. Este proxy permite conservar el flujo same-origin de
+la cookie de sesión sin habilitar CORS.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+La autenticación permanece únicamente en memoria y se recupera mediante
+`GET /api/usuarios/sesion`. El frontend nunca almacena tokens, utiliza
+`credentials: "include"` en todas las solicitudes y no intenta leer la cookie
+`HttpOnly`.
+
+Comandos de validación del frontend:
+
+```bash
+npm run typecheck
+npm run build
+npm test
+npm audit
+```
+
 ### Validación
 
 ```bash

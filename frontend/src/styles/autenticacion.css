@@ -1,0 +1,30 @@
+.pagina-login { background: var(--crema-50); display: grid; min-height: 100vh; grid-template-columns: minmax(20rem, 1.05fr) minmax(24rem, 0.95fr); }
+.login-presentacion { background: linear-gradient(145deg, rgba(24, 59, 42, 0.98), rgba(35, 75, 54, 0.94)), radial-gradient(circle at 80% 20%, #557a5d, transparent 45%); color: #fff; display: flex; flex-direction: column; justify-content: space-between; min-height: 100vh; overflow: hidden; padding: clamp(2rem, 6vw, 5.5rem); position: relative; }
+.login-presentacion::after { border: 1px solid rgba(255,255,255,0.12); border-radius: 50%; content: ""; height: 30rem; position: absolute; right: -15rem; top: 20%; width: 30rem; }
+.login-marca { align-items: center; display: flex; font-size: 1.05rem; font-weight: 750; gap: 0.75rem; position: relative; z-index: 1; }
+.login-sello, .marca-sello { align-items: center; background: #f0e8d3; border-radius: 0.65rem; color: var(--verde-900); display: inline-flex; font-weight: 900; height: 2.6rem; justify-content: center; letter-spacing: -0.04em; width: 2.6rem; }
+.login-mensaje { max-width: 38rem; position: relative; z-index: 1; }
+.login-mensaje .etiqueta { color: #d8bd8f; }
+.login-mensaje h1 { font-size: clamp(2.4rem, 5vw, 4.8rem); margin-bottom: 1.5rem; }
+.login-mensaje > p:last-child { color: #d9e5dc; font-size: 1.1rem; line-height: 1.65; max-width: 33rem; }
+.login-ubicacion { color: #c6d6ca; font-size: 0.88rem; margin: 0; position: relative; z-index: 1; }
+.login-acceso { align-items: center; display: flex; justify-content: center; padding: clamp(1.5rem, 5vw, 5rem); }
+.login-formulario-contenedor { max-width: 27rem; width: 100%; }
+.login-titulo { margin-bottom: 2rem; }
+.login-titulo h2 { font-size: 2.2rem; margin-bottom: 0.65rem; }
+.login-titulo > p:last-child { color: var(--texto-suave); line-height: 1.55; }
+.login-formulario { display: flex; flex-direction: column; margin-top: 1.4rem; }
+.login-formulario label { color: var(--verde-900); font-size: 0.9rem; font-weight: 750; margin: 0.85rem 0 0.45rem; }
+.login-formulario input { background: #fff; border: 1px solid var(--borde); border-radius: 0.75rem; color: var(--texto); min-height: 3rem; padding: 0.75rem 0.9rem; width: 100%; }
+.login-formulario input[aria-invalid="true"] { border-color: #c76868; }
+.login-formulario .boton-primario { margin-top: 1.6rem; width: 100%; }
+.campo-error { color: var(--error); font-size: 0.8rem; margin-top: 0.35rem; }
+.login-seguridad { color: var(--texto-suave); font-size: 0.78rem; line-height: 1.5; margin: 1.5rem auto 0; max-width: 23rem; text-align: center; }
+@media (max-width: 800px) {
+  .pagina-login { display: block; }
+  .login-presentacion { min-height: 13rem; padding: 1.5rem; }
+  .login-mensaje { margin-top: 2rem; }
+  .login-mensaje h1 { font-size: 1.75rem; margin-bottom: 0; }
+  .login-mensaje > p:last-child, .login-ubicacion { display: none; }
+  .login-acceso { min-height: calc(100vh - 13rem); padding: 2rem 1.25rem; }
+}
