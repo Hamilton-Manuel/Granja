@@ -178,9 +178,40 @@ export function Usuarios_obtenerCuentaPublica(IntUsuarioId: number) {
   });
 }
 
+export function Usuarios_obtenerCuentaParaPolitica(IntUsuarioId: number) {
+  return BaseDatos_obtenerCliente().usuarioCuenta.findUnique({
+    where: { usuarioId: IntUsuarioId },
+    select: {
+      usuarioId: true,
+      estado: true,
+      rol: { select: { rolId: true, nombre: true, activo: true } },
+    },
+  });
+}
+
 export function Usuarios_obtenerRol(IntRolId: number) {
   return BaseDatos_obtenerCliente().usuarioRol.findUnique({
     where: { rolId: IntRolId },
+  });
+}
+
+export function Usuarios_registrarRechazoAdministrativo(ObjDatos: {
+  IntUsuarioActorId: number;
+  IntUsuarioObjetivoId?: number | undefined;
+  StrAccion: "ROL_RESERVADO_RECHAZADO" | "WEBMASTER_MUTACION_RECHAZADA";
+  StrDireccionIp?: string | undefined;
+}) {
+  return BaseDatos_obtenerCliente().usuarioBitacora.create({
+    data: {
+      usuarioId: ObjDatos.IntUsuarioActorId,
+      modulo: "USUARIOS",
+      accion: ObjDatos.StrAccion,
+      descripcion: ObjDatos.IntUsuarioObjetivoId === undefined
+        ? "Operación administrativa rechazada."
+        : `Operación administrativa rechazada sobre usuario: ${ObjDatos.IntUsuarioObjetivoId}.`,
+      resultado: "RECHAZADO",
+      direccionIp: ObjDatos.StrDireccionIp ?? null,
+    },
   });
 }
 

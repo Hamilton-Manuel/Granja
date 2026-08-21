@@ -41,16 +41,20 @@ Variables del backend:
 ### Bootstrap de Usuarios
 
 La base vacia se inicializa mediante un script idempotente. Las variables
-`BOOTSTRAP_ADMIN_NOMBRE_COMPLETO`, `BOOTSTRAP_ADMIN_USUARIO`,
-`BOOTSTRAP_ADMIN_CORREO` y `BOOTSTRAP_ADMIN_CONTRASENA` deben proporcionarse
+`BOOTSTRAP_WEBMASTER_NOMBRE_COMPLETO`, `BOOTSTRAP_WEBMASTER_USUARIO`,
+`BOOTSTRAP_WEBMASTER_CORREO` y `BOOTSTRAP_WEBMASTER_CONTRASENA` deben proporcionarse
 solo al ejecutar:
 
 ```bash
 npm run usuarios:bootstrap
 ```
 
-Una ejecucion posterior no reemplaza credenciales ni duplica permisos. No se
-deben guardar los valores reales en archivos versionados, documentacion o logs.
+El bootstrap garantiza los roles `WEBMASTER`, `ADMINISTRADOR` y `OPERADOR`. La
+cuenta técnica inicial queda asociada a `WEBMASTER`; este rol recibe todos los
+permisos registrados, `ADMINISTRADOR` recibe explícitamente los siete permisos
+actuales de Usuarios y `OPERADOR` no recibe permisos `USUARIOS_*`. Una ejecución
+posterior no reemplaza credenciales ni duplica permisos. No se deben guardar los
+valores reales en archivos versionados, documentacion o logs.
 
 Las sesiones vencidas pueden cerrarse sin eliminar historial mediante:
 

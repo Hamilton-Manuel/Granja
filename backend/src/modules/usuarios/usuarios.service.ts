@@ -16,6 +16,7 @@ import {
 } from "../../datetime/fecha.js";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
 import * as ObjRepositorio from "./usuarios.repository.js";
+import { Usuarios_esRolReservado, Usuarios_puedeOperarSobreCuenta, type OperacionAdministrativaUsuario } from "./usuarios.politicas.js";
 
 function Usuarios_obtenerPermisosActivos(ObjCuenta: Awaited<ReturnType<typeof ObjRepositorio.Usuarios_buscarCuentaPorIdentificador>>): string[] {
   if (ObjCuenta === null) {
@@ -160,14 +161,63 @@ export async function Usuarios_obtenerPorId(IntUsuarioId: number) {
   return Usuarios_formatearCuentaPublica(ObjUsuario);
 }
 
-async function Usuarios_validarRolActivo(IntRolId: number): Promise<void> {
+async function Usuarios_validarRolAsignable(
+  IntRolId: number,
+  IntUsuarioActorId: number,
+  StrDireccionIp: string | undefined,
+  IntUsuarioObjetivoId?: number,
+) {
   const ObjRol = await ObjRepositorio.Usuarios_obtenerRol(IntRolId);
   if (ObjRol === null) {
     throw new ErrorAplicacion(404, "ROL_NO_ENCONTRADO", "El rol no existe.");
   }
+  if (Usuarios_esRolReservado(ObjRol.nombre)) {
+    await ObjRepositorio.Usuarios_registrarRechazoAdministrativo({
+      IntUsuarioActorId,
+      IntUsuarioObjetivoId,
+      StrAccion: "ROL_RESERVADO_RECHAZADO",
+      StrDireccionIp,
+    });
+    throw new ErrorAplicacion(409, "ROL_RESERVADO", "El rol solicitado está reservado.");
+  }
   if (!ObjRol.activo) {
     throw new ErrorAplicacion(409, "ROL_INACTIVO", "No puede asignarse un rol inactivo.");
   }
+  return ObjRol;
+}
+
+async function Usuarios_validarOperacionSobreCuenta(
+  IntUsuarioActorId: number,
+  IntUsuarioObjetivoId: number,
+  StrOperacion: OperacionAdministrativaUsuario,
+  StrDireccionIp: string | undefined,
+) {
+  const [ObjActor, ObjObjetivo] = await Promise.all([
+    ObjRepositorio.Usuarios_obtenerCuentaParaPolitica(IntUsuarioActorId),
+    ObjRepositorio.Usuarios_obtenerCuentaParaPolitica(IntUsuarioObjetivoId),
+  ]);
+  if (ObjActor === null) {
+    throw new ErrorAplicacion(401, "SESION_INVALIDA", "La sesión no es válida.");
+  }
+  if (ObjObjetivo === null) {
+    throw new ErrorAplicacion(404, "USUARIO_NO_ENCONTRADO", "El usuario no existe.");
+  }
+  if (!Usuarios_puedeOperarSobreCuenta(
+    ObjActor.usuarioId,
+    ObjActor.rol.nombre,
+    ObjObjetivo.usuarioId,
+    ObjObjetivo.rol.nombre,
+    StrOperacion,
+  )) {
+    await ObjRepositorio.Usuarios_registrarRechazoAdministrativo({
+      IntUsuarioActorId,
+      IntUsuarioObjetivoId,
+      StrAccion: "WEBMASTER_MUTACION_RECHAZADA",
+      StrDireccionIp,
+    });
+    throw new ErrorAplicacion(403, "USUARIO_PROTEGIDO", "El usuario solicitado está protegido.");
+  }
+  return ObjObjetivo;
 }
 
 function Usuarios_convertirErrorUnicidad(ObjError: unknown): never {
@@ -182,7 +232,11 @@ function Usuarios_convertirErrorUnicidad(ObjError: unknown): never {
 }
 
 export async function Usuarios_crear(ObjDatos: Parameters<typeof ObjRepositorio.Usuarios_crearCuenta>[0]) {
-  await Usuarios_validarRolActivo(ObjDatos.IntRolId);
+  await Usuarios_validarRolAsignable(
+    ObjDatos.IntRolId,
+    ObjDatos.IntUsuarioActorId,
+    ObjDatos.StrDireccionIp,
+  );
   try {
     const ObjUsuario = await ObjRepositorio.Usuarios_crearCuenta({
       ...ObjDatos,
@@ -195,7 +249,7 @@ export async function Usuarios_crear(ObjDatos: Parameters<typeof ObjRepositorio.
 }
 
 export async function Usuarios_editar(ObjDatos: Parameters<typeof ObjRepositorio.Usuarios_editarCuenta>[0]) {
-  await Usuarios_obtenerPorId(ObjDatos.IntUsuarioId);
+  await Usuarios_validarOperacionSobreCuenta(ObjDatos.IntUsuarioActorId, ObjDatos.IntUsuarioId, "EDITAR", ObjDatos.StrDireccionIp);
   try {
     return Usuarios_formatearCuentaPublica(
       await ObjRepositorio.Usuarios_editarCuenta(ObjDatos),
@@ -206,21 +260,21 @@ export async function Usuarios_editar(ObjDatos: Parameters<typeof ObjRepositorio
 }
 
 export async function Usuarios_cambiarEstado(ObjDatos: Parameters<typeof ObjRepositorio.Usuarios_cambiarEstadoCuenta>[0]) {
+  await Usuarios_validarOperacionSobreCuenta(ObjDatos.IntUsuarioActorId, ObjDatos.IntUsuarioId, "CAMBIAR_ESTADO", ObjDatos.StrDireccionIp);
   if (ObjDatos.IntUsuarioId === ObjDatos.IntUsuarioActorId) {
     throw new ErrorAplicacion(409, "OPERACION_NO_PERMITIDA", "No puede cambiar su propio estado.");
   }
-  await Usuarios_obtenerPorId(ObjDatos.IntUsuarioId);
   return Usuarios_formatearCuentaPublica(
     await ObjRepositorio.Usuarios_cambiarEstadoCuenta(ObjDatos),
   );
 }
 
 export async function Usuarios_cambiarRol(ObjDatos: Parameters<typeof ObjRepositorio.Usuarios_cambiarRolCuenta>[0]) {
+  await Usuarios_validarOperacionSobreCuenta(ObjDatos.IntUsuarioActorId, ObjDatos.IntUsuarioId, "CAMBIAR_ROL", ObjDatos.StrDireccionIp);
+  await Usuarios_validarRolAsignable(ObjDatos.IntRolId, ObjDatos.IntUsuarioActorId, ObjDatos.StrDireccionIp, ObjDatos.IntUsuarioId);
   if (ObjDatos.IntUsuarioId === ObjDatos.IntUsuarioActorId) {
     throw new ErrorAplicacion(409, "OPERACION_NO_PERMITIDA", "No puede cambiar su propio rol.");
   }
-  await Usuarios_obtenerPorId(ObjDatos.IntUsuarioId);
-  await Usuarios_validarRolActivo(ObjDatos.IntRolId);
   return Usuarios_formatearCuentaPublica(
     await ObjRepositorio.Usuarios_cambiarRolCuenta(ObjDatos),
   );
@@ -245,7 +299,7 @@ export async function Usuarios_cambiarContrasena(ObjDatos: {
 }
 
 export async function Usuarios_revocarSesiones(ObjDatos: Parameters<typeof ObjRepositorio.Usuarios_revocarSesionesCuenta>[0]): Promise<void> {
-  await Usuarios_obtenerPorId(ObjDatos.IntUsuarioId);
+  await Usuarios_validarOperacionSobreCuenta(ObjDatos.IntUsuarioActorId, ObjDatos.IntUsuarioId, "REVOCAR_SESIONES", ObjDatos.StrDireccionIp);
   await ObjRepositorio.Usuarios_revocarSesionesCuenta(ObjDatos);
 }
 
