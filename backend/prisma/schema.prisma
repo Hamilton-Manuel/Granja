@@ -130,30 +130,65 @@ model UsuarioBitacora {
 // MÓDULO: CLIENTES Y PROVEEDORES
 // ======================================================
 
+model ClienteTipo {
+  tipoClienteId      Int      @id @default(autoincrement()) @map("tipo_cliente_id")
+  codigo             String   @unique @db.NVarChar(50)
+  nombre             String   @db.NVarChar(150)
+  descripcion        String?  @db.NVarChar(500)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
+
+  clientes ClienteRegistro[]
+
+  @@index([activo])
+  @@map("clientes_tipos")
+}
+
 model ClienteRegistro {
   clienteId          Int      @id @default(autoincrement()) @map("cliente_id")
+  tipoClienteId      Int      @map("tipo_cliente_id")
+  codigo             String   @unique @default(dbgenerated("(N'CLI'+right(N'000000'+CONVERT([nvarchar](6),NEXT VALUE FOR [dbo].[clientes_codigo_seq]),(6)))")) @db.NVarChar(9)
   nombreCompleto     String   @map("nombre_completo") @db.NVarChar(200)
   numeroDocumento    String?  @map("numero_documento") @db.NVarChar(50)
   nit                String?  @db.NVarChar(20)
   telefono           String?  @db.NVarChar(30)
   correo             String?  @db.NVarChar(200)
   direccion          String?  @db.NVarChar(500)
-  tipoCliente        String?  @map("tipo_cliente") @db.NVarChar(50)
   observaciones      String?  @db.NVarChar(1000)
   activo             Boolean  @default(true)
   fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
+  tipo   ClienteTipo     @relation(fields: [tipoClienteId], references: [tipoClienteId], onDelete: NoAction, onUpdate: NoAction)
   ventas VentaRegistro[]
 
+  @@index([tipoClienteId])
   @@index([nombreCompleto])
   @@index([nit])
   @@index([activo])
   @@map("clientes_registros")
 }
 
+model ProveedorTipo {
+  tipoProveedorId    Int      @id @default(autoincrement()) @map("tipo_proveedor_id")
+  codigo             String   @unique @db.NVarChar(50)
+  nombre             String   @db.NVarChar(150)
+  descripcion        String?  @db.NVarChar(500)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
+
+  proveedores ProveedorRegistro[]
+
+  @@index([activo])
+  @@map("proveedores_tipos")
+}
+
 model ProveedorRegistro {
   proveedorId        Int      @id @default(autoincrement()) @map("proveedor_id")
+  tipoProveedorId    Int      @map("tipo_proveedor_id")
+  codigo             String   @unique @default(dbgenerated("(N'PRO'+right(N'000000'+CONVERT([nvarchar](6),NEXT VALUE FOR [dbo].[proveedores_codigo_seq]),(6)))")) @db.NVarChar(9)
   nombre             String   @db.NVarChar(200)
   nombreComercial    String?  @map("nombre_comercial") @db.NVarChar(200)
   numeroDocumento    String?  @map("numero_documento") @db.NVarChar(50)
@@ -161,16 +196,17 @@ model ProveedorRegistro {
   telefono           String?  @db.NVarChar(30)
   correo             String?  @db.NVarChar(200)
   direccion          String?  @db.NVarChar(500)
-  tipoProveedor      String?  @map("tipo_proveedor") @db.NVarChar(50)
   observaciones      String?  @db.NVarChar(1000)
   activo             Boolean  @default(true)
   fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
+  tipo                    ProveedorTipo           @relation(fields: [tipoProveedorId], references: [tipoProveedorId], onDelete: NoAction, onUpdate: NoAction)
   productos               ProveedorProducto[]
   lotesInventario         InventarioLote[]
   inventarioTransacciones InventarioTransaccion[]
 
+  @@index([tipoProveedorId])
   @@index([nombre])
   @@index([nit])
   @@index([activo])

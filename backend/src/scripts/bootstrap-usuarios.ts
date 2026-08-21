@@ -10,6 +10,14 @@ import {
 } from "../database/prisma.js";
 import { Fecha_obtenerAhoraGuatemala } from "../datetime/fecha.js";
 import {
+  ArrCatalogoPermisosClientes,
+  ArrCatalogoTiposClientes,
+} from "../modules/clientes/clientes.constants.js";
+import {
+  ArrCatalogoPermisosProveedores,
+  ArrCatalogoTiposProveedores,
+} from "../modules/proveedores/proveedores.constants.js";
+import {
   ArrCatalogoPermisosUsuarios,
   ArrCodigosPermisosUsuarios,
   ArrDefinicionesRolesUsuarios,
@@ -24,6 +32,17 @@ const ObjIdentidadWebmaster = z.object({
 });
 
 const ObjContrasenaWebmaster = z.string().min(8).max(128);
+
+const ArrCatalogoPermisosSistema = [
+  ...ArrCatalogoPermisosUsuarios.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "USUARIOS" })),
+  ...ArrCatalogoPermisosClientes.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "CLIENTES" })),
+  ...ArrCatalogoPermisosProveedores.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PROVEEDORES" })),
+] as const;
+
+const ArrCodigosPermisosClientesProveedores = [
+  ...ArrCatalogoPermisosClientes,
+  ...ArrCatalogoPermisosProveedores,
+].map((ObjPermiso) => ObjPermiso.StrCodigo);
 
 export async function Usuarios_ejecutarBootstrap(): Promise<void> {
   Configuracion_obtenerEntorno();
@@ -59,14 +78,14 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     }
 
     const ArrPermisosObligatorios = [];
-    for (const ObjDefinicion of ArrCatalogoPermisosUsuarios) {
+    for (const ObjDefinicion of ArrCatalogoPermisosSistema) {
       let ObjPermiso = await ObjTx.usuarioPermiso.findUnique({ where: { codigo: ObjDefinicion.StrCodigo } });
       if (ObjPermiso === null) {
         ObjPermiso = await ObjTx.usuarioPermiso.create({
           data: {
             codigo: ObjDefinicion.StrCodigo,
             nombre: ObjDefinicion.StrNombre,
-            modulo: "USUARIOS",
+            modulo: ObjDefinicion.StrModulo,
             accion: ObjDefinicion.StrAccion,
           },
         });
@@ -75,6 +94,25 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
         throw new Error(`El permiso ${ObjDefinicion.StrCodigo} existe pero está inactivo.`);
       }
       ArrPermisosObligatorios.push(ObjPermiso);
+    }
+
+    for (const ObjTipo of ArrCatalogoTiposClientes) {
+      const ObjExistente = await ObjTx.clienteTipo.findUnique({ where: { codigo: ObjTipo.StrCodigo } });
+      if (ObjExistente === null) {
+        await ObjTx.clienteTipo.create({ data: { codigo: ObjTipo.StrCodigo, nombre: ObjTipo.StrNombre } });
+        IntCambiosCatalogos += 1;
+      } else if (!ObjExistente.activo) {
+        throw new Error(`El tipo de cliente ${ObjTipo.StrCodigo} existe pero esta inactivo.`);
+      }
+    }
+    for (const ObjTipo of ArrCatalogoTiposProveedores) {
+      const ObjExistente = await ObjTx.proveedorTipo.findUnique({ where: { codigo: ObjTipo.StrCodigo } });
+      if (ObjExistente === null) {
+        await ObjTx.proveedorTipo.create({ data: { codigo: ObjTipo.StrCodigo, nombre: ObjTipo.StrNombre } });
+        IntCambiosCatalogos += 1;
+      } else if (!ObjExistente.activo) {
+        throw new Error(`El tipo de proveedor ${ObjTipo.StrCodigo} existe pero esta inactivo.`);
+      }
     }
 
     const ObjRolWebmaster = ObjRoles.get(ObjRolesUsuarios.WEBMASTER);
@@ -173,10 +211,10 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     }
 
     const IntPermisosUsuariosOperador = await ObjTx.usuarioRolPermiso.count({
-      where: { rolId: ObjRolOperador.rolId, permiso: { codigo: { in: [...ArrCodigosPermisosUsuarios] } } },
+      where: { rolId: ObjRolOperador.rolId, permiso: { codigo: { in: [...ArrCodigosPermisosUsuarios, ...ArrCodigosPermisosClientesProveedores] } } },
     });
     if (IntPermisosUsuariosOperador !== 0) {
-      throw new Error("El rol OPERADOR posee permisos USUARIOS_* inesperados.");
+      throw new Error("El rol OPERADOR posee permisos administrativos inesperados.");
     }
 
     const StrAccion = BoolBootstrapInicial

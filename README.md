@@ -49,10 +49,20 @@ solo al ejecutar:
 npm run usuarios:bootstrap
 ```
 
+El mismo proceso garantiza de forma idempotente los permisos administrativos
+de Clientes y Proveedores, sus vinculos con `WEBMASTER` y `ADMINISTRADOR`, y
+los catalogos separados `PERSONA_INDIVIDUAL` / `PERSONA_JURIDICA`. El rol
+`OPERADOR` no recibe permisos de estos modulos.
+
+Las APIs administrativas se publican en `/api/clientes` y
+`/api/proveedores`. Los codigos `CLI000001` y `PRO000001` son generados
+exclusivamente por secuencias de SQL Server y no se aceptan en los cuerpos
+`POST` o `PATCH`.
+
 El bootstrap garantiza los roles `WEBMASTER`, `ADMINISTRADOR` y `OPERADOR`. La
 cuenta técnica inicial queda asociada a `WEBMASTER`; este rol recibe todos los
-permisos registrados, `ADMINISTRADOR` recibe explícitamente los siete permisos
-actuales de Usuarios y `OPERADOR` no recibe permisos `USUARIOS_*`. Una ejecución
+permisos registrados, `ADMINISTRADOR` recibe explícitamente los permisos administrativos
+actuales de Usuarios, Clientes y Proveedores y `OPERADOR` no recibe permisos administrativos. Una ejecución
 posterior no reemplaza credenciales ni duplica permisos. No se deben guardar los
 valores reales en archivos versionados, documentacion o logs.
 
