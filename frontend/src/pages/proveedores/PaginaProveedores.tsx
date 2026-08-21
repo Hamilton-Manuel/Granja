@@ -1,4 +1,104 @@
-import { useState,type FormEvent } from "react";import { FormularioProveedor } from "../../components/proveedores/FormularioProveedor";import { DialogoConfirmacion } from "../../components/ui/DialogoConfirmacion";import { InsigniaEstado } from "../../components/ui/InsigniaEstado";import { MensajeError } from "../../components/ui/MensajeError";import { Modal } from "../../components/ui/Modal";import { Paginacion } from "../../components/ui/Paginacion";import { useProveedores } from "../../hooks/useProveedores";import { useSesion } from "../../hooks/useSesion";import type { CambiosProveedor,DatosProveedor,Proveedor } from "../../types/proveedores.types";import { Fecha_formatearTimestampGuatemala } from "../../utils/fecha";import "../../styles/contrapartes.css";
-export function PaginaProveedores(){const ObjModulo=useProveedores();const{Autenticacion_tienePermiso}=useSesion();const[StrBusqueda,establecerBusqueda]=useState("");const[StrEstado,establecerEstado]=useState("");const[StrTipo,establecerTipo]=useState("");const[BoolCrear,establecerCrear]=useState(false);const[ObjEditar,establecerEditar]=useState<Proveedor|null>(null);const[ObjEstado,establecerObjEstado]=useState<Proveedor|null>(null);const BoolPuedeCrear=Autenticacion_tienePermiso("PROVEEDORES_CREAR"),BoolPuedeEditar=Autenticacion_tienePermiso("PROVEEDORES_EDITAR"),BoolPuedeEstado=Autenticacion_tienePermiso("PROVEEDORES_CAMBIAR_ESTADO"),BoolProcesando=ObjModulo.StrOperacion!==null;function Proveedores_buscar(ObjEvento:FormEvent){ObjEvento.preventDefault();ObjModulo.Proveedores_aplicarFiltros({...(StrBusqueda.trim()?{busqueda:StrBusqueda.trim()}:{}),...(StrEstado?{estado:StrEstado as "ACTIVO"|"INACTIVO"}:{}),...(StrTipo?{tipoProveedorId:Number(StrTipo)}:{})});}function Proveedores_limpiar(){establecerBusqueda("");establecerEstado("");establecerTipo("");ObjModulo.Proveedores_aplicarFiltros({});}async function Proveedores_guardarCrear(ObjDatos:DatosProveedor|CambiosProveedor){await ObjModulo.Proveedores_crear(ObjDatos as DatosProveedor);establecerCrear(false);}async function Proveedores_guardarEditar(ObjDatos:DatosProveedor|CambiosProveedor){if(!ObjEditar)return;await ObjModulo.Proveedores_editar(ObjEditar.proveedorId,ObjDatos as CambiosProveedor);establecerEditar(null);}async function Proveedores_confirmarEstado(){if(!ObjEstado)return;try{await ObjModulo.Proveedores_cambiarEstado(ObjEstado.proveedorId,!ObjEstado.activo);establecerObjEstado(null);}catch{}}
-if(ObjModulo.BoolCargaInicial)return <div className="contrapartes-cargando" role="status">Cargando proveedores...</div>;const IntPaginas=Math.max(1,Math.ceil(ObjModulo.IntTotal/ObjModulo.IntLimite));return <section className="pagina-contrapartes"><header className="contrapartes-encabezado"><div><p className="etiqueta">Administracion</p><h1>Proveedores</h1><p>Gestione las contrapartes de compras e inventario.</p></div>{BoolPuedeCrear&&<button className="boton-primario" type="button" onClick={()=>establecerCrear(true)}>Nuevo proveedor</button>}</header><form className="contrapartes-filtros" onSubmit={Proveedores_buscar}><div className="campo-filtro"><label htmlFor="buscar-proveedores">Buscar</label><input id="buscar-proveedores" value={StrBusqueda} maxLength={200} placeholder="Codigo, nombre, NIT, documento o correo" onChange={(ObjEvento)=>establecerBusqueda(ObjEvento.target.value)}/></div><div className="campo-filtro"><label htmlFor="estado-proveedores">Estado</label><select id="estado-proveedores" value={StrEstado} onChange={(ObjEvento)=>establecerEstado(ObjEvento.target.value)}><option value="">Todos</option><option value="ACTIVO">Activo</option><option value="INACTIVO">Inactivo</option></select></div><div className="campo-filtro"><label htmlFor="tipo-proveedores">Tipo</label><select id="tipo-proveedores" value={StrTipo} onChange={(ObjEvento)=>establecerTipo(ObjEvento.target.value)}><option value="">Todos</option>{ObjModulo.ArrTipos.map((ObjTipo)=><option key={ObjTipo.tipoProveedorId} value={ObjTipo.tipoProveedorId}>{ObjTipo.nombre}</option>)}</select></div><div className="filtros-acciones"><button className="boton-primario" type="submit">Buscar</button><button className="boton-secundario" type="button" onClick={Proveedores_limpiar}>Limpiar</button></div></form>{ObjModulo.StrError&&<MensajeError StrMensaje={ObjModulo.StrError}/>} {ObjModulo.StrExito&&<div className="mensaje-exito" role="status">{ObjModulo.StrExito}</div>}{ObjModulo.BoolActualizando&&<p role="status">Actualizando resultados...</p>}{ObjModulo.ArrProveedores.length===0?<div className="contrapartes-vacio"><h2>No se encontraron proveedores</h2><p>Pruebe con otros criterios de busqueda.</p></div>:<><div className="contrapartes-tabla-contenedor"><table className="contrapartes-tabla"><thead><tr><th>Codigo</th><th>Nombre</th><th>Nombre comercial</th><th>Tipo</th><th>NIT</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{ObjModulo.ArrProveedores.map((ObjItem)=><tr key={ObjItem.proveedorId}><td><strong>{ObjItem.codigo}</strong></td><td>{ObjItem.nombre}</td><td>{ObjItem.nombreComercial??"—"}</td><td>{ObjItem.tipo.nombre}</td><td>{ObjItem.nit??"—"}</td><td>{ObjItem.telefono??"—"}</td><td><InsigniaEstado StrEstado={ObjItem.activo?"ACTIVO":"INACTIVO"}/></td><td><div className="acciones-contraparte">{BoolPuedeEditar&&<button type="button" aria-label={`Editar ${ObjItem.codigo}`} onClick={()=>establecerEditar(ObjItem)}>Editar</button>}{BoolPuedeEstado&&<button type="button" aria-label={`${ObjItem.activo?"Inactivar":"Activar"} ${ObjItem.codigo}`} onClick={()=>establecerObjEstado(ObjItem)}>{ObjItem.activo?"Inactivar":"Activar"}</button>}</div></td></tr>)}</tbody></table></div><div className="contrapartes-tarjetas">{ObjModulo.ArrProveedores.map((ObjItem)=><article className="contraparte-tarjeta" key={ObjItem.proveedorId}><div><strong>{ObjItem.codigo}</strong><InsigniaEstado StrEstado={ObjItem.activo?"ACTIVO":"INACTIVO"}/></div><h2>{ObjItem.nombre}</h2><p>{ObjItem.nombreComercial||ObjItem.tipo.nombre}</p><dl><div><dt>NIT</dt><dd>{ObjItem.nit??"—"}</dd></div><div><dt>Telefono</dt><dd>{ObjItem.telefono??"—"}</dd></div><div><dt>Creacion</dt><dd>{Fecha_formatearTimestampGuatemala(ObjItem.fechaCreacion)}</dd></div></dl><div className="acciones-contraparte">{BoolPuedeEditar&&<button type="button" onClick={()=>establecerEditar(ObjItem)}>Editar {ObjItem.codigo}</button>}{BoolPuedeEstado&&<button type="button" onClick={()=>establecerObjEstado(ObjItem)}>{ObjItem.activo?"Inactivar":"Activar"} {ObjItem.codigo}</button>}</div></article>)}</div><Paginacion IntPagina={ObjModulo.IntPagina} IntTotalPaginas={IntPaginas} BoolDeshabilitada={ObjModulo.BoolActualizando} Usuarios_cambiarPagina={ObjModulo.establecerPagina}/></>}
-<Modal BoolAbierto={BoolCrear} StrTitulo="Nuevo proveedor" Autenticacion_cerrar={()=>{if(!BoolProcesando)establecerCrear(false)}}>{BoolCrear&&<FormularioProveedor StrModo="crear" ArrTipos={ObjModulo.ArrTiposActivos} BoolProcesando={ObjModulo.StrOperacion==="crear"} Proveedores_cancelar={()=>establecerCrear(false)} Proveedores_guardar={Proveedores_guardarCrear}/>}</Modal><Modal BoolAbierto={ObjEditar!==null} StrTitulo="Editar proveedor" Autenticacion_cerrar={()=>{if(!BoolProcesando)establecerEditar(null)}}>{ObjEditar&&<FormularioProveedor StrModo="editar" ObjProveedor={ObjEditar} ArrTipos={ObjModulo.ArrTiposActivos} BoolProcesando={ObjModulo.StrOperacion===`editar-${ObjEditar.proveedorId}`} Proveedores_cancelar={()=>establecerEditar(null)} Proveedores_guardar={Proveedores_guardarEditar}/>}</Modal><DialogoConfirmacion BoolAbierto={ObjEstado!==null} StrTitulo={`${ObjEstado?.activo?"Inactivar":"Activar"} proveedor`} StrMensaje={ObjEstado?.activo?"El proveedor conservara todo su historial, incluidas compras e inventario, y dejara de estar disponible para operaciones futuras cuando los modulos consumidores apliquen esta regla.":"El proveedor podra utilizarse nuevamente en operaciones futuras."} StrConfirmar={ObjEstado?.activo?"Inactivar":"Activar"} BoolProcesando={ObjEstado!==null&&ObjModulo.StrOperacion===`estado-${ObjEstado.proveedorId}`} Autenticacion_cancelar={()=>establecerObjEstado(null)} Autenticacion_confirmar={()=>void Proveedores_confirmarEstado()}/></section>}
+import { useState, type FormEvent } from "react";
+
+import { FormularioProveedor } from "../../components/proveedores/FormularioProveedor";
+import { DialogoConfirmacion } from "../../components/ui/DialogoConfirmacion";
+import { InsigniaEstado } from "../../components/ui/InsigniaEstado";
+import { MensajeError } from "../../components/ui/MensajeError";
+import { Modal } from "../../components/ui/Modal";
+import { Paginacion } from "../../components/ui/Paginacion";
+import { useProveedores } from "../../hooks/useProveedores";
+import { useSesion } from "../../hooks/useSesion";
+import type { CambiosProveedor, DatosProveedor, Proveedor } from "../../types/proveedores.types";
+import { Fecha_formatearTimestampGuatemala } from "../../utils/fecha";
+import "../../styles/contrapartes.css";
+
+export function PaginaProveedores() {
+  const ObjModulo = useProveedores();
+  const { Autenticacion_tienePermiso } = useSesion();
+  const [StrBusqueda, establecerBusqueda] = useState("");
+  const [StrEstado, establecerEstado] = useState("");
+  const [StrTipo, establecerTipo] = useState("");
+  const [BoolCrear, establecerCrear] = useState(false);
+  const [ObjEditar, establecerEditar] = useState<Proveedor | null>(null);
+  const [ObjEstado, establecerObjEstado] = useState<Proveedor | null>(null);
+  const BoolPuedeCrear = Autenticacion_tienePermiso("PROVEEDORES_CREAR");
+  const BoolPuedeEditar = Autenticacion_tienePermiso("PROVEEDORES_EDITAR");
+  const BoolPuedeEstado = Autenticacion_tienePermiso("PROVEEDORES_CAMBIAR_ESTADO");
+  const BoolProcesando = ObjModulo.StrOperacion !== null;
+
+  function Proveedores_buscar(ObjEvento: FormEvent) {
+    ObjEvento.preventDefault();
+    ObjModulo.Proveedores_aplicarFiltros({
+      ...(StrBusqueda.trim() ? { busqueda: StrBusqueda.trim() } : {}),
+      ...(StrEstado ? { estado: StrEstado as "ACTIVO" | "INACTIVO" } : {}),
+      ...(StrTipo ? { tipoProveedorId: Number(StrTipo) } : {}),
+    });
+  }
+
+  function Proveedores_limpiar() {
+    establecerBusqueda("");
+    establecerEstado("");
+    establecerTipo("");
+    ObjModulo.Proveedores_aplicarFiltros({});
+  }
+
+  async function Proveedores_guardarCrear(ObjDatos: DatosProveedor | CambiosProveedor) {
+    await ObjModulo.Proveedores_crear(ObjDatos as DatosProveedor);
+    establecerCrear(false);
+  }
+
+  async function Proveedores_guardarEditar(ObjDatos: DatosProveedor | CambiosProveedor) {
+    if (!ObjEditar) return;
+    await ObjModulo.Proveedores_editar(ObjEditar.proveedorId, ObjDatos as CambiosProveedor);
+    establecerEditar(null);
+  }
+
+  async function Proveedores_confirmarEstado() {
+    if (!ObjEstado) return;
+    try {
+      await ObjModulo.Proveedores_cambiarEstado(ObjEstado.proveedorId, !ObjEstado.activo);
+      establecerObjEstado(null);
+    } catch {
+      // El hook publica el error sanitizado.
+    }
+  }
+
+  if (ObjModulo.BoolCargaInicial) return <div className="contrapartes-cargando" role="status">Cargando proveedores...</div>;
+
+  const IntPaginas = Math.max(1, Math.ceil(ObjModulo.IntTotal / ObjModulo.IntLimite));
+
+  return (
+    <section className="pagina-contrapartes">
+      <header className="contrapartes-encabezado">
+        <div><p className="etiqueta">Administracion</p><h1>Proveedores</h1><p>Gestione las contrapartes de compras e inventario.</p></div>
+        {BoolPuedeCrear && <button className="boton-primario" type="button" onClick={() => establecerCrear(true)}>Nuevo proveedor</button>}
+      </header>
+      <form className="contrapartes-filtros" onSubmit={Proveedores_buscar}>
+        <div className="campo-filtro"><label htmlFor="buscar-proveedores">Buscar</label><input id="buscar-proveedores" value={StrBusqueda} maxLength={200} placeholder="Codigo, nombre, NIT, DPI o correo" onChange={(ObjEvento) => establecerBusqueda(ObjEvento.target.value)} /></div>
+        <div className="campo-filtro"><label htmlFor="estado-proveedores">Estado</label><select id="estado-proveedores" value={StrEstado} onChange={(ObjEvento) => establecerEstado(ObjEvento.target.value)}><option value="">Todos</option><option value="ACTIVO">Activo</option><option value="INACTIVO">Inactivo</option></select></div>
+        <div className="campo-filtro"><label htmlFor="tipo-proveedores">Tipo</label><select id="tipo-proveedores" value={StrTipo} onChange={(ObjEvento) => establecerTipo(ObjEvento.target.value)}><option value="">Todos</option>{ObjModulo.ArrTipos.map((ObjTipo) => <option key={ObjTipo.tipoProveedorId} value={ObjTipo.tipoProveedorId}>{ObjTipo.nombre}</option>)}</select></div>
+        <div className="filtros-acciones"><button className="boton-primario" type="submit">Buscar</button><button className="boton-secundario" type="button" onClick={Proveedores_limpiar}>Limpiar</button></div>
+      </form>
+      {ObjModulo.StrError && <MensajeError StrMensaje={ObjModulo.StrError} />}
+      {ObjModulo.StrExito && <div className="mensaje-exito" role="status">{ObjModulo.StrExito}</div>}
+      {ObjModulo.BoolActualizando && <p role="status">Actualizando resultados...</p>}
+      {ObjModulo.ArrProveedores.length === 0 ? (
+        <div className="contrapartes-vacio"><h2>No se encontraron proveedores</h2><p>Pruebe con otros criterios de busqueda.</p></div>
+      ) : (
+        <>
+          <div className="contrapartes-tabla-contenedor">
+            <table className="contrapartes-tabla">
+              <thead><tr><th>Codigo</th><th>Nombre</th><th>Nombre comercial</th><th>Tipo</th><th>DPI</th><th>NIT</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>{ObjModulo.ArrProveedores.map((ObjItem) => <tr key={ObjItem.proveedorId}><td><strong>{ObjItem.codigo}</strong></td><td>{ObjItem.nombre}</td><td>{ObjItem.nombreComercial || "—"}</td><td>{ObjItem.tipo.nombre}</td><td>{ObjItem.numeroDocumento || "—"}</td><td>{ObjItem.nit || "—"}</td><td>{ObjItem.telefono || "—"}</td><td><InsigniaEstado StrEstado={ObjItem.activo ? "ACTIVO" : "INACTIVO"} /></td><td><div className="acciones-contraparte">{BoolPuedeEditar && <button type="button" aria-label={`Editar ${ObjItem.codigo}`} onClick={() => establecerEditar(ObjItem)}>Editar</button>}{BoolPuedeEstado && <button type="button" aria-label={`${ObjItem.activo ? "Inactivar" : "Activar"} ${ObjItem.codigo}`} onClick={() => establecerObjEstado(ObjItem)}>{ObjItem.activo ? "Inactivar" : "Activar"}</button>}</div></td></tr>)}</tbody>
+            </table>
+          </div>
+          <div className="contrapartes-tarjetas">{ObjModulo.ArrProveedores.map((ObjItem) => <article className="contraparte-tarjeta" key={ObjItem.proveedorId}><div><strong>{ObjItem.codigo}</strong><InsigniaEstado StrEstado={ObjItem.activo ? "ACTIVO" : "INACTIVO"} /></div><h2>{ObjItem.nombre}</h2><p>{ObjItem.nombreComercial || ObjItem.tipo.nombre}</p><dl><div><dt>DPI</dt><dd>{ObjItem.numeroDocumento || "—"}</dd></div><div><dt>NIT</dt><dd>{ObjItem.nit || "—"}</dd></div><div><dt>Telefono</dt><dd>{ObjItem.telefono || "—"}</dd></div><div><dt>Creacion</dt><dd>{Fecha_formatearTimestampGuatemala(ObjItem.fechaCreacion)}</dd></div></dl><div className="acciones-contraparte">{BoolPuedeEditar && <button type="button" onClick={() => establecerEditar(ObjItem)}>Editar {ObjItem.codigo}</button>}{BoolPuedeEstado && <button type="button" onClick={() => establecerObjEstado(ObjItem)}>{ObjItem.activo ? "Inactivar" : "Activar"} {ObjItem.codigo}</button>}</div></article>)}</div>
+          <Paginacion IntPagina={ObjModulo.IntPagina} IntTotalPaginas={IntPaginas} BoolDeshabilitada={ObjModulo.BoolActualizando} Usuarios_cambiarPagina={ObjModulo.establecerPagina} />
+        </>
+      )}
+      <Modal BoolAbierto={BoolCrear} StrTitulo="Nuevo proveedor" Autenticacion_cerrar={() => { if (!BoolProcesando) establecerCrear(false); }}>{BoolCrear && <FormularioProveedor StrModo="crear" ArrTipos={ObjModulo.ArrTiposActivos} BoolProcesando={ObjModulo.StrOperacion === "crear"} Proveedores_cancelar={() => establecerCrear(false)} Proveedores_guardar={Proveedores_guardarCrear} />}</Modal>
+      <Modal BoolAbierto={ObjEditar !== null} StrTitulo="Editar proveedor" Autenticacion_cerrar={() => { if (!BoolProcesando) establecerEditar(null); }}>{ObjEditar && <FormularioProveedor StrModo="editar" ObjProveedor={ObjEditar} ArrTipos={ObjModulo.ArrTiposActivos} BoolProcesando={ObjModulo.StrOperacion === `editar-${ObjEditar.proveedorId}`} Proveedores_cancelar={() => establecerEditar(null)} Proveedores_guardar={Proveedores_guardarEditar} />}</Modal>
+      <DialogoConfirmacion BoolAbierto={ObjEstado !== null} StrTitulo={`${ObjEstado?.activo ? "Inactivar" : "Activar"} proveedor`} StrMensaje={ObjEstado?.activo ? "El proveedor conservara todo su historial, incluidas compras e inventario, y dejara de estar disponible para operaciones futuras cuando los modulos consumidores apliquen esta regla." : "El proveedor podra utilizarse nuevamente en operaciones futuras."} StrConfirmar={ObjEstado?.activo ? "Inactivar" : "Activar"} BoolProcesando={ObjEstado !== null && ObjModulo.StrOperacion === `estado-${ObjEstado.proveedorId}`} Autenticacion_cancelar={() => establecerObjEstado(null)} Autenticacion_confirmar={() => void Proveedores_confirmarEstado()} />
+    </section>
+  );
+}
