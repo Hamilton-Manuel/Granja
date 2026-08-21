@@ -8,8 +8,6 @@ interface PropiedadesMenuLateral {
 }
 
 const ArrModulosFuturos = [
-  "Clientes",
-  "Proveedores",
   "Inventario",
   "Producción",
   "Alimentación",
@@ -21,6 +19,8 @@ const ArrModulosFuturos = [
 export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: PropiedadesMenuLateral) {
   const { Autenticacion_tienePermiso } = useSesion();
   const BoolMostrarUsuarios = Autenticacion_tienePermiso("USUARIOS_CONSULTAR");
+  const BoolMostrarClientes = Autenticacion_tienePermiso("CLIENTES_CONSULTAR");
+  const BoolMostrarProveedores = Autenticacion_tienePermiso("PROVEEDORES_CONSULTAR");
 
   return (
     <>
@@ -51,6 +51,8 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
               <span aria-hidden="true">♙</span> Usuarios
             </NavLink>
           )}
+          {BoolMostrarClientes && <NavLink to="/clientes" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">C</span> Clientes</NavLink>}
+          {BoolMostrarProveedores && <NavLink to="/proveedores" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">P</span> Proveedores</NavLink>}
           {ArrModulosFuturos.map((StrModulo) => (
             <span key={StrModulo} className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
               <span aria-hidden="true">•</span> {StrModulo} <small>Próximamente</small>

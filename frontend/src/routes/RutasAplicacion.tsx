@@ -6,6 +6,8 @@ import { PaginaInicio } from "../pages/PaginaInicio";
 import { PaginaLogin } from "../pages/PaginaLogin";
 import { PaginaNoEncontrada } from "../pages/PaginaNoEncontrada";
 import { PaginaUsuarios } from "../pages/usuarios/PaginaUsuarios";
+import { PaginaClientes } from "../pages/clientes/PaginaClientes";
+import { PaginaProveedores } from "../pages/proveedores/PaginaProveedores";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
@@ -36,6 +38,12 @@ export function RutasAplicacion() {
           <Route path="/inicio" element={<PaginaInicio />} />
           <Route element={<RutaConPermiso StrPermiso="USUARIOS_CONSULTAR" />}>
             <Route path="/usuarios" element={<PaginaUsuarios />} />
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="CLIENTES_CONSULTAR" />}>
+            <Route path="/clientes" element={<PaginaClientes />} />
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="PROVEEDORES_CONSULTAR" />}>
+            <Route path="/proveedores" element={<PaginaProveedores />} />
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />
         </Route>

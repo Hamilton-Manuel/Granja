@@ -1,0 +1,8 @@
+import { Api_solicitar } from "./api.service";
+import type { CambiosCliente, ConsultaClientes, DatosCliente, RespuestaCliente, RespuestaClientes, RespuestaTiposCliente } from "../types/clientes.types";
+export function Clientes_listar(ObjConsulta: ConsultaClientes): Promise<RespuestaClientes> { const ObjParametros = new URLSearchParams({ pagina: String(ObjConsulta.pagina), limite: String(ObjConsulta.limite) }); if (ObjConsulta.busqueda) ObjParametros.set("busqueda", ObjConsulta.busqueda); if (ObjConsulta.estado) ObjParametros.set("estado", ObjConsulta.estado); if (ObjConsulta.tipoClienteId) ObjParametros.set("tipoClienteId", String(ObjConsulta.tipoClienteId)); return Api_solicitar(`/api/clientes?${ObjParametros}`, {}) as Promise<RespuestaClientes>; }
+export function Clientes_obtenerTipos(): Promise<RespuestaTiposCliente> { return Api_solicitar("/api/clientes/tipos"); }
+export function Clientes_obtener(IntClienteId: number): Promise<RespuestaCliente> { return Api_solicitar(`/api/clientes/${IntClienteId}`); }
+export function Clientes_crear(ObjDatos: DatosCliente): Promise<RespuestaCliente> { return Api_solicitar("/api/clientes", { method: "POST", ObjCuerpo: ObjDatos }); }
+export function Clientes_editar(IntClienteId: number, ObjDatos: CambiosCliente): Promise<RespuestaCliente> { return Api_solicitar(`/api/clientes/${IntClienteId}`, { method: "PATCH", ObjCuerpo: ObjDatos }); }
+export function Clientes_cambiarEstado(IntClienteId: number, BoolActivo: boolean): Promise<RespuestaCliente> { return Api_solicitar(`/api/clientes/${IntClienteId}/estado`, { method: "PATCH", ObjCuerpo: { activo: BoolActivo } }); }

@@ -36,6 +36,24 @@ function Autenticacion_renderizar(StrRuta: string): void {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("sesión y rutas", () => {
+  it("muestra Clientes y Proveedores solo con sus permisos", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({
+      datos: { usuario: { ...ObjUsuario, permisos: ["CLIENTES_CONSULTAR", "PROVEEDORES_CONSULTAR"] } },
+    })));
+    Autenticacion_renderizar("/inicio");
+    expect(await screen.findByRole("link", { name: /Clientes/ })).toHaveAttribute("href", "/clientes");
+    expect(screen.getByRole("link", { name: /Proveedores/ })).toHaveAttribute("href", "/proveedores");
+    expect(screen.queryByRole("link", { name: /Usuarios/ })).not.toBeInTheDocument();
+  });
+
+  it.each(["/clientes", "/proveedores"])("protege la ruta %s sin permiso", async (StrRuta) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({
+      datos: { usuario: { ...ObjUsuario, permisos: [] } },
+    })));
+    Autenticacion_renderizar(StrRuta);
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+  });
+
   it("evita mostrar rutas mientras comprueba la sesión y después protege /inicio", async () => {
     let Autenticacion_resolver: ((ObjRespuesta: Response) => void) | undefined;
     vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise<Response>((ObjResolver) => { Autenticacion_resolver = ObjResolver; })));

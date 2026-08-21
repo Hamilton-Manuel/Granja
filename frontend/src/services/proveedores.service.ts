@@ -1,0 +1,8 @@
+import { Api_solicitar } from "./api.service";
+import type { CambiosProveedor, ConsultaProveedores, DatosProveedor, RespuestaProveedor, RespuestaProveedores, RespuestaTiposProveedor } from "../types/proveedores.types";
+export function Proveedores_listar(ObjConsulta: ConsultaProveedores): Promise<RespuestaProveedores> { const ObjParametros = new URLSearchParams({ pagina: String(ObjConsulta.pagina), limite: String(ObjConsulta.limite) }); if (ObjConsulta.busqueda) ObjParametros.set("busqueda", ObjConsulta.busqueda); if (ObjConsulta.estado) ObjParametros.set("estado", ObjConsulta.estado); if (ObjConsulta.tipoProveedorId) ObjParametros.set("tipoProveedorId", String(ObjConsulta.tipoProveedorId)); return Api_solicitar(`/api/proveedores?${ObjParametros}`); }
+export function Proveedores_obtenerTipos(): Promise<RespuestaTiposProveedor> { return Api_solicitar("/api/proveedores/tipos"); }
+export function Proveedores_obtener(IntProveedorId: number): Promise<RespuestaProveedor> { return Api_solicitar(`/api/proveedores/${IntProveedorId}`); }
+export function Proveedores_crear(ObjDatos: DatosProveedor): Promise<RespuestaProveedor> { return Api_solicitar("/api/proveedores", { method: "POST", ObjCuerpo: ObjDatos }); }
+export function Proveedores_editar(IntProveedorId: number, ObjDatos: CambiosProveedor): Promise<RespuestaProveedor> { return Api_solicitar(`/api/proveedores/${IntProveedorId}`, { method: "PATCH", ObjCuerpo: ObjDatos }); }
+export function Proveedores_cambiarEstado(IntProveedorId: number, BoolActivo: boolean): Promise<RespuestaProveedor> { return Api_solicitar(`/api/proveedores/${IntProveedorId}/estado`, { method: "PATCH", ObjCuerpo: { activo: BoolActivo } }); }
