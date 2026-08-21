@@ -8,7 +8,8 @@
     "prisma:generate": "prisma generate",
     "build": "npm run prisma:generate && tsc",
     "start": "node dist/src/server.js",
-    "test": "tsx --test src/app.test.ts src/auth/autenticacion.test.ts src/datetime/fecha.test.ts src/middleware/autenticacion.middleware.test.ts src/middleware/limite-login.middleware.test.ts src/modules/clientes/clientes.test.ts src/modules/proveedores/proveedores.test.ts src/modules/inventario/inventario.test.ts src/modules/usuarios/usuarios.politicas.test.ts",
+    "test": "tsx --test src/app.test.ts src/auth/autenticacion.test.ts src/datetime/fecha.test.ts src/middleware/autenticacion.middleware.test.ts src/middleware/limite-login.middleware.test.ts src/modules/clientes/clientes.test.ts src/modules/proveedores/proveedores.test.ts src/modules/inventario/inventario.test.ts src/modules/produccion/produccion.test.ts src/modules/usuarios/usuarios.politicas.test.ts",
+    "test:produccion:integration": "tsx --test src/modules/produccion/produccion.integration.test.ts",
     "usuarios:bootstrap": "tsx src/scripts/bootstrap-usuarios.ts",
     "usuarios:expirar-sesiones": "tsx src/scripts/expirar-sesiones.ts",
     "typecheck": "tsc --noEmit"

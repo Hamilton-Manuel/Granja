@@ -22,6 +22,10 @@ import {
   ArrPermisosInventarioOperador,
 } from "../modules/inventario/inventario.constants.js";
 import {
+  ArrCatalogoPermisosProduccion,
+  ArrPermisosProduccionOperador,
+} from "../modules/produccion/produccion.constants.js";
+import {
   ArrCatalogoPermisosUsuarios,
   ArrCodigosPermisosUsuarios,
   ArrDefinicionesRolesUsuarios,
@@ -42,6 +46,7 @@ const ArrCatalogoPermisosSistema = [
   ...ArrCatalogoPermisosClientes.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "CLIENTES" })),
   ...ArrCatalogoPermisosProveedores.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PROVEEDORES" })),
   ...ArrCatalogoPermisosInventario.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "INVENTARIO" })),
+  ...ArrCatalogoPermisosProduccion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PRODUCCION" })),
 ] as const;
 
 const ArrCodigosPermisosClientesProveedores = [
@@ -223,7 +228,7 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     }
 
     const ArrPermisosOperador = ArrPermisosObligatorios.filter((ObjPermiso) =>
-      (ArrPermisosInventarioOperador as readonly string[]).includes(ObjPermiso.codigo),
+      ([...ArrPermisosInventarioOperador, ...ArrPermisosProduccionOperador] as readonly string[]).includes(ObjPermiso.codigo),
     );
     const ArrVinculosOperador = await ObjTx.usuarioRolPermiso.findMany({
       where: { rolId: ObjRolOperador.rolId }, select: { permisoId: true },
