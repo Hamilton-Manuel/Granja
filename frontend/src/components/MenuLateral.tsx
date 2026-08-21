@@ -47,9 +47,9 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
             <span aria-hidden="true">⌂</span> Inicio
           </NavLink>
           {BoolMostrarUsuarios && (
-            <span className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
-              <span aria-hidden="true">♙</span> Usuarios <small>Próximamente</small>
-            </span>
+            <NavLink to="/usuarios" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}>
+              <span aria-hidden="true">♙</span> Usuarios
+            </NavLink>
           )}
           {ArrModulosFuturos.map((StrModulo) => (
             <span key={StrModulo} className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">

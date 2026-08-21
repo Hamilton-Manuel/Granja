@@ -5,8 +5,10 @@ import { LayoutAutenticado } from "../layouts/LayoutAutenticado";
 import { PaginaInicio } from "../pages/PaginaInicio";
 import { PaginaLogin } from "../pages/PaginaLogin";
 import { PaginaNoEncontrada } from "../pages/PaginaNoEncontrada";
+import { PaginaUsuarios } from "../pages/usuarios/PaginaUsuarios";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
+import { RutaConPermiso } from "./RutaConPermiso";
 import { RutaSoloInvitados } from "./RutaSoloInvitados";
 
 export function RutasAplicacion() {
@@ -32,6 +34,9 @@ export function RutasAplicacion() {
       <Route element={<RutaProtegida />}>
         <Route element={<LayoutAutenticado />}>
           <Route path="/inicio" element={<PaginaInicio />} />
+          <Route element={<RutaConPermiso StrPermiso="USUARIOS_CONSULTAR" />}>
+            <Route path="/usuarios" element={<PaginaUsuarios />} />
+          </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />
         </Route>
       </Route>

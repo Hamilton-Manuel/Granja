@@ -63,7 +63,7 @@ describe("sesión y rutas", () => {
     Autenticacion_renderizar("/inicio");
     expect(await screen.findByText("Administradora El Chiflón")).toBeInTheDocument();
     expect(screen.getAllByText("ADMINISTRADOR").length).toBeGreaterThan(0);
-    expect(screen.getByText("Usuarios").closest("span")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: /Usuarios/ })).toHaveAttribute("href", "/usuarios");
     expect(screen.getByText("Inventario").closest("span")).toHaveAttribute("aria-disabled", "true");
   });
 
