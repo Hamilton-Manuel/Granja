@@ -82,7 +82,35 @@ describe("sesión y rutas", () => {
     expect(await screen.findByText("Administradora El Chiflón")).toBeInTheDocument();
     expect(screen.getAllByText("ADMINISTRADOR").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Usuarios/ })).toHaveAttribute("href", "/usuarios");
-    expect(screen.getByText("Inventario").closest("span")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByRole("link", { name: /Inventario/ })).not.toBeInTheDocument();
+  });
+
+  it("muestra Inventario y protege sus rutas mediante INVENTARIO_CONSULTAR", async () => {
+    const ObjFetch = vi.fn().mockImplementation((ObjRuta: string) => {
+      if (ObjRuta === "/api/usuarios/sesion") return Promise.resolve(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, rol: { rolId: 3, nombre: "OPERADOR" }, permisos: ["INVENTARIO_CONSULTAR"] } } }));
+      if (ObjRuta === "/api/inventario/resumen") return Promise.resolve(Autenticacion_respuestaJson({ datos: { productosActivos: 0, existenciasOperativas: 0, existenciasBajoMinimo: 0, lotesActivos: 0, lotesProximosVencer: 0, lotesVencidos: 0, movimientosRecientes: [] } }));
+      throw new Error(`Ruta inesperada: ${ObjRuta}`);
+    });
+    vi.stubGlobal("fetch", ObjFetch);
+    Autenticacion_renderizar("/inventario");
+    expect(await screen.findByRole("heading", { name: "Resumen" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inventario/ })).toHaveAttribute("href", "/inventario");
+    expect(screen.queryByRole("link", { name: "Diagnóstico" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Catálogos" })).not.toBeInTheDocument();
+  });
+
+  it("bloquea Inventario sin permiso y no lo muestra en el menú", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: [] } } })));
+    Autenticacion_renderizar("/inventario");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Inventario/ })).not.toBeInTheDocument();
+  });
+
+  it("impide abrir Catálogos con permisos exclusivamente operativos", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: ["INVENTARIO_CONSULTAR", "INVENTARIO_ENTRADAS_CREAR", "INVENTARIO_SALIDAS_CREAR", "INVENTARIO_TRANSFERENCIAS_CREAR"] } } })));
+    Autenticacion_renderizar("/inventario/catalogos");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Catálogos" })).not.toBeInTheDocument();
   });
 
   it("redirige una sesión existente que intenta entrar a login", async () => {

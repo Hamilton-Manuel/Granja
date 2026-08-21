@@ -1,0 +1,15 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { MensajeError } from "../../components/ui/MensajeError";
+import { useSesion } from "../../hooks/useSesion";
+import { Inventario_mensajeError } from "../../hooks/useInventarioLista";
+import { Inventario_obtenerResumen } from "../../services/inventario.service";
+import type { ResumenInventario } from "../../types/inventario.types";
+import { Fecha_formatearTimestampGuatemala } from "../../utils/fecha";
+
+export function PaginaResumenInventario() {
+  const { Autenticacion_tienePermiso, Autenticacion_manejarErrorProtegido } = useSesion(); const [ObjResumen, establecerResumen] = useState<ResumenInventario | null>(null); const [StrError, establecerError] = useState<string | null>(null);
+  useEffect(() => { void Inventario_obtenerResumen().then((ObjRespuesta) => establecerResumen(ObjRespuesta.datos)).catch((ObjError) => { if (!Autenticacion_manejarErrorProtegido(ObjError)) establecerError(Inventario_mensajeError(ObjError)); }); }, [Autenticacion_manejarErrorProtegido]);
+  if (!ObjResumen && !StrError) return <p role="status">Cargando resumen de Inventario…</p>;
+  return <div className="inventario-contenido"><header className="inventario-seccion-encabezado"><div><h2>Resumen</h2><p>Estado general de los insumos operativos.</p></div><div className="inventario-acciones-rapidas">{Autenticacion_tienePermiso("INVENTARIO_ENTRADAS_CREAR") && <Link className="boton-primario enlace-boton" to="/inventario/movimientos?accion=compra">Registrar compra</Link>}{Autenticacion_tienePermiso("INVENTARIO_TRANSFERENCIAS_CREAR") && <Link className="boton-secundario enlace-boton" to="/inventario/transferencias?accion=nueva">Transferir</Link>}</div></header>{StrError && <MensajeError StrMensaje={StrError} />}{ObjResumen && <><div className="inventario-resumen-grid">{[["Productos activos", ObjResumen.productosActivos], ["Existencias operativas", ObjResumen.existenciasOperativas], ["Bajo mínimo", ObjResumen.existenciasBajoMinimo], ["Lotes activos", ObjResumen.lotesActivos], ["Próximos a vencer", ObjResumen.lotesProximosVencer], ["Lotes vencidos", ObjResumen.lotesVencidos]].map(([StrTitulo, IntValor]) => <article className="inventario-tarjeta-metrica" key={StrTitulo}><span>{StrTitulo}</span><strong>{IntValor}</strong></article>)}</div><section className="inventario-panel"><h3>Movimientos recientes</h3>{ObjResumen.movimientosRecientes.length === 0 ? <p className="inventario-vacio">Todavía no existen movimientos.</p> : <ul className="inventario-movimientos-recientes">{ObjResumen.movimientosRecientes.map((ObjMovimiento) => <li key={ObjMovimiento.transaccionInventarioId}><div><strong>{ObjMovimiento.producto.codigo} · {ObjMovimiento.producto.nombre}</strong><span>{ObjMovimiento.subtipoTransaccion.replaceAll("_", " ")}</span></div><div><strong>{ObjMovimiento.cantidad} {ObjMovimiento.producto.unidadMedida}</strong><time>{Fecha_formatearTimestampGuatemala(ObjMovimiento.fechaTransaccion)}</time></div></li>)}</ul>}</section></>}</div>;
+}

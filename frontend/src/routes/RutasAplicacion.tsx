@@ -8,6 +8,14 @@ import { PaginaNoEncontrada } from "../pages/PaginaNoEncontrada";
 import { PaginaUsuarios } from "../pages/usuarios/PaginaUsuarios";
 import { PaginaClientes } from "../pages/clientes/PaginaClientes";
 import { PaginaProveedores } from "../pages/proveedores/PaginaProveedores";
+import { LayoutInventario } from "../components/inventario/LayoutInventario";
+import { PaginaResumenInventario } from "../pages/inventario/PaginaResumenInventario";
+import { PaginaProductosInventario } from "../pages/inventario/PaginaProductosInventario";
+import { PaginaLotesInventario } from "../pages/inventario/PaginaLotesInventario";
+import { PaginaMovimientosInventario } from "../pages/inventario/PaginaMovimientosInventario";
+import { PaginaTransferenciasInventario } from "../pages/inventario/PaginaTransferenciasInventario";
+import { PaginaCatalogosInventario } from "../pages/inventario/PaginaCatalogosInventario";
+import { PaginaDiagnosticoInventario } from "../pages/inventario/PaginaDiagnosticoInventario";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
@@ -44,6 +52,21 @@ export function RutasAplicacion() {
           </Route>
           <Route element={<RutaConPermiso StrPermiso="PROVEEDORES_CONSULTAR" />}>
             <Route path="/proveedores" element={<PaginaProveedores />} />
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="INVENTARIO_CONSULTAR" />}>
+            <Route path="/inventario" element={<LayoutInventario />}>
+              <Route index element={<PaginaResumenInventario />} />
+              <Route path="productos" element={<PaginaProductosInventario />} />
+              <Route path="lotes" element={<PaginaLotesInventario />} />
+              <Route path="movimientos" element={<PaginaMovimientosInventario />} />
+              <Route path="transferencias" element={<PaginaTransferenciasInventario />} />
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO", "INVENTARIO_PROVEEDORES_PRODUCTOS_GESTIONAR"]} />}>
+                <Route path="catalogos" element={<PaginaCatalogosInventario />} />
+              </Route>
+              <Route element={<RutaConPermiso StrPermiso="INVENTARIO_RECONCILIACION_EJECUTAR" />}>
+                <Route path="diagnostico" element={<PaginaDiagnosticoInventario />} />
+              </Route>
+            </Route>
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />
         </Route>
