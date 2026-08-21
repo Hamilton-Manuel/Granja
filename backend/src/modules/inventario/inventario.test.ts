@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { Prisma } from "../../../generated/prisma/client.js";
+import { ArrCatalogoPermisosInventario, ArrPermisosInventarioOperador, Inventario_canonicalizarCodigo, ObjSubtiposInventario } from "./inventario.constants.js";
+import { ObjCrearAjuste, ObjCrearAlmacen, ObjCrearEntrada, ObjCrearProducto, ObjCrearSalida, ObjCrearTransferencia, ObjEditarMinimo } from "./inventario.schemas.js";
+
+test("Inventario canonicaliza códigos manuales", () => assert.equal(Inventario_canonicalizarCodigo(" alm 01 "), "ALM01"));
+test("Inventario define permisos únicos", () => assert.equal(new Set(ArrCatalogoPermisosInventario.map((Obj) => Obj.StrCodigo)).size, 21));
+test("Operador solo recibe cuatro permisos operativos", () => assert.deepEqual([...ArrPermisosInventarioOperador], ["INVENTARIO_CONSULTAR", "INVENTARIO_ENTRADAS_CREAR", "INVENTARIO_SALIDAS_CREAR", "INVENTARIO_TRANSFERENCIAS_CREAR"]));
+test("No existen subtipos de venta, devolución de cliente o producción", () => { const Arr = Object.values(ObjSubtiposInventario); assert.equal(Arr.includes("VENTA" as never), false); assert.equal(Arr.includes("DEVOLUCION_CLIENTE" as never), false); assert.equal(Arr.includes("PRODUCCION" as never), false); });
+test("Entrada manual solo acepta COMPRA e INVENTARIO_INICIAL", () => { const Base = { productoId: 1, inventarioId: 1, cantidad: "1" }; assert.equal(ObjCrearEntrada.safeParse({ ...Base, subtipo: "COMPRA" }).success, true); assert.equal(ObjCrearEntrada.safeParse({ ...Base, subtipo: "PRODUCCION" }).success, false); });
+test("Salida manual rechaza ALIMENTACION y SANIDAD", () => { const Base = { productoId: 1, inventarioId: 1, cantidad: "1" }; assert.equal(ObjCrearSalida.safeParse({ ...Base, subtipo: "ALIMENTACION" }).success, false); assert.equal(ObjCrearSalida.safeParse({ ...Base, subtipo: "SANIDAD" }).success, false); });
+test("Salida manual acepta devolución, merma y disposición", () => { const Base = { productoId: 1, inventarioId: 1, cantidad: "1" }; for (const subtipo of ["DEVOLUCION_PROVEEDOR", "MERMA", "DISPOSICION"]) assert.equal(ObjCrearSalida.safeParse({ ...Base, subtipo }).success, true); });
+test("Ajuste no acepta cantidad cero", () => assert.equal(ObjCrearAjuste.safeParse({ productoId: 1, inventarioId: 1, cantidad: "0", subtipo: "CONTEO_FISICO" }).success, false));
+test("Existencia mínima exige decimal no negativo", () => { assert.equal(ObjEditarMinimo.safeParse({ existenciaMinima: "0.0000" }).success, true); assert.equal(ObjEditarMinimo.safeParse({ existenciaMinima: "-1" }).success, false); });
+test("Almacén exige código manual", () => assert.equal(ObjCrearAlmacen.safeParse({ nombre: "Principal" }).success, false));
+test("Producto no acepta campos de stock", () => assert.equal(ObjCrearProducto.safeParse({ categoriaId: 1, codigo: "INS01", nombre: "Insumo", unidadMedida: "kg", manejaLotes: false, existenciaActual: 2 }).success, false));
+test("Transferencia exige almacenes y cantidad positiva", () => { assert.equal(ObjCrearTransferencia.safeParse({ productoId: 1, inventarioOrigenId: 1, inventarioDestinoId: 2, cantidad: "1.5" }).success, true); assert.equal(ObjCrearTransferencia.safeParse({ productoId: 1, inventarioOrigenId: 1, inventarioDestinoId: 2, cantidad: "0" }).success, false); });
+test("Decimal conserva comparación exacta", () => assert.equal(new Prisma.Decimal("0.1000").equals(new Prisma.Decimal("0.1")), true));
+test("Código no forma parte de PATCH de producto", async () => { const { ObjEditarProducto } = await import("./inventario.schemas.js"); assert.equal(ObjEditarProducto.safeParse({ codigo: "OTRO" }).success, false); });
+test("No hay esquema DELETE", () => assert.equal(Object.keys(ObjSubtiposInventario).some((Str) => Str.includes("DELETE")), false));

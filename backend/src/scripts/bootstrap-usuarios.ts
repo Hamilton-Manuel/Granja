@@ -18,6 +18,10 @@ import {
   ArrCatalogoTiposProveedores,
 } from "../modules/proveedores/proveedores.constants.js";
 import {
+  ArrCatalogoPermisosInventario,
+  ArrPermisosInventarioOperador,
+} from "../modules/inventario/inventario.constants.js";
+import {
   ArrCatalogoPermisosUsuarios,
   ArrCodigosPermisosUsuarios,
   ArrDefinicionesRolesUsuarios,
@@ -37,6 +41,7 @@ const ArrCatalogoPermisosSistema = [
   ...ArrCatalogoPermisosUsuarios.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "USUARIOS" })),
   ...ArrCatalogoPermisosClientes.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "CLIENTES" })),
   ...ArrCatalogoPermisosProveedores.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PROVEEDORES" })),
+  ...ArrCatalogoPermisosInventario.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "INVENTARIO" })),
 ] as const;
 
 const ArrCodigosPermisosClientesProveedores = [
@@ -215,6 +220,23 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     });
     if (IntPermisosUsuariosOperador !== 0) {
       throw new Error("El rol OPERADOR posee permisos administrativos inesperados.");
+    }
+
+    const ArrPermisosOperador = ArrPermisosObligatorios.filter((ObjPermiso) =>
+      (ArrPermisosInventarioOperador as readonly string[]).includes(ObjPermiso.codigo),
+    );
+    const ArrVinculosOperador = await ObjTx.usuarioRolPermiso.findMany({
+      where: { rolId: ObjRolOperador.rolId }, select: { permisoId: true },
+    });
+    const ArrIdsOperadorFaltantes = Usuarios_obtenerIdsFaltantes(
+      ArrPermisosOperador.map((ObjPermiso) => ObjPermiso.permisoId),
+      ArrVinculosOperador.map((ObjVinculo) => ObjVinculo.permisoId),
+    );
+    for (const IntPermisoId of ArrIdsOperadorFaltantes) {
+      await ObjTx.usuarioRolPermiso.create({
+        data: { rolId: ObjRolOperador.rolId, permisoId: IntPermisoId, usuarioAsignadorId: ObjWebmaster.usuarioId },
+      });
+      IntCambiosCatalogos += 1;
     }
 
     const StrAccion = BoolBootstrapInicial
