@@ -1,0 +1,32 @@
+import { Api_solicitar } from "./api.service";
+import type * as T from "../types/produccion.types";
+function Produccion_parametros(ObjConsulta: object){const ObjParametros=new URLSearchParams();for(const[StrClave,ObjValor]of Object.entries(ObjConsulta))if(ObjValor!==undefined&&ObjValor!==null&&ObjValor!=="")ObjParametros.set(StrClave,String(ObjValor));return ObjParametros.toString()}
+function Produccion_listar<TDato>(StrRuta:string,ObjConsulta:object){return Api_solicitar<T.RespuestaLista<TDato>>(`${StrRuta}?${Produccion_parametros(ObjConsulta)}`)}
+export const Produccion_listarTipos=(Obj:T.ConsultaBase)=>Produccion_listar<T.TipoAnimal>("/api/produccion/tipos-animales",Obj);
+export const Produccion_listarProveedores=(Obj:{pagina:number;limite:number;busqueda?:string})=>Produccion_listar<T.ProveedorProduccion>("/api/produccion/proveedores",Obj);
+export const Produccion_crearTipo=(ObjDatos:{nombre:string;descripcion?:string|null})=>Api_solicitar<T.RespuestaDato<T.TipoAnimal>>("/api/produccion/tipos-animales",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_editarTipo=(IntId:number,ObjDatos:Partial<{nombre:string;descripcion:string|null}>)=>Api_solicitar<T.RespuestaDato<T.TipoAnimal>>(`/api/produccion/tipos-animales/${IntId}`,{method:"PATCH",ObjCuerpo:ObjDatos});
+export const Produccion_estadoTipo=(IntId:number,BoolActivo:boolean)=>Api_solicitar<T.RespuestaDato<T.TipoAnimal>>(`/api/produccion/tipos-animales/${IntId}/estado`,{method:"PATCH",ObjCuerpo:{activo:BoolActivo}});
+export const Produccion_listarRazas=(Obj:T.ConsultaBase&{tipoAnimalId?:number})=>Produccion_listar<T.RazaAnimal>("/api/produccion/razas",Obj);
+export const Produccion_crearRaza=(ObjDatos:{tipoAnimalId:number;nombre:string;descripcion?:string|null})=>Api_solicitar<T.RespuestaDato<T.RazaAnimal>>("/api/produccion/razas",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_editarRaza=(IntId:number,ObjDatos:Partial<{tipoAnimalId:number;nombre:string;descripcion:string|null}>)=>Api_solicitar<T.RespuestaDato<T.RazaAnimal>>(`/api/produccion/razas/${IntId}`,{method:"PATCH",ObjCuerpo:ObjDatos});
+export const Produccion_estadoRaza=(IntId:number,BoolActivo:boolean)=>Api_solicitar<T.RespuestaDato<T.RazaAnimal>>(`/api/produccion/razas/${IntId}/estado`,{method:"PATCH",ObjCuerpo:{activo:BoolActivo}});
+export const Produccion_listarLotes=(Obj:T.ConsultaBase&{tipoAnimalId?:number})=>Produccion_listar<T.LoteProduccion>("/api/produccion/lotes",Obj);
+export const Produccion_obtenerLote=(IntId:number)=>Api_solicitar<T.RespuestaDato<T.LoteProduccion>>(`/api/produccion/lotes/${IntId}`);
+export const Produccion_crearLote=(ObjDatos:{tipoAnimalId:number;codigo:string;nombre:string;descripcion?:string|null})=>Api_solicitar<T.RespuestaDato<T.LoteProduccion>>("/api/produccion/lotes",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_editarLote=(IntId:number,ObjDatos:Partial<{nombre:string;descripcion:string|null}>)=>Api_solicitar<T.RespuestaDato<T.LoteProduccion>>(`/api/produccion/lotes/${IntId}`,{method:"PATCH",ObjCuerpo:ObjDatos});
+export const Produccion_estadoLote=(IntId:number,StrEstado:"ACTIVO"|"CERRADO")=>Api_solicitar<T.RespuestaDato<T.LoteProduccion>>(`/api/produccion/lotes/${IntId}/estado`,{method:"PATCH",ObjCuerpo:{estado:StrEstado}});
+export const Produccion_listarAnimales=(Obj:T.ConsultaBase&{tipoAnimalId?:number;razaId?:number;loteProduccionId?:number;sexo?:T.SexoAnimal})=>Produccion_listar<T.AnimalProduccion>("/api/produccion/animales",Obj);
+export const Produccion_obtenerAnimal=(IntId:number)=>Api_solicitar<T.RespuestaDato<T.AnimalProduccion>>(`/api/produccion/animales/${IntId}`);
+export const Produccion_editarAnimal=(IntId:number,ObjDatos:Partial<Pick<T.AnimalProduccion,"razaId"|"sexo"|"fechaNacimiento"|"madreAnimalId"|"observaciones">>)=>Api_solicitar<T.RespuestaDato<T.AnimalProduccion>>(`/api/produccion/animales/${IntId}`,{method:"PATCH",ObjCuerpo:ObjDatos});
+export const Produccion_estadoTerminal=(IntId:number,ObjDatos:{estado:"FALLECIDO"|"RETIRADO";motivo:string;observaciones?:string|null})=>Api_solicitar<T.RespuestaDato<unknown>>(`/api/produccion/animales/${IntId}/estado`,{method:"PATCH",ObjCuerpo:ObjDatos});
+export const Produccion_registrarInicial=(ObjDatos:{loteDestinoId:number;documentoReferencia?:string|null;motivo?:string|null;observaciones?:string|null;animales:T.AnimalIngreso[]})=>Api_solicitar<T.RespuestaDato<unknown>>("/api/produccion/ingresos/iniciales",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_registrarNacimiento=(ObjDatos:{loteDestinoId:number;motivo?:string|null;observaciones?:string|null;animales:T.AnimalIngreso[]})=>Api_solicitar<T.RespuestaDato<unknown>>("/api/produccion/nacimientos",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_registrarCompra=(ObjDatos:{proveedorId:number;loteDestinoId:number;documentoReferencia?:string|null;motivo?:string|null;observaciones?:string|null;animales:T.AnimalCompra[]})=>Api_solicitar<T.RespuestaDato<unknown>>("/api/produccion/compras",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_registrarTraslado=(ObjDatos:{loteOrigenId:number;loteDestinoId:number;animalIds:number[];motivo:string;observaciones?:string|null})=>Api_solicitar<T.RespuestaDato<unknown>>("/api/produccion/traslados",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_listarMediciones=(Obj:{pagina:number;limite:number;animalId?:number;fechaDesde?:string;fechaHasta?:string})=>Produccion_listar<T.MedicionProduccion>("/api/produccion/mediciones",Obj);
+export const Produccion_registrarMedicion=(ObjDatos:{animalId:number;valor:T.DecimalProduccion;observaciones?:string|null})=>Api_solicitar<T.RespuestaDato<T.MedicionProduccion>>("/api/produccion/mediciones",{method:"POST",ObjCuerpo:ObjDatos});
+export const Produccion_listarOperaciones=(Obj:T.ConsultaBase&{tipo?:string;subtipo?:string;loteProduccionId?:number;animalId?:number})=>Produccion_listar<T.OperacionProduccion>("/api/produccion/operaciones",Obj);
+export const Produccion_listarTransacciones=(Obj:T.ConsultaBase&{tipo?:string;loteProduccionId?:number})=>Produccion_listar<T.TransaccionProduccion>("/api/produccion/transacciones",Obj);
+export const Produccion_revertirOperacion=(IntId:number)=>Api_solicitar<T.RespuestaDato<unknown>>(`/api/produccion/operaciones/${IntId}/revertir`,{method:"POST",ObjCuerpo:{}});
+export const Produccion_ejecutarDiagnostico=()=>Api_solicitar<T.RespuestaDato<T.DiagnosticoProduccion>>("/api/produccion/diagnosticos/reconciliacion",{method:"POST",ObjCuerpo:{}});

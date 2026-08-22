@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { ArrCatalogoPermisosProduccion, ArrPermisosProduccionOperador, Produccion_canonicalizarCodigo } from "./produccion.constants.js";
 import { ObjCompra, ObjCrearLote, ObjCrearMedicion, ObjIngresoInicial, ObjNacimiento, ObjTraslado } from "./produccion.schemas.js";
@@ -47,4 +48,13 @@ test("Produccion traslado solo acepta lotes existentes y animales identificados"
 
 test("Produccion canonicaliza codigos sin generar identificadores", () => {
   assert.equal(Produccion_canonicalizarCodigo(" lote 01 "), "LOTE01");
+});
+
+test("Produccion protege y reduce el lookup de proveedores para compras", () => {
+  const StrRutas = readFileSync(new URL("./produccion.routes.ts", import.meta.url), "utf8");
+  const StrRepositorio = readFileSync(new URL("./produccion.repository.ts", import.meta.url), "utf8");
+  assert.match(StrRutas, /R\.get\("\/proveedores",Middleware_requerirPermiso\("PRODUCCION_COMPRAS_CREAR"\),C\.Produccion_listarProveedores\)/);
+  assert.match(StrRepositorio, /const where:Prisma\.ProveedorRegistroWhereInput=\{activo:true/);
+  assert.match(StrRepositorio, /select:\{proveedorId:true,codigo:true,nombre:true,nombreComercial:true,activo:true\}/);
+  for (const StrCampoSensible of ["nit:true", "numeroDocumento:true", "correo:true", "telefono:true", "direccion:true", "observaciones:true"]) assert.equal(StrRepositorio.includes(StrCampoSensible), false);
 });

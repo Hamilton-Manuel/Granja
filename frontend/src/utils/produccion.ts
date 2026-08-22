@@ -1,0 +1,3 @@
+export function Produccion_decimalValido(StrValor:string,BoolCero=true){return new RegExp(BoolCero?"^\\d{1,16}(?:\\.\\d{1,4})?$":"^(?!0+(?:\\.0{1,4})?$)\\d{1,16}(?:\\.\\d{1,4})?$").test(StrValor)}
+export function Produccion_sumarDecimales(ArrValores:string[],IntEscala=2){const IntFactor=BigInt(10**IntEscala);const Total=ArrValores.reduce((A,V)=>{const[E="0",D=""]=V.split(".");return A+BigInt(E)*IntFactor+BigInt((D+"0".repeat(IntEscala)).slice(0,IntEscala))},0n);return`${Total/IntFactor}.${String(Total%IntFactor).padStart(IntEscala,"0")}`}
+export const Produccion_fechaCivil=(StrFecha:string|null)=>StrFecha?StrFecha.split("T")[0]:"—";

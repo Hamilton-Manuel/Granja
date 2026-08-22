@@ -113,6 +113,32 @@ describe("sesión y rutas", () => {
     expect(screen.queryByRole("link", { name: "Catálogos" })).not.toBeInTheDocument();
   });
 
+  it("muestra Producción y limita la experiencia operativa mediante permisos", async () => {
+    const ArrPermisos = ["PRODUCCION_CONSULTAR", "PRODUCCION_NACIMIENTOS_CREAR", "PRODUCCION_TRASLADOS_CREAR", "PRODUCCION_MEDICIONES_CREAR"];
+    const ObjFetch = vi.fn().mockImplementation((ObjRuta: string) => {
+      if (ObjRuta === "/api/usuarios/sesion") return Promise.resolve(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, rol: { rolId: 99, nombre: "ROL_CUALQUIERA" }, permisos: ArrPermisos } } }));
+      if (ObjRuta.startsWith("/api/produccion/lotes?")) return Promise.resolve(Autenticacion_respuestaJson({ datos: [], paginacion: { pagina: 1, limite: 1, total: 0 } }));
+      if (ObjRuta.startsWith("/api/produccion/animales?")) return Promise.resolve(Autenticacion_respuestaJson({ datos: [], paginacion: { pagina: 1, limite: 1, total: 0 } }));
+      if (ObjRuta.startsWith("/api/produccion/operaciones?")) return Promise.resolve(Autenticacion_respuestaJson({ datos: [], paginacion: { pagina: 1, limite: 5, total: 0 } }));
+      throw new Error(`Ruta inesperada: ${ObjRuta}`);
+    });
+    vi.stubGlobal("fetch", ObjFetch);
+    Autenticacion_renderizar("/produccion");
+    expect(await screen.findByRole("heading", { name: "Resumen" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Producción/ })).toHaveAttribute("href", "/produccion");
+    expect(screen.getByRole("link", { name: "Ingresos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Traslados" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Catálogos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Diagnóstico" })).not.toBeInTheDocument();
+  });
+
+  it("bloquea Producción sin PRODUCCION_CONSULTAR", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: [] } } })));
+    Autenticacion_renderizar("/produccion");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Producción/ })).not.toBeInTheDocument();
+  });
+
   it("redirige una sesión existente que intenta entrar a login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: ObjUsuario } })));
     Autenticacion_renderizar("/login");

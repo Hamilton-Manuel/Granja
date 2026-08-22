@@ -16,6 +16,16 @@ import { PaginaMovimientosInventario } from "../pages/inventario/PaginaMovimient
 import { PaginaTransferenciasInventario } from "../pages/inventario/PaginaTransferenciasInventario";
 import { PaginaCatalogosInventario } from "../pages/inventario/PaginaCatalogosInventario";
 import { PaginaDiagnosticoInventario } from "../pages/inventario/PaginaDiagnosticoInventario";
+import { LayoutProduccion } from "../components/produccion/LayoutProduccion";
+import { PaginaResumenProduccion } from "../pages/produccion/PaginaResumenProduccion";
+import { PaginaLotesProduccion } from "../pages/produccion/PaginaLotesProduccion";
+import { PaginaAnimalesProduccion } from "../pages/produccion/PaginaAnimalesProduccion";
+import { PaginaIngresosProduccion } from "../pages/produccion/PaginaIngresosProduccion";
+import { PaginaTrasladosProduccion } from "../pages/produccion/PaginaTrasladosProduccion";
+import { PaginaMedicionesProduccion } from "../pages/produccion/PaginaMedicionesProduccion";
+import { PaginaHistorialProduccion } from "../pages/produccion/PaginaHistorialProduccion";
+import { PaginaCatalogosProduccion } from "../pages/produccion/PaginaCatalogosProduccion";
+import { PaginaDiagnosticoProduccion } from "../pages/produccion/PaginaDiagnosticoProduccion";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
@@ -66,6 +76,19 @@ export function RutasAplicacion() {
               <Route element={<RutaConPermiso StrPermiso="INVENTARIO_RECONCILIACION_EJECUTAR" />}>
                 <Route path="diagnostico" element={<PaginaDiagnosticoInventario />} />
               </Route>
+            </Route>
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="PRODUCCION_CONSULTAR" />}>
+            <Route path="/produccion" element={<LayoutProduccion />}>
+              <Route index element={<PaginaResumenProduccion />} />
+              <Route path="lotes" element={<PaginaLotesProduccion />} />
+              <Route path="animales" element={<PaginaAnimalesProduccion />} />
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["PRODUCCION_INGRESOS_INICIALES_CREAR", "PRODUCCION_NACIMIENTOS_CREAR", "PRODUCCION_COMPRAS_CREAR"]} />}><Route path="ingresos" element={<PaginaIngresosProduccion />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="PRODUCCION_TRASLADOS_CREAR" />}><Route path="traslados" element={<PaginaTrasladosProduccion />} /></Route>
+              <Route path="mediciones" element={<PaginaMedicionesProduccion />} />
+              <Route path="historial" element={<PaginaHistorialProduccion />} />
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["PRODUCCION_TIPOS_CREAR", "PRODUCCION_TIPOS_EDITAR", "PRODUCCION_TIPOS_CAMBIAR_ESTADO", "PRODUCCION_RAZAS_CREAR", "PRODUCCION_RAZAS_EDITAR", "PRODUCCION_RAZAS_CAMBIAR_ESTADO"]} />}><Route path="catalogos" element={<PaginaCatalogosProduccion />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="PRODUCCION_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoProduccion />} /></Route>
             </Route>
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />

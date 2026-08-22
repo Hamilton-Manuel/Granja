@@ -1,0 +1,2 @@
+import { describe,expect,it } from "vitest";import { Produccion_decimalValido,Produccion_fechaCivil,Produccion_sumarDecimales } from "./produccion";
+describe("helpers Produccion",()=>{it("suma costos exactamente sin Number",()=>expect(Produccion_sumarDecimales(["4500.00","4750.25"])).toBe("9250.25"));it("valida peso positivo",()=>{expect(Produccion_decimalValido("125.5000",false)).toBe(true);expect(Produccion_decimalValido("0.0000",false)).toBe(false)});it("conserva DATE civil sin construir Date",()=>expect(Produccion_fechaCivil("2026-08-21")).toBe("2026-08-21"))});
