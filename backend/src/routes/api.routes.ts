@@ -5,6 +5,7 @@ import { Proveedores_crearRouter } from "../modules/proveedores/proveedores.rout
 import { Inventario_crearRouter } from "../modules/inventario/inventario.routes.js";
 import { Produccion_crearRouter } from "../modules/produccion/produccion.routes.js";
 import { Alimentacion_crearRouter } from "../modules/alimentacion/alimentacion.routes.js";
+import { Sanidad_crearRouter } from "../modules/sanidad/sanidad.routes.js";
 import { Salud_crearRouter } from "../modules/salud/salud.routes.js";
 import { Usuarios_crearRouter } from "../modules/usuarios/usuarios.routes.js";
 
@@ -18,6 +19,7 @@ export function Api_crearRouter(): Router {
   ObjRouter.use("/inventario", Inventario_crearRouter());
   ObjRouter.use("/produccion", Produccion_crearRouter());
   ObjRouter.use("/alimentacion", Alimentacion_crearRouter());
+  ObjRouter.use("/sanidad", Sanidad_crearRouter());
 
   return ObjRouter;
 }

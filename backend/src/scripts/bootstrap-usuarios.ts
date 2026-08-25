@@ -26,6 +26,7 @@ import {
   ArrPermisosProduccionOperador,
 } from "../modules/produccion/produccion.constants.js";
 import { ArrCatalogoPermisosAlimentacion, ArrPermisosAlimentacionOperador } from "../modules/alimentacion/alimentacion.constants.js";
+import { ArrCatalogoPermisosSanidad, ArrPermisosSanidadOperador, ArrTiposSanidad, ArrViasSanidad, ArrUnidadesSanidad } from "../modules/sanidad/sanidad.constants.js";
 import {
   ArrCatalogoPermisosUsuarios,
   ArrCodigosPermisosUsuarios,
@@ -49,6 +50,7 @@ const ArrCatalogoPermisosSistema = [
   ...ArrCatalogoPermisosInventario.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "INVENTARIO" })),
   ...ArrCatalogoPermisosProduccion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PRODUCCION" })),
   ...ArrCatalogoPermisosAlimentacion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "ALIMENTACION" })),
+  ...ArrCatalogoPermisosSanidad.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "SANIDAD" })),
 ] as const;
 
 const ArrCodigosPermisosClientesProveedores = [
@@ -125,6 +127,18 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
       } else if (!ObjExistente.activo) {
         throw new Error(`El tipo de proveedor ${ObjTipo.StrCodigo} existe pero esta inactivo.`);
       }
+    }
+    for (const [StrCodigo, StrNombre] of ArrTiposSanidad) {
+      const ObjExistente = await ObjTx.sanidadTipoAplicacion.findUnique({ where: { codigo: StrCodigo } });
+      if (ObjExistente === null) { await ObjTx.sanidadTipoAplicacion.create({ data: { codigo: StrCodigo, nombre: StrNombre } }); IntCambiosCatalogos += 1; }
+    }
+    for (const [StrCodigo, StrNombre] of ArrViasSanidad) {
+      const ObjExistente = await ObjTx.sanidadViaAdministracion.findUnique({ where: { codigo: StrCodigo } });
+      if (ObjExistente === null) { await ObjTx.sanidadViaAdministracion.create({ data: { codigo: StrCodigo, nombre: StrNombre } }); IntCambiosCatalogos += 1; }
+    }
+    for (const [StrCodigo, StrNombre] of ArrUnidadesSanidad) {
+      const ObjExistente = await ObjTx.sanidadUnidadDosis.findUnique({ where: { codigo: StrCodigo } });
+      if (ObjExistente === null) { await ObjTx.sanidadUnidadDosis.create({ data: { codigo: StrCodigo, nombre: StrNombre } }); IntCambiosCatalogos += 1; }
     }
 
     const ObjRolWebmaster = ObjRoles.get(ObjRolesUsuarios.WEBMASTER);
@@ -230,7 +244,7 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     }
 
     const ArrPermisosOperador = ArrPermisosObligatorios.filter((ObjPermiso) =>
-      ([...ArrPermisosInventarioOperador, ...ArrPermisosProduccionOperador, ...ArrPermisosAlimentacionOperador] as readonly string[]).includes(ObjPermiso.codigo),
+      ([...ArrPermisosInventarioOperador, ...ArrPermisosProduccionOperador, ...ArrPermisosAlimentacionOperador, ...ArrPermisosSanidadOperador] as readonly string[]).includes(ObjPermiso.codigo),
     );
     const ArrVinculosOperador = await ObjTx.usuarioRolPermiso.findMany({
       where: { rolId: ObjRolOperador.rolId }, select: { permisoId: true },

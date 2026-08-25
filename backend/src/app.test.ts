@@ -110,6 +110,15 @@ test("los lookups reducidos de Alimentación exigen autenticación", async () =>
   }
 });
 
+test("los contratos de Sanidad exigen autenticación", async () => {
+  for (const StrRuta of ["/api/sanidad", "/api/sanidad/destinos/animales", "/api/sanidad/destinos/lotes", "/api/sanidad/almacenes", "/api/sanidad/productos"]) {
+    const ObjRespuesta = await fetch(`${StrUrlBase}${StrRuta}`);
+    const ObjContenido = (await ObjRespuesta.json()) as { error: { codigo: string } };
+    assert.equal(ObjRespuesta.status, 401);
+    assert.equal(ObjContenido.error.codigo, "NO_AUTENTICADO");
+  }
+});
+
 test("los contratos de Produccion exigen autenticacion", async () => {
   for (const StrRuta of ["/api/produccion/proveedores", "/api/produccion/tipos-animales", "/api/produccion/lotes", "/api/produccion/animales", "/api/produccion/operaciones", "/api/produccion/transacciones"]) {
     const ObjRespuesta = await fetch(`${StrUrlBase}${StrRuta}`);
