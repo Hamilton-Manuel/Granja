@@ -1,0 +1,15 @@
+import { z } from "zod";
+const ObjId=z.coerce.number().int().positive();
+const ObjDecimal=z.string().regex(/^(?!0+(?:\.0{1,4})?$)\d{1,14}(?:\.\d{1,4})?$/);
+const ObjTexto=(IntMax:number)=>z.string().trim().max(IntMax).transform(Str=>Str===""?null:Str).nullable().optional();
+export const ObjConsulta=z.object({pagina:z.coerce.number().int().positive().default(1),limite:z.coerce.number().int().min(1).max(100).default(20),busqueda:z.string().trim().max(100).optional(),estado:z.enum(["CONFIRMADA","REVERTIDA"]).optional(),destino:z.enum(["ANIMAL","LOTE"]).optional(),animalId:ObjId.optional(),loteProduccionId:ObjId.optional(),formulaId:ObjId.optional(),fechaDesde:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),fechaHasta:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()}).strict();
+export const ObjDetalle=z.object({productoId:ObjId,inventarioId:ObjId,loteInventarioId:ObjId.nullable().optional(),cantidad:ObjDecimal}).strict();
+export const ObjRegistrar=z.object({formulaId:ObjId.nullable().optional(),fechaEfectiva:z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}-06:00$/),destino:z.discriminatedUnion("tipo",[z.object({tipo:z.literal("ANIMAL"),animalId:ObjId}).strict(),z.object({tipo:z.literal("LOTE"),loteProduccionId:ObjId}).strict()]),observaciones:ObjTexto(1000),detalles:z.array(ObjDetalle).min(1).max(100)}).strict();
+export const ObjRevertir=z.object({motivo:z.string().trim().min(1).max(500)}).strict();
+export const ObjFormula=z.object({nombre:z.string().trim().min(1).max(150),descripcion:ObjTexto(500),cantidadBase:ObjDecimal,unidadBase:z.string().trim().min(1).max(30),detalles:z.array(z.object({productoId:ObjId,cantidad:ObjDecimal}).strict()).min(1).max(100)}).strict();
+export const ObjFormulaEditar=ObjFormula.partial().refine(Obj=>Object.keys(Obj).length>0);
+export const ObjEstado=z.object({activo:z.boolean()}).strict();
+export const ObjParametroAlimentacion=z.object({alimentacionId:ObjId}).strict();
+export const ObjParametroFormula=z.object({formulaId:ObjId}).strict();
+export const ObjParametroProducto=z.object({productoId:ObjId}).strict();
+export const ObjCuerpoVacio=z.object({}).strict();
