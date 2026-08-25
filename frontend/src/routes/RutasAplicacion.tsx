@@ -26,6 +26,12 @@ import { PaginaMedicionesProduccion } from "../pages/produccion/PaginaMediciones
 import { PaginaHistorialProduccion } from "../pages/produccion/PaginaHistorialProduccion";
 import { PaginaCatalogosProduccion } from "../pages/produccion/PaginaCatalogosProduccion";
 import { PaginaDiagnosticoProduccion } from "../pages/produccion/PaginaDiagnosticoProduccion";
+import { LayoutAlimentacion } from "../components/alimentacion/LayoutAlimentacion";
+import { PaginaHistorialAlimentacion } from "../pages/alimentacion/PaginaHistorialAlimentacion";
+import { PaginaRegistrarAlimentacion } from "../pages/alimentacion/PaginaRegistrarAlimentacion";
+import { PaginaFormulasAlimentacion } from "../pages/alimentacion/PaginaFormulasAlimentacion";
+import { PaginaProductosAlimentacion } from "../pages/alimentacion/PaginaProductosAlimentacion";
+import { PaginaDiagnosticoAlimentacion } from "../pages/alimentacion/PaginaDiagnosticoAlimentacion";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
@@ -89,6 +95,15 @@ export function RutasAplicacion() {
               <Route path="historial" element={<PaginaHistorialProduccion />} />
               <Route element={<RutaConPermiso ArrPermisosAlguno={["PRODUCCION_TIPOS_CREAR", "PRODUCCION_TIPOS_EDITAR", "PRODUCCION_TIPOS_CAMBIAR_ESTADO", "PRODUCCION_RAZAS_CREAR", "PRODUCCION_RAZAS_EDITAR", "PRODUCCION_RAZAS_CAMBIAR_ESTADO"]} />}><Route path="catalogos" element={<PaginaCatalogosProduccion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="PRODUCCION_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoProduccion />} /></Route>
+            </Route>
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_CONSULTAR" />}>
+            <Route path="/alimentacion" element={<LayoutAlimentacion />}>
+              <Route index element={<PaginaHistorialAlimentacion />} />
+              <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_REGISTRAR" />}><Route path="registrar" element={<PaginaRegistrarAlimentacion />} /></Route>
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["ALIMENTACION_FORMULAS_CREAR", "ALIMENTACION_FORMULAS_EDITAR", "ALIMENTACION_FORMULAS_CAMBIAR_ESTADO"]} />}><Route path="formulas" element={<PaginaFormulasAlimentacion />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_PRODUCTOS_GESTIONAR" />}><Route path="productos" element={<PaginaProductosAlimentacion />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoAlimentacion />} /></Route>
             </Route>
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />

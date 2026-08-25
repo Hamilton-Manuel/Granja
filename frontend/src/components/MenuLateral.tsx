@@ -8,7 +8,6 @@ interface PropiedadesMenuLateral {
 }
 
 const ArrModulosFuturos = [
-  "Alimentación",
   "Sanidad",
   "Ventas",
   "Reportes",
@@ -21,6 +20,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
   const BoolMostrarProveedores = Autenticacion_tienePermiso("PROVEEDORES_CONSULTAR");
   const BoolMostrarInventario = Autenticacion_tienePermiso("INVENTARIO_CONSULTAR");
   const BoolMostrarProduccion = Autenticacion_tienePermiso("PRODUCCION_CONSULTAR");
+  const BoolMostrarAlimentacion = Autenticacion_tienePermiso("ALIMENTACION_CONSULTAR");
 
   return (
     <>
@@ -55,6 +55,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
           {BoolMostrarProveedores && <NavLink to="/proveedores" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">P</span> Proveedores</NavLink>}
           {BoolMostrarInventario && <NavLink to="/inventario" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">I</span> Inventario</NavLink>}
           {BoolMostrarProduccion && <NavLink to="/produccion" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">P</span> Producción</NavLink>}
+          {BoolMostrarAlimentacion && <NavLink to="/alimentacion" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">A</span> Alimentación</NavLink>}
           {ArrModulosFuturos.map((StrModulo) => (
             <span key={StrModulo} className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
               <span aria-hidden="true">•</span> {StrModulo} <small>Próximamente</small>

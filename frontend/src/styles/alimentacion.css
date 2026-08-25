@@ -1,0 +1,70 @@
+.alimentacion-modulo { display: grid; gap: 1rem; min-width: 0; }
+.alimentacion-encabezado { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.alimentacion-encabezado h1, .alimentacion-seccion-encabezado h2 { margin: 0; color: var(--verde-profundo, #244c36); }
+.alimentacion-encabezado p, .alimentacion-seccion-encabezado p { margin: .35rem 0 0; color: #59665d; }
+.alimentacion-navegacion { display: flex; gap: .5rem; padding: .35rem; overflow-x: auto; background: #f6f0df; border: 1px solid #e3d8bd; border-radius: .8rem; scrollbar-width: thin; }
+.alimentacion-navegacion a { flex: 0 0 auto; padding: .65rem .9rem; border-radius: .55rem; color: #294b38; text-decoration: none; font-weight: 650; }
+.alimentacion-navegacion a.active { color: #fff; background: #315f43; }
+.alimentacion-contenido { display: grid; gap: 1rem; min-width: 0; }
+.alimentacion-seccion-encabezado { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
+.alimentacion-filtros, .alimentacion-formulario { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); align-items: end; gap: .8rem; padding: 1rem; background: #fffdf7; border: 1px solid #e3d8bd; border-radius: .8rem; }
+.alimentacion-filtros label, .alimentacion-formulario label, .alimentacion-motivo label { display: grid; gap: .35rem; font-weight: 650; color: #304d3b; }
+.alimentacion-filtros input, .alimentacion-filtros select, .alimentacion-formulario input, .alimentacion-formulario select, .alimentacion-formulario textarea, .alimentacion-motivo input { width: 100%; min-height: 2.65rem; padding: .6rem .7rem; border: 1px solid #b9c3bb; border-radius: .5rem; background: white; color: inherit; box-sizing: border-box; }
+.alimentacion-formulario textarea { min-height: 5rem; resize: vertical; }
+.alimentacion-formulario fieldset { grid-column: 1 / -1; display: grid; gap: .8rem; border: 1px solid #d8ccb1; border-radius: .6rem; padding: .8rem; }
+.alimentacion-registro > fieldset { background: #fffdf8; }
+.alimentacion-contexto-registro { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(280px, 1fr) minmax(260px, 1fr); gap: 1rem; align-items: start; }
+.alimentacion-contexto-registro label { min-width: 0; }
+.alimentacion-contexto-registro input, .alimentacion-contexto-registro select { width: 100%; min-width: 0; }
+.alimentacion-selector-destino { display: flex; flex-wrap: wrap; gap: 1rem; }
+.alimentacion-selector-destino label { display: flex; grid-auto-flow: column; align-items: center; gap: .4rem; }
+.alimentacion-selector-destino input { width: auto; min-height: auto; }
+.alimentacion-linea-registro { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)) auto; gap: .75rem; align-items: end; padding: .85rem; border: 1px solid #e3d8bd; border-radius: .7rem; background: white; }
+.alimentacion-linea-registro > button { min-height: 2.65rem; }
+.alimentacion-observaciones { grid-column: 1 / -1; }
+.alimentacion-resumen-confirmacion { display: grid; gap: .75rem; }
+.alimentacion-resumen-confirmacion p { margin: 0; }
+.alimentacion-linea-formula { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(130px, 1fr) auto; gap: .65rem; align-items: end; }
+.alimentacion-tabla { overflow-x: auto; border: 1px solid #e3d8bd; border-radius: .8rem; background: #fff; }
+.alimentacion-tabla table { width: 100%; border-collapse: collapse; }
+.alimentacion-tabla th, .alimentacion-tabla td { padding: .75rem; border-bottom: 1px solid #eee6d4; text-align: left; vertical-align: top; }
+.alimentacion-tabla th { color: #315f43; background: #f7f2e5; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+.alimentacion-tabla td > small { display: block; margin-top: .35rem; }
+.alimentacion-detalles { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.alimentacion-detalles li { display: grid; gap: .12rem; }
+.alimentacion-detalles small { color: #657269; }
+.alimentacion-tarjetas { display: none; }
+.alimentacion-tarjetas article { display: grid; gap: .65rem; padding: 1rem; border: 1px solid #e3d8bd; border-radius: .8rem; background: #fff; }
+.alimentacion-tarjetas h3, .alimentacion-tarjetas p { margin: 0; }
+.alimentacion-tarjetas button { min-height: 2.7rem; }
+.alimentacion-global, .alimentacion-aviso { padding: .7rem; border-left: .25rem solid #a87825; background: #fff5d8; color: #674b19; }
+.alimentacion-vacio, .alimentacion-bloqueo { padding: 1.2rem; border: 1px dashed #c8b88f; border-radius: .8rem; background: #fffaf0; text-align: center; }
+.alimentacion-bloqueo h3 { margin-top: 0; color: #75451e; }
+.alimentacion-motivo { position: relative; z-index: 3; padding: .8rem; border-radius: .6rem; background: #fffaf0; }
+.alimentacion-metricas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.alimentacion-metricas article { display: grid; gap: .35rem; padding: 1rem; border-radius: .7rem; background: #fff; border: 1px solid #ded5c1; }
+.alimentacion-metricas strong { font-size: 1.5rem; color: #315f43; }
+.alimentacion-correcto, .alimentacion-alerta { padding: 1rem; border-radius: .8rem; }
+.alimentacion-correcto { background: #e9f5eb; }
+.alimentacion-alerta { background: #fff0e6; }
+
+@media (max-width: 900px) {
+  .alimentacion-tabla { display: none; }
+  .alimentacion-tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .8rem; }
+  .alimentacion-seccion-encabezado { align-items: stretch; flex-direction: column; }
+  .alimentacion-seccion-encabezado > button { width: 100%; }
+  .alimentacion-linea-registro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .alimentacion-contexto-registro { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .alimentacion-encabezado { align-items: start; flex-direction: column; }
+  .alimentacion-navegacion { margin-inline: -.35rem; }
+  .alimentacion-filtros, .alimentacion-formulario, .alimentacion-metricas { grid-template-columns: 1fr; }
+  .alimentacion-linea-formula { grid-template-columns: 1fr; padding-bottom: .8rem; border-bottom: 1px solid #e3d8bd; }
+  .alimentacion-linea-registro { grid-template-columns: 1fr; }
+  .alimentacion-tarjetas { grid-template-columns: 1fr; }
+}

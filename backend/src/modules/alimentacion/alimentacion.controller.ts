@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
+import { Fecha_formatearFechaCivil } from "../../datetime/fecha.js";
 import * as E from "./alimentacion.schemas.js";
 import * as S from "./alimentacion.service.js";
 function Alimentacion_validar<T>(ObjEsquema:z.ZodType<T>,ObjValor:unknown):T{const ObjResultado=ObjEsquema.safeParse(ObjValor);if(!ObjResultado.success)throw new ErrorAplicacion(400,"VALIDACION_INVALIDA","Los datos proporcionados no son válidos.");return ObjResultado.data;}
@@ -16,3 +17,8 @@ export async function Alimentacion_crearFormula(Req:Request,Res:Response){const 
 export async function Alimentacion_editarFormula(Req:Request,Res:Response){const p=Alimentacion_validar(E.ObjParametroFormula,Req.params),b=Alimentacion_validar(E.ObjFormulaEditar,Req.body);Res.json({datos:await S.Alimentacion_guardarFormula(p.formulaId,b as never)});}
 export async function Alimentacion_estadoFormula(Req:Request,Res:Response){const p=Alimentacion_validar(E.ObjParametroFormula,Req.params),b=Alimentacion_validar(E.ObjEstado,Req.body);Res.json({datos:await S.Alimentacion_estadoFormula(p.formulaId,b.activo)});}
 export async function Alimentacion_diagnostico(Req:Request,Res:Response){Alimentacion_validar(E.ObjCuerpoVacio,Req.body??{});Res.json({datos:await S.Alimentacion_diagnosticar(Alimentacion_actor(Req).IntUsuarioId)});}
+export async function Alimentacion_destinosAnimales(Req:Request,Res:Response){const q=Alimentacion_validar(E.ObjConsultaLookup,Req.query),x=await S.Alimentacion_buscarDestinosAnimales({IntPagina:q.pagina,IntLimite:q.limite,...(q.busqueda?{StrBusqueda:q.busqueda}:{})});Res.json({datos:x.datos,paginacion:{pagina:q.pagina,limite:q.limite,total:x.total}});}
+export async function Alimentacion_destinosLotes(Req:Request,Res:Response){const q=Alimentacion_validar(E.ObjConsultaLookup,Req.query),x=await S.Alimentacion_buscarDestinosLotes({IntPagina:q.pagina,IntLimite:q.limite,...(q.busqueda?{StrBusqueda:q.busqueda}:{})});Res.json({datos:x.datos,paginacion:{pagina:q.pagina,limite:q.limite,total:x.total}});}
+export async function Alimentacion_almacenes(Req:Request,Res:Response){const q=Alimentacion_validar(E.ObjConsultaAlmacenes,Req.query);Res.json({datos:await S.Alimentacion_buscarAlmacenes(q.busqueda)});}
+export async function Alimentacion_existencias(Req:Request,Res:Response){const q=Alimentacion_validar(E.ObjConsultaExistencias,Req.query),datos=await S.Alimentacion_buscarExistencias(q.productoId,q.inventarioId);Res.json({datos:datos.map(x=>({inventarioId:x.inventarioId,productoId:x.productoId,cantidadDisponible:x.existenciaActual,manejaLotes:x.producto.manejaLotes,unidadBase:x.producto.unidadMedida,costoPromedio:x.costoPromedioActual,almacen:x.almacen}))});}
+export async function Alimentacion_lotesInventario(Req:Request,Res:Response){const q=Alimentacion_validar(E.ObjConsultaLotesInventario,Req.query),datos=await S.Alimentacion_buscarLotesInventario(q.productoId,q.inventarioId,q.fechaAlimentacion);Res.json({datos:datos.map(x=>({loteInventarioId:x.loteInventarioId,codigoLote:x.lote.codigoLote,cantidadDisponible:x.existenciaActual,fechaVencimiento:x.lote.fechaVencimiento?Fecha_formatearFechaCivil(x.lote.fechaVencimiento):null,costoUnitario:x.lote.costoUnitario,activo:x.lote.activo}))});}

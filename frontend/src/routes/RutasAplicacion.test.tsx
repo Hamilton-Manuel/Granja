@@ -139,6 +139,35 @@ describe("sesión y rutas", () => {
     expect(screen.queryByRole("link", { name: /Producción/ })).not.toBeInTheDocument();
   });
 
+  it("muestra Alimentación y limita sus acciones con permisos reales", async () => {
+    const ObjFetch = vi.fn().mockImplementation((StrRuta: string) => {
+      if (StrRuta === "/api/usuarios/sesion") {
+        return Promise.resolve(Autenticacion_respuestaJson({
+          datos: { usuario: { ...ObjUsuario, rol: { rolId: 3, nombre: "OPERADOR" }, permisos: ["ALIMENTACION_CONSULTAR", "ALIMENTACION_REGISTRAR"] } },
+        }));
+      }
+      if (StrRuta === "/api/alimentacion?pagina=1&limite=20") {
+        return Promise.resolve(Autenticacion_respuestaJson({ datos: [], paginacion: { pagina: 1, limite: 20, total: 0 } }));
+      }
+      throw new Error(`Ruta inesperada: ${StrRuta}`);
+    });
+    vi.stubGlobal("fetch", ObjFetch);
+    Autenticacion_renderizar("/alimentacion");
+    expect(await screen.findByRole("heading", { name: "Historial operativo" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Alimentación/ })).toHaveAttribute("href", "/alimentacion");
+    expect(screen.getByRole("link", { name: "Registrar" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Fórmulas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Productos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Diagnóstico" })).not.toBeInTheDocument();
+  });
+
+  it("protege Alimentación y oculta su menú sin ALIMENTACION_CONSULTAR", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: [] } } })));
+    Autenticacion_renderizar("/alimentacion");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Alimentación/ })).not.toBeInTheDocument();
+  });
+
   it("redirige una sesión existente que intenta entrar a login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: ObjUsuario } })));
     Autenticacion_renderizar("/login");

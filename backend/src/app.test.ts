@@ -101,6 +101,15 @@ test("los contratos nuevos de Inventario exigen autenticacion", async () => {
   }
 });
 
+test("los lookups reducidos de Alimentación exigen autenticación", async () => {
+  for (const StrRuta of ["/api/alimentacion/destinos/animales", "/api/alimentacion/destinos/lotes", "/api/alimentacion/almacenes", "/api/alimentacion/existencias?productoId=1", "/api/alimentacion/lotes-inventario?productoId=1&inventarioId=1"]) {
+    const ObjRespuesta = await fetch(`${StrUrlBase}${StrRuta}`);
+    const ObjContenido = (await ObjRespuesta.json()) as { error: { codigo: string } };
+    assert.equal(ObjRespuesta.status, 401);
+    assert.equal(ObjContenido.error.codigo, "NO_AUTENTICADO");
+  }
+});
+
 test("los contratos de Produccion exigen autenticacion", async () => {
   for (const StrRuta of ["/api/produccion/proveedores", "/api/produccion/tipos-animales", "/api/produccion/lotes", "/api/produccion/animales", "/api/produccion/operaciones", "/api/produccion/transacciones"]) {
     const ObjRespuesta = await fetch(`${StrUrlBase}${StrRuta}`);
