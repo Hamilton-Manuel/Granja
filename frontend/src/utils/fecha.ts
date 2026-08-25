@@ -15,3 +15,8 @@ export function Fecha_validarFechaCivil(StrFecha: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(StrFecha)) throw new RangeError("La fecha civil no es válida.");
   return StrFecha;
 }
+
+export function Fecha_datetimeLocalAContratoGuatemala(StrFechaHora:string):string{
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(StrFechaHora))throw new RangeError("La fecha y hora civil no es válida.");
+  return `${StrFechaHora}:00.000-06:00`;
+}

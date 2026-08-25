@@ -1,0 +1,18 @@
+import {Api_solicitar} from "./api.service";import type * as T from "../types/sanidad.types";
+function Sanidad_parametros(Obj:T.ConsultaSanidad){const P=new URLSearchParams({pagina:String(Obj.pagina),limite:String(Obj.limite)});for(const [StrK,ObjV] of Object.entries(Obj))if(!["pagina","limite"].includes(StrK)&&ObjV!==undefined&&ObjV!=="")P.set(StrK,String(ObjV));return P.toString()}
+export const Sanidad_listar=(Obj:T.ConsultaSanidad)=>Api_solicitar<T.RespuestaLista<T.AplicacionSanidad>>(`/api/sanidad?${Sanidad_parametros(Obj)}`);
+export const Sanidad_registrar=(Obj:T.DatosRegistroSanidad)=>Api_solicitar<T.RespuestaDato<T.AplicacionSanidad>>("/api/sanidad",{method:"POST",ObjCuerpo:Obj});
+export const Sanidad_revertir=(IntId:number,StrMotivo:string)=>Api_solicitar<T.RespuestaDato<unknown>>(`/api/sanidad/${IntId}/revertir`,{method:"POST",ObjCuerpo:{motivo:StrMotivo}});
+export const Sanidad_productos=(BoolHabilitados=false)=>Api_solicitar<T.RespuestaDato<T.ProductoSanidad[]>>(`/api/sanidad/productos${BoolHabilitados?"?habilitados=true":""}`);
+export const Sanidad_habilitarProducto=(IntId:number,BoolActivo:boolean)=>Api_solicitar<T.RespuestaDato<unknown>>(`/api/sanidad/productos/${IntId}/habilitacion`,{method:"PATCH",ObjCuerpo:{activo:BoolActivo}});
+export type TipoCatalogoSanidad="tipos-aplicacion"|"vias-administracion"|"unidades-dosis";
+export const Sanidad_catalogo=(StrTipo:TipoCatalogoSanidad,BoolActivos=false)=>Api_solicitar<T.RespuestaDato<T.CatalogoSanidad[]>>(`/api/sanidad/catalogos/${StrTipo}${BoolActivos?"?activo=true":""}`);
+export const Sanidad_crearCatalogo=(StrTipo:TipoCatalogoSanidad,Obj:{codigo:string;nombre:string;descripcion?:string|null})=>Api_solicitar<T.RespuestaDato<T.CatalogoSanidad>>(`/api/sanidad/catalogos/${StrTipo}`,{method:"POST",ObjCuerpo:Obj});
+export const Sanidad_editarCatalogo=(StrTipo:TipoCatalogoSanidad,IntId:number,Obj:{nombre?:string;descripcion?:string|null})=>Api_solicitar<T.RespuestaDato<T.CatalogoSanidad>>(`/api/sanidad/catalogos/${StrTipo}/${IntId}`,{method:"PATCH",ObjCuerpo:Obj});
+export const Sanidad_estadoCatalogo=(StrTipo:TipoCatalogoSanidad,IntId:number,BoolActivo:boolean)=>Api_solicitar<T.RespuestaDato<T.CatalogoSanidad>>(`/api/sanidad/catalogos/${StrTipo}/${IntId}/estado`,{method:"PATCH",ObjCuerpo:{activo:BoolActivo}});
+export const Sanidad_animales=(StrBusqueda:string)=>Api_solicitar<T.RespuestaLista<T.DestinoAnimalSanidad>>(`/api/sanidad/destinos/animales?pagina=1&limite=20&busqueda=${encodeURIComponent(StrBusqueda)}`).then(R=>R.datos);
+export const Sanidad_lotesProduccion=(StrBusqueda:string)=>Api_solicitar<T.RespuestaLista<T.DestinoLoteSanidad>>(`/api/sanidad/destinos/lotes?pagina=1&limite=20&busqueda=${encodeURIComponent(StrBusqueda)}`).then(R=>R.datos);
+export const Sanidad_almacenes=()=>Api_solicitar<T.RespuestaDato<T.AlmacenSanidad[]>>("/api/sanidad/almacenes").then(R=>R.datos);
+export const Sanidad_existencias=(IntProductoId:number,IntInventarioId?:number)=>Api_solicitar<T.RespuestaDato<T.ExistenciaSanidad[]>>(`/api/sanidad/existencias?productoId=${IntProductoId}${IntInventarioId?`&inventarioId=${IntInventarioId}`:""}`).then(R=>R.datos);
+export const Sanidad_lotesInventario=(IntProductoId:number,IntInventarioId:number,StrFecha?:string)=>Api_solicitar<T.RespuestaDato<T.LoteFuenteSanidad[]>>(`/api/sanidad/lotes-inventario?productoId=${IntProductoId}&inventarioId=${IntInventarioId}${StrFecha?`&fechaAplicacion=${encodeURIComponent(StrFecha)}`:""}`).then(R=>R.datos);
+export const Sanidad_diagnosticar=()=>Api_solicitar<T.RespuestaDato<T.DiagnosticoSanidad>>("/api/sanidad/diagnosticos/reconciliacion",{method:"POST",ObjCuerpo:{}});

@@ -32,6 +32,12 @@ import { PaginaRegistrarAlimentacion } from "../pages/alimentacion/PaginaRegistr
 import { PaginaFormulasAlimentacion } from "../pages/alimentacion/PaginaFormulasAlimentacion";
 import { PaginaProductosAlimentacion } from "../pages/alimentacion/PaginaProductosAlimentacion";
 import { PaginaDiagnosticoAlimentacion } from "../pages/alimentacion/PaginaDiagnosticoAlimentacion";
+import { LayoutSanidad } from "../components/sanidad/LayoutSanidad";
+import { PaginaHistorialSanidad } from "../pages/sanidad/PaginaHistorialSanidad";
+import { PaginaRegistrarSanidad } from "../pages/sanidad/PaginaRegistrarSanidad";
+import { PaginaProductosSanidad } from "../pages/sanidad/PaginaProductosSanidad";
+import { PaginaCatalogosSanidad } from "../pages/sanidad/PaginaCatalogosSanidad";
+import { PaginaDiagnosticoSanidad } from "../pages/sanidad/PaginaDiagnosticoSanidad";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
@@ -104,6 +110,15 @@ export function RutasAplicacion() {
               <Route element={<RutaConPermiso ArrPermisosAlguno={["ALIMENTACION_FORMULAS_CREAR", "ALIMENTACION_FORMULAS_EDITAR", "ALIMENTACION_FORMULAS_CAMBIAR_ESTADO"]} />}><Route path="formulas" element={<PaginaFormulasAlimentacion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_PRODUCTOS_GESTIONAR" />}><Route path="productos" element={<PaginaProductosAlimentacion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoAlimentacion />} /></Route>
+            </Route>
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="SANIDAD_CONSULTAR" />}>
+            <Route path="/sanidad" element={<LayoutSanidad />}>
+              <Route index element={<PaginaHistorialSanidad />} />
+              <Route element={<RutaConPermiso StrPermiso="SANIDAD_REGISTRAR" />}><Route path="registrar" element={<PaginaRegistrarSanidad />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="SANIDAD_PRODUCTOS_GESTIONAR" />}><Route path="productos" element={<PaginaProductosSanidad />} /></Route>
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["SANIDAD_TIPOS_CREAR", "SANIDAD_TIPOS_EDITAR", "SANIDAD_TIPOS_CAMBIAR_ESTADO", "SANIDAD_VIAS_CREAR", "SANIDAD_VIAS_EDITAR", "SANIDAD_VIAS_CAMBIAR_ESTADO", "SANIDAD_UNIDADES_CREAR", "SANIDAD_UNIDADES_EDITAR", "SANIDAD_UNIDADES_CAMBIAR_ESTADO"]} />}><Route path="catalogos" element={<PaginaCatalogosSanidad />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="SANIDAD_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoSanidad />} /></Route>
             </Route>
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />
