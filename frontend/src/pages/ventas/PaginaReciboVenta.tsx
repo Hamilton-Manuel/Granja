@@ -1,0 +1,10 @@
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { ReciboVenta } from "../../components/ventas/ReciboVenta";
+import { IndicadorCarga } from "../../components/ui/IndicadorCarga";
+import { Ventas_mensajeError } from "../../hooks/useVentas";
+import { Ventas_obtener } from "../../services/ventas.service";
+import type { Venta } from "../../types/ventas.types";
+import { Ventas_generarReciboPdf } from "../../utils/ventas-recibo";
+
+export function PaginaReciboVenta(){const{ventaId:StrVentaId}=useParams();const[ObjParametros]=useSearchParams();const[ObjVenta,establecerVenta]=useState<Venta|null>(null);const[StrError,establecerError]=useState<string|null>(null);const[BoolCargando,establecerCargando]=useState(true);useEffect(()=>{const IntVentaId=Number(StrVentaId);if(!Number.isInteger(IntVentaId)||IntVentaId<=0){establecerError("La venta solicitada no es válida.");establecerCargando(false);return;}void Ventas_obtener(IntVentaId).then(ObjRespuesta=>establecerVenta(ObjRespuesta.datos)).catch(ObjError=>establecerError(Ventas_mensajeError(ObjError))).finally(()=>establecerCargando(false));},[StrVentaId]);useEffect(()=>{if(ObjVenta&&ObjParametros.get("imprimir")==="1"){const IntTemporizador=window.setTimeout(()=>window.print(),100);return()=>window.clearTimeout(IntTemporizador);}},[ObjVenta,ObjParametros]);if(BoolCargando)return <IndicadorCarga StrMensaje="Cargando recibo…"/>;if(StrError||!ObjVenta)return <div className="ventas-contenido"><h2>No fue posible mostrar el recibo</h2><p role="alert">{StrError??"La venta no existe."}</p><Link to="/ventas">Volver a ventas</Link></div>;return <div className="pagina-recibo"><div className="recibo-acciones no-imprimir"><button className="boton-primario" onClick={()=>Ventas_generarReciboPdf(ObjVenta)}>Descargar PDF</button><button className="boton-secundario" onClick={()=>window.print()}>Imprimir</button><Link className="boton-secundario" to="/ventas">Volver a ventas</Link></div><ReciboVenta ObjVenta={ObjVenta}/></div>}

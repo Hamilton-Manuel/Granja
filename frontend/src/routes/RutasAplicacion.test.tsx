@@ -168,6 +168,34 @@ describe("sesión y rutas", () => {
     expect(screen.queryByRole("link", { name: /Alimentación/ })).not.toBeInTheDocument();
   });
 
+  it("muestra Ventas y limita OPERADOR a consulta y registro mediante permisos", async () => {
+    const ObjFetch = vi.fn().mockImplementation((StrRuta: string) => {
+      if (StrRuta === "/api/usuarios/sesion") return Promise.resolve(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, rol: { rolId: 88, nombre: "ROL_SIN_REGLAS_ESPECIALES" }, permisos: ["VENTAS_CONSULTAR", "VENTAS_REGISTRAR"] } } }));
+      if (StrRuta === "/api/ventas?pagina=1&limite=20") return Promise.resolve(Autenticacion_respuestaJson({ ok: true, datos: [], paginacion: { pagina: 1, limite: 20, total: 0 } }));
+      throw new Error(`Ruta inesperada: ${StrRuta}`);
+    });
+    vi.stubGlobal("fetch", ObjFetch);
+    Autenticacion_renderizar("/ventas");
+    expect(await screen.findByRole("heading", { name: "Historial de ventas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ventas/ })).toHaveAttribute("href", "/ventas");
+    expect(screen.getByRole("link", { name: "Registrar" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Diagnóstico" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Anular venta/ })).not.toBeInTheDocument();
+  });
+
+  it("protege Ventas y oculta su menú sin VENTAS_CONSULTAR", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: [] } } })));
+    Autenticacion_renderizar("/ventas");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ventas/ })).not.toBeInTheDocument();
+  });
+
+  it("protege la ruta de recibo con VENTAS_CONSULTAR", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: [] } } })));
+    Autenticacion_renderizar("/ventas/1/recibo");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+  });
+
   it("redirige una sesión existente que intenta entrar a login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: ObjUsuario } })));
     Autenticacion_renderizar("/login");

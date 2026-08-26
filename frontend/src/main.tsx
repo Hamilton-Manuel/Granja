@@ -9,6 +9,7 @@ import "./styles/inventario.css";
 import "./styles/produccion.css";
 import "./styles/alimentacion.css";
 import "./styles/sanidad.css";
+import "./styles/ventas.css";
 
 const ObjRaiz = document.getElementById("root");
 if (ObjRaiz === null) throw new Error("No se encontró el contenedor principal de la aplicación.");

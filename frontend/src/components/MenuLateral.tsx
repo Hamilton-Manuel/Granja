@@ -7,10 +7,7 @@ interface PropiedadesMenuLateral {
   Autenticacion_cerrarMenu: () => void;
 }
 
-const ArrModulosFuturos = [
-  "Ventas",
-  "Reportes",
-];
+const ArrModulosFuturos = ["Reportes"];
 
 export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: PropiedadesMenuLateral) {
   const { Autenticacion_tienePermiso } = useSesion();
@@ -21,6 +18,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
   const BoolMostrarProduccion = Autenticacion_tienePermiso("PRODUCCION_CONSULTAR");
   const BoolMostrarAlimentacion = Autenticacion_tienePermiso("ALIMENTACION_CONSULTAR");
   const BoolMostrarSanidad = Autenticacion_tienePermiso("SANIDAD_CONSULTAR");
+  const BoolMostrarVentas = Autenticacion_tienePermiso("VENTAS_CONSULTAR");
 
   return (
     <>
@@ -57,6 +55,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
           {BoolMostrarProduccion && <NavLink to="/produccion" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">P</span> Producción</NavLink>}
           {BoolMostrarAlimentacion && <NavLink to="/alimentacion" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">A</span> Alimentación</NavLink>}
           {BoolMostrarSanidad && <NavLink to="/sanidad" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">S</span> Sanidad</NavLink>}
+          {BoolMostrarVentas && <NavLink to="/ventas" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">V</span> Ventas</NavLink>}
           {ArrModulosFuturos.map((StrModulo) => (
             <span key={StrModulo} className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
               <span aria-hidden="true">•</span> {StrModulo} <small>Próximamente</small>

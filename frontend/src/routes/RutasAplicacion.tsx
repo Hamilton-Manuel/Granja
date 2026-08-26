@@ -38,6 +38,11 @@ import { PaginaRegistrarSanidad } from "../pages/sanidad/PaginaRegistrarSanidad"
 import { PaginaProductosSanidad } from "../pages/sanidad/PaginaProductosSanidad";
 import { PaginaCatalogosSanidad } from "../pages/sanidad/PaginaCatalogosSanidad";
 import { PaginaDiagnosticoSanidad } from "../pages/sanidad/PaginaDiagnosticoSanidad";
+import { LayoutVentas } from "../components/ventas/LayoutVentas";
+import { PaginaHistorialVentas } from "../pages/ventas/PaginaHistorialVentas";
+import { PaginaRegistrarVenta } from "../pages/ventas/PaginaRegistrarVenta";
+import { PaginaDiagnosticoVentas } from "../pages/ventas/PaginaDiagnosticoVentas";
+import { PaginaReciboVenta } from "../pages/ventas/PaginaReciboVenta";
 import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
@@ -119,6 +124,14 @@ export function RutasAplicacion() {
               <Route element={<RutaConPermiso StrPermiso="SANIDAD_PRODUCTOS_GESTIONAR" />}><Route path="productos" element={<PaginaProductosSanidad />} /></Route>
               <Route element={<RutaConPermiso ArrPermisosAlguno={["SANIDAD_TIPOS_CREAR", "SANIDAD_TIPOS_EDITAR", "SANIDAD_TIPOS_CAMBIAR_ESTADO", "SANIDAD_VIAS_CREAR", "SANIDAD_VIAS_EDITAR", "SANIDAD_VIAS_CAMBIAR_ESTADO", "SANIDAD_UNIDADES_CREAR", "SANIDAD_UNIDADES_EDITAR", "SANIDAD_UNIDADES_CAMBIAR_ESTADO"]} />}><Route path="catalogos" element={<PaginaCatalogosSanidad />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="SANIDAD_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoSanidad />} /></Route>
+            </Route>
+          </Route>
+          <Route element={<RutaConPermiso StrPermiso="VENTAS_CONSULTAR" />}>
+            <Route path="/ventas" element={<LayoutVentas />}>
+              <Route index element={<PaginaHistorialVentas />} />
+              <Route element={<RutaConPermiso StrPermiso="VENTAS_REGISTRAR" />}><Route path="registrar" element={<PaginaRegistrarVenta />} /></Route>
+              <Route element={<RutaConPermiso StrPermiso="VENTAS_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoVentas />} /></Route>
+              <Route path=":ventaId/recibo" element={<PaginaReciboVenta />} />
             </Route>
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />
