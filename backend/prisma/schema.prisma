@@ -55,6 +55,7 @@ model UsuarioCuenta {
   sesiones                 UsuarioSesion[]
   bitacoras                UsuarioBitacora[]
   ventas                   VentaRegistro[]
+  ventasAnuladas           VentaRegistro[]           @relation("VentaUsuarioAnulacion")
   inventarioTransacciones  InventarioTransaccion[]
   inventarioTransferencias InventarioTransferencia[]
   produccionTransacciones  ProduccionTransaccion[]
@@ -518,6 +519,7 @@ model ProduccionAnimal {
   inventarioTransacciones  InventarioTransaccion[]
   produccionEventos        ProduccionEvento[]
   operaciones              ProduccionOperacionAnimal[]
+  ventasAnimales           VentaDetalleAnimal[]
 
   @@unique([animalId, tipoAnimalId])
   @@index([tipoAnimalId])
@@ -538,10 +540,12 @@ model ProduccionAsignacionLote {
   motivoCambio     String?   @map("motivo_cambio") @db.NVarChar(500)
   estado           String    @default("VIGENTE") @db.NVarChar(20)
 
-  animal  ProduccionAnimal @relation(fields: [animalId, tipoAnimalId], references: [animalId, tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
-  lote    ProduccionLote   @relation(fields: [loteProduccionId, tipoAnimalId], references: [loteProduccionId, tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
-  usuario UsuarioCuenta    @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  animal         ProduccionAnimal     @relation(fields: [animalId, tipoAnimalId], references: [animalId, tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
+  lote           ProduccionLote       @relation(fields: [loteProduccionId, tipoAnimalId], references: [loteProduccionId, tipoAnimalId], onDelete: NoAction, onUpdate: NoAction)
+  usuario        UsuarioCuenta        @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  ventasAnimales VentaDetalleAnimal[]
 
+  @@unique([asignacionLoteId, animalId, loteProduccionId])
   @@index([animalId])
   @@index([loteProduccionId])
   @@index([usuarioId])
@@ -613,6 +617,8 @@ model ProduccionOperacion {
   animales           ProduccionOperacionAnimal[]
   transacciones      ProduccionTransaccion[]
   eventos            ProduccionEvento[]
+  venta              VentaRegistro?              @relation("VentaOperacionConfirmacion")
+  ventaAnulada       VentaRegistro?              @relation("VentaOperacionAnulacion")
 
   @@index([usuarioId])
   @@index([proveedorId])
@@ -910,26 +916,38 @@ model SanidadAplicacionFuente {
 // ======================================================
 
 model VentaRegistro {
-  ventaId            Int      @id @default(autoincrement()) @map("venta_id")
-  clienteId          Int      @map("cliente_id")
-  usuarioId          Int      @map("usuario_id")
-  fechaVenta         DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_venta") @db.DateTime2
-  subtotal           Decimal  @db.Decimal(18, 2)
-  descuento          Decimal  @default(0) @db.Decimal(18, 2)
-  total              Decimal  @db.Decimal(18, 2)
-  formaPago          String   @map("forma_pago") @db.NVarChar(50)
-  estado             String   @default("PENDIENTE") @db.NVarChar(20)
-  observaciones      String?  @db.NVarChar(1000)
-  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
+  ventaId               Int       @id @default(autoincrement()) @map("venta_id")
+  clienteId             Int       @map("cliente_id")
+  usuarioId             Int       @map("usuario_id")
+  operacionProduccionId Int       @unique @map("operacion_produccion_id")
+  operacionAnulacionId  Int?      @unique @map("operacion_anulacion_id")
+  usuarioAnulacionId    Int?      @map("usuario_anulacion_id")
+  fechaVenta            DateTime  @map("fecha_venta") @db.DateTime2
+  clienteCodigo         String    @map("cliente_codigo") @db.NVarChar(9)
+  clienteNombre         String    @map("cliente_nombre") @db.NVarChar(200)
+  clienteNit            String?   @map("cliente_nit") @db.NVarChar(20)
+  subtotal              Decimal   @db.Decimal(18, 2)
+  total                 Decimal   @db.Decimal(18, 2)
+  formaPago             String    @map("forma_pago") @db.NVarChar(30)
+  estado                String    @default("CONFIRMADA") @db.NVarChar(20)
+  documentoReferencia   String?   @map("documento_referencia") @db.NVarChar(150)
+  observaciones         String?   @db.NVarChar(1000)
+  fechaAnulacion        DateTime? @map("fecha_anulacion") @db.DateTime2
+  motivoAnulacion       String?   @map("motivo_anulacion") @db.NVarChar(500)
+  fechaCreacion         DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion    DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
-  cliente  ClienteRegistro @relation(fields: [clienteId], references: [clienteId], onDelete: NoAction, onUpdate: NoAction)
-  usuario  UsuarioCuenta   @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
-  detalles VentaDetalle[]
-  recibo   VentaRecibo?
+  cliente             ClienteRegistro      @relation(fields: [clienteId], references: [clienteId], onDelete: NoAction, onUpdate: NoAction)
+  usuario             UsuarioCuenta        @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  usuarioAnulacion    UsuarioCuenta?       @relation("VentaUsuarioAnulacion", fields: [usuarioAnulacionId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  operacionProduccion ProduccionOperacion  @relation("VentaOperacionConfirmacion", fields: [operacionProduccionId], references: [operacionProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  operacionAnulacion  ProduccionOperacion? @relation("VentaOperacionAnulacion", fields: [operacionAnulacionId], references: [operacionProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  detalles            VentaDetalle[]
+  recibo              VentaRecibo?
 
   @@index([clienteId])
   @@index([usuarioId])
+  @@index([usuarioAnulacionId])
   @@index([fechaVenta])
   @@index([estado])
   @@map("ventas_registros")
@@ -940,7 +958,6 @@ model VentaDetalle {
   ventaId          Int      @map("venta_id")
   loteProduccionId Int      @map("lote_produccion_id")
   cantidadAnimales Int      @map("cantidad_animales")
-  precioUnitario   Decimal  @map("precio_unitario") @db.Decimal(18, 2)
   subtotal         Decimal  @db.Decimal(18, 2)
   descripcion      String?  @db.NVarChar(500)
   fechaCreacion    DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
@@ -948,17 +965,39 @@ model VentaDetalle {
   venta                   VentaRegistro           @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
   lote                    ProduccionLote          @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
   produccionTransacciones ProduccionTransaccion[]
+  animales                VentaDetalleAnimal[]
 
   @@unique([ventaId, loteProduccionId])
+  @@unique([detalleVentaId, loteProduccionId])
   @@index([ventaId])
   @@index([loteProduccionId])
   @@map("ventas_detalles")
 }
 
+model VentaDetalleAnimal {
+  detalleVentaAnimalId Int      @id @default(autoincrement()) @map("detalle_venta_animal_id")
+  detalleVentaId       Int      @map("detalle_venta_id")
+  animalId             Int      @map("animal_id")
+  asignacionLoteId     Int      @unique @map("asignacion_lote_id")
+  loteProduccionId     Int      @map("lote_produccion_id")
+  precioVenta          Decimal  @map("precio_venta") @db.Decimal(18, 2)
+  fechaCreacion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+
+  detalle    VentaDetalle             @relation(fields: [detalleVentaId, loteProduccionId], references: [detalleVentaId, loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+  animal     ProduccionAnimal         @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  asignacion ProduccionAsignacionLote @relation(fields: [asignacionLoteId, animalId, loteProduccionId], references: [asignacionLoteId, animalId, loteProduccionId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([detalleVentaId, animalId])
+  @@index([animalId])
+  @@index([loteProduccionId])
+  @@map("ventas_detalles_animales")
+}
+
 model VentaRecibo {
   reciboId      Int      @id @default(autoincrement()) @map("recibo_id")
   ventaId       Int      @unique @map("venta_id")
-  numeroRecibo  String   @unique @map("numero_recibo") @db.NVarChar(50)
+  serie         String   @default("A") @db.NVarChar(10)
+  numero        Int      @default(dbgenerated("NEXT VALUE FOR [dbo].[ventas_recibos_numero_seq]"))
   fechaEmision  DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_emision") @db.DateTime2
   monto         Decimal  @db.Decimal(18, 2)
   concepto      String   @db.NVarChar(1000)
@@ -967,6 +1006,7 @@ model VentaRecibo {
 
   venta VentaRegistro @relation(fields: [ventaId], references: [ventaId], onDelete: NoAction, onUpdate: NoAction)
 
+  @@unique([serie, numero])
   @@index([fechaEmision])
   @@index([estado])
   @@map("ventas_recibos")

@@ -49,3 +49,67 @@ export async function Produccion_listarTransacciones(ObjDatos:{IntPagina:number;
 export async function Produccion_revertirOperacion(IntOperacionId:number,IntUsuarioId:number,StrIp?:string){return ObjPrisma().$transaction(async ObjTx=>{const original=await ObjTx.produccionOperacion.findUnique({where:{operacionProduccionId:IntOperacionId},include:{animales:true,transacciones:true,reversion:true}});if(!original)throw new Error("OPERACION_NO_ENCONTRADA");if(original.reversion)throw new Error("OPERACION_YA_REVERTIDA");if(!["TRASLADO","CAMBIO_ESTADO"].includes(original.tipoOperacion))throw new Error("REVERSION_NO_PERMITIDA");const op=await ObjTx.produccionOperacion.create({data:{usuarioId:IntUsuarioId,operacionRevertidaId:IntOperacionId,loteProduccionId:original.loteProduccionId,tipoOperacion:"REVERSION",subtipoOperacion:"REVERSION",motivo:`Reversion de operacion ${IntOperacionId}.`}});if(original.tipoOperacion==="TRASLADO"){const salida=original.transacciones.find(t=>t.cantidad<0),entrada=original.transacciones.find(t=>t.cantidad>0);if(!salida||!entrada)throw new Error("OPERACION_INCONSISTENTE");for(const item of original.animales){const vigente=await ObjTx.produccionAsignacionLote.findFirst({where:{animalId:item.animalId,loteProduccionId:entrada.loteProduccionId,estado:"VIGENTE"},include:{animal:true}});if(!vigente||vigente.animal.estadoActual!=="ACTIVO")throw new Error("REVERSION_NO_PERMITIDA");await ObjTx.produccionAsignacionLote.update({where:{asignacionLoteId:vigente.asignacionLoteId},data:{estado:"FINALIZADA",fechaFin:Fecha_obtenerAhoraGuatemala(),motivoCambio:`Reversion ${IntOperacionId}`}});await ObjTx.produccionAsignacionLote.create({data:{animalId:item.animalId,loteProduccionId:salida.loteProduccionId,tipoAnimalId:vigente.tipoAnimalId,usuarioId:IntUsuarioId,motivoCambio:`Reversion ${IntOperacionId}`}});await ObjTx.produccionOperacionAnimal.create({data:{operacionProduccionId:op.operacionProduccionId,animalId:item.animalId}});await ObjTx.produccionEvento.create({data:{animalId:item.animalId,usuarioId:IntUsuarioId,operacionProduccionId:op.operacionProduccionId,tipoEvento:"CAMBIO_LOTE",descripcion:`Reversion de traslado ${IntOperacionId}.`}});}await ObjTx.produccionTransaccion.createMany({data:original.transacciones.map(t=>({operacionProduccionId:op.operacionProduccionId,loteProduccionId:t.loteProduccionId,usuarioId:IntUsuarioId,tipoTransaccion:"REVERSION",cantidad:-t.cantidad,motivo:`Reversion ${IntOperacionId}`}))});}else{const tx=original.transacciones[0],item=original.animales[0];if(!tx||!item)throw new Error("OPERACION_INCONSISTENTE");const animal=await ObjTx.produccionAnimal.findUnique({where:{animalId:item.animalId}});if(!animal||!["FALLECIDO","RETIRADO"].includes(animal.estadoActual))throw new Error("REVERSION_NO_PERMITIDA");await ObjTx.produccionAnimal.update({where:{animalId:item.animalId},data:{estadoActual:"ACTIVO",fechaActualizacion:Fecha_obtenerAhoraGuatemala()}});await ObjTx.produccionAsignacionLote.create({data:{animalId:item.animalId,loteProduccionId:tx.loteProduccionId,tipoAnimalId:animal.tipoAnimalId,usuarioId:IntUsuarioId,motivoCambio:`Reversion ${IntOperacionId}`}});const hist=await ObjTx.produccionHistorialEstado.create({data:{animalId:item.animalId,usuarioId:IntUsuarioId,estadoAnterior:animal.estadoActual,estadoNuevo:"ACTIVO",motivo:`Reversion ${IntOperacionId}`}});await ObjTx.produccionOperacionAnimal.create({data:{operacionProduccionId:op.operacionProduccionId,animalId:item.animalId}});await ObjTx.produccionTransaccion.create({data:{operacionProduccionId:op.operacionProduccionId,loteProduccionId:tx.loteProduccionId,usuarioId:IntUsuarioId,tipoTransaccion:"REVERSION",cantidad:1,motivo:`Reversion ${IntOperacionId}`}});await ObjTx.produccionEvento.create({data:{animalId:item.animalId,usuarioId:IntUsuarioId,operacionProduccionId:op.operacionProduccionId,historialEstadoId:hist.historialEstadoId,tipoEvento:"CAMBIO_ESTADO",descripcion:`Reversion de estado de animal ${item.animalId}.`}});}await Produccion_bitacora(ObjTx,IntUsuarioId,"PRODUCCION_OPERACION_REVERTIDA",`Operacion ${IntOperacionId}; reversion ${op.operacionProduccionId}.`,StrIp);return{operacionProduccionId:op.operacionProduccionId,operacionRevertidaId:IntOperacionId};},{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});}
 
 export async function Produccion_diagnosticar(IntUsuarioId:number,StrIp?:string){return ObjPrisma().$transaction(async ObjTx=>{const ArrSaldos=await ObjTx.$queryRaw<Array<{loteProduccionId:number;saldo:number;vigentes:number}>>(Prisma.sql`SELECT l.lote_produccion_id AS loteProduccionId, COALESCE(SUM(t.cantidad),0) AS saldo, (SELECT COUNT(*) FROM dbo.produccion_asignaciones_lotes a JOIN dbo.produccion_animales an ON an.animal_id=a.animal_id WHERE a.lote_produccion_id=l.lote_produccion_id AND a.estado=N'VIGENTE' AND an.estado_actual=N'ACTIVO') AS vigentes FROM dbo.produccion_lotes l LEFT JOIN dbo.produccion_transacciones t ON t.lote_produccion_id=l.lote_produccion_id GROUP BY l.lote_produccion_id`);const ArrDiferencias=ArrSaldos.filter(ObjSaldo=>String(ObjSaldo.saldo)!==String(ObjSaldo.vigentes));const IntActivosSinAsignacion=await ObjTx.produccionAnimal.count({where:{estadoActual:"ACTIVO",asignaciones:{none:{estado:"VIGENTE"}}}});const IntTerminalesConAsignacion=await ObjTx.produccionAnimal.count({where:{estadoActual:{in:["VENDIDO","FALLECIDO","RETIRADO"]},asignaciones:{some:{estado:"VIGENTE"}}}});const IntTotalDiferencias=ArrDiferencias.length+IntActivosSinAsignacion+IntTerminalesConAsignacion;await Produccion_bitacora(ObjTx,IntUsuarioId,"PRODUCCION_RECONCILIACION_EJECUTADA",`Diagnostico; diferencias ${IntTotalDiferencias}.`,StrIp);return{consistente:IntTotalDiferencias===0,lotesRevisados:ArrSaldos.length,totalDiferencias:IntTotalDiferencias,activosSinAsignacion:IntActivosSinAsignacion,terminalesConAsignacion:IntTerminalesConAsignacion,diferenciasLotes:ArrDiferencias};});}
+
+export type ProduccionAnimalVentaConTx = {
+  animalId: number;
+  asignacionLoteId: number;
+  loteProduccionId: number;
+  tipoAnimalId: number;
+};
+
+export async function Produccion_venderAnimalesConTx<T>(
+  ObjTx: Prisma.TransactionClient,
+  ObjDatos: {
+    ArrAnimales: ProduccionAnimalVentaConTx[];
+    DtFechaVenta: Date;
+    IntUsuarioId: number;
+    StrDocumentoReferencia?: string | null | undefined;
+    StrObservaciones?: string | null | undefined;
+    StrIp?: string | undefined;
+    Produccion_crearVenta: (IntOperacionProduccionId: number) => Promise<{ ObjResultado: T; ObjDetallePorLote: Map<number, number> }>;
+  },
+): Promise<{ ObjResultado: T; IntOperacionProduccionId: number }> {
+  const ObjOperacion = await ObjTx.produccionOperacion.create({ data: { usuarioId: ObjDatos.IntUsuarioId, tipoOperacion: "VENTA", subtipoOperacion: "VENTA", documentoReferencia: ObjDatos.StrDocumentoReferencia ?? null, motivo: "Venta de animales", observaciones: ObjDatos.StrObservaciones ?? null, fechaOperacion: ObjDatos.DtFechaVenta } });
+  const ObjVenta = await ObjDatos.Produccion_crearVenta(ObjOperacion.operacionProduccionId);
+  const ObjCantidadPorLote = new Map<number, number>();
+  for (const ObjAnimal of ObjDatos.ArrAnimales) {
+    const IntAsignaciones = (await ObjTx.produccionAsignacionLote.updateMany({ where: { asignacionLoteId: ObjAnimal.asignacionLoteId, animalId: ObjAnimal.animalId, loteProduccionId: ObjAnimal.loteProduccionId, estado: "VIGENTE" }, data: { estado: "FINALIZADA", fechaFin: ObjDatos.DtFechaVenta, motivoCambio: "VENTA" } })).count;
+    const IntAnimales = (await ObjTx.produccionAnimal.updateMany({ where: { animalId: ObjAnimal.animalId, estadoActual: "ACTIVO" }, data: { estadoActual: "VENDIDO", fechaActualizacion: ObjDatos.DtFechaVenta } })).count;
+    if (IntAsignaciones !== 1 || IntAnimales !== 1) throw new Error("CONFLICTO_CONCURRENCIA");
+    const ObjHistorial = await ObjTx.produccionHistorialEstado.create({ data: { animalId: ObjAnimal.animalId, usuarioId: ObjDatos.IntUsuarioId, estadoAnterior: "ACTIVO", estadoNuevo: "VENDIDO", motivo: "Venta confirmada", fechaCambio: ObjDatos.DtFechaVenta } });
+    await ObjTx.produccionOperacionAnimal.create({ data: { operacionProduccionId: ObjOperacion.operacionProduccionId, animalId: ObjAnimal.animalId } });
+    await ObjTx.produccionEvento.create({ data: { animalId: ObjAnimal.animalId, usuarioId: ObjDatos.IntUsuarioId, operacionProduccionId: ObjOperacion.operacionProduccionId, historialEstadoId: ObjHistorial.historialEstadoId, tipoEvento: "CAMBIO_ESTADO", fechaEvento: ObjDatos.DtFechaVenta, descripcion: `Animal ${ObjAnimal.animalId} vendido.` } });
+    ObjCantidadPorLote.set(ObjAnimal.loteProduccionId, (ObjCantidadPorLote.get(ObjAnimal.loteProduccionId) ?? 0) + 1);
+  }
+  for (const [IntLoteProduccionId, IntCantidad] of ObjCantidadPorLote) {
+    const IntDetalleVentaId = ObjVenta.ObjDetallePorLote.get(IntLoteProduccionId);
+    if (IntDetalleVentaId === undefined) throw new Error("VENTA_INCONSISTENTE");
+    await ObjTx.produccionTransaccion.create({ data: { operacionProduccionId: ObjOperacion.operacionProduccionId, loteProduccionId: IntLoteProduccionId, usuarioId: ObjDatos.IntUsuarioId, ventaDetalleId: IntDetalleVentaId, tipoTransaccion: "VENTA", cantidad: -IntCantidad, documentoReferencia: ObjDatos.StrDocumentoReferencia ?? null, motivo: "Venta de animales", observaciones: ObjDatos.StrObservaciones ?? null, fechaTransaccion: ObjDatos.DtFechaVenta } });
+  }
+  await Produccion_bitacora(ObjTx, ObjDatos.IntUsuarioId, "PRODUCCION_VENTA_REGISTRADA", `Operacion ${ObjOperacion.operacionProduccionId}; animales ${ObjDatos.ArrAnimales.length}.`, ObjDatos.StrIp);
+  return { ObjResultado: ObjVenta.ObjResultado, IntOperacionProduccionId: ObjOperacion.operacionProduccionId };
+}
+
+export async function Produccion_revertirVentaConTx(
+  ObjTx: Prisma.TransactionClient,
+  ObjDatos: { IntOperacionProduccionId: number; ArrAnimales: ProduccionAnimalVentaConTx[]; IntUsuarioId: number; StrMotivo: string; DtAhora: Date; StrIp?: string | undefined },
+): Promise<number> {
+  const ObjOriginal = await ObjTx.produccionOperacion.findUnique({ where: { operacionProduccionId: ObjDatos.IntOperacionProduccionId }, include: { reversion: true } });
+  if (!ObjOriginal || ObjOriginal.tipoOperacion !== "VENTA") throw new Error("OPERACION_NO_ENCONTRADA");
+  if (ObjOriginal.reversion) throw new Error("OPERACION_YA_REVERTIDA");
+  const ObjReversion = await ObjTx.produccionOperacion.create({ data: { usuarioId: ObjDatos.IntUsuarioId, operacionRevertidaId: ObjDatos.IntOperacionProduccionId, tipoOperacion: "REVERSION", subtipoOperacion: "REVERSION", motivo: ObjDatos.StrMotivo, fechaOperacion: ObjDatos.DtAhora } });
+  const ObjCantidadPorLote = new Map<number, number>();
+  for (const ObjAnimal of ObjDatos.ArrAnimales) {
+    const ObjLote = await ObjTx.produccionLote.findUnique({ where: { loteProduccionId: ObjAnimal.loteProduccionId } });
+    if (!ObjLote || ObjLote.estado !== "ACTIVO") throw new Error("LOTE_ORIGEN_INACTIVO");
+    if ((await ObjTx.produccionAnimal.updateMany({ where: { animalId: ObjAnimal.animalId, estadoActual: "VENDIDO", asignaciones: { none: { estado: "VIGENTE" } } }, data: { estadoActual: "ACTIVO", fechaActualizacion: ObjDatos.DtAhora } })).count !== 1) throw new Error("REVERSION_VENTA_NO_PERMITIDA");
+    await ObjTx.produccionAsignacionLote.create({ data: { animalId: ObjAnimal.animalId, loteProduccionId: ObjAnimal.loteProduccionId, tipoAnimalId: ObjAnimal.tipoAnimalId, usuarioId: ObjDatos.IntUsuarioId, fechaInicio: ObjDatos.DtAhora, motivoCambio: `Reversion de venta ${ObjDatos.IntOperacionProduccionId}` } });
+    const ObjHistorial = await ObjTx.produccionHistorialEstado.create({ data: { animalId: ObjAnimal.animalId, usuarioId: ObjDatos.IntUsuarioId, estadoAnterior: "VENDIDO", estadoNuevo: "ACTIVO", motivo: ObjDatos.StrMotivo, fechaCambio: ObjDatos.DtAhora } });
+    await ObjTx.produccionOperacionAnimal.create({ data: { operacionProduccionId: ObjReversion.operacionProduccionId, animalId: ObjAnimal.animalId } });
+    await ObjTx.produccionEvento.create({ data: { animalId: ObjAnimal.animalId, usuarioId: ObjDatos.IntUsuarioId, operacionProduccionId: ObjReversion.operacionProduccionId, historialEstadoId: ObjHistorial.historialEstadoId, tipoEvento: "CAMBIO_ESTADO", fechaEvento: ObjDatos.DtAhora, descripcion: `Reversion de venta para animal ${ObjAnimal.animalId}.` } });
+    ObjCantidadPorLote.set(ObjAnimal.loteProduccionId, (ObjCantidadPorLote.get(ObjAnimal.loteProduccionId) ?? 0) + 1);
+  }
+  for (const [IntLoteProduccionId, IntCantidad] of ObjCantidadPorLote) await ObjTx.produccionTransaccion.create({ data: { operacionProduccionId: ObjReversion.operacionProduccionId, loteProduccionId: IntLoteProduccionId, usuarioId: ObjDatos.IntUsuarioId, tipoTransaccion: "REVERSION", cantidad: IntCantidad, motivo: ObjDatos.StrMotivo, fechaTransaccion: ObjDatos.DtAhora } });
+  await Produccion_bitacora(ObjTx, ObjDatos.IntUsuarioId, "PRODUCCION_VENTA_REVERTIDA", `Operacion ${ObjDatos.IntOperacionProduccionId}; reversion ${ObjReversion.operacionProduccionId}.`, ObjDatos.StrIp);
+  return ObjReversion.operacionProduccionId;
+}

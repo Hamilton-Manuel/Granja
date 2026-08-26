@@ -27,6 +27,7 @@ import {
 } from "../modules/produccion/produccion.constants.js";
 import { ArrCatalogoPermisosAlimentacion, ArrPermisosAlimentacionOperador } from "../modules/alimentacion/alimentacion.constants.js";
 import { ArrCatalogoPermisosSanidad, ArrPermisosSanidadOperador, ArrTiposSanidad, ArrViasSanidad, ArrUnidadesSanidad } from "../modules/sanidad/sanidad.constants.js";
+import { ArrCatalogoPermisosVentas, ArrPermisosVentasOperador } from "../modules/ventas/ventas.constants.js";
 import {
   ArrCatalogoPermisosUsuarios,
   ArrCodigosPermisosUsuarios,
@@ -51,6 +52,7 @@ const ArrCatalogoPermisosSistema = [
   ...ArrCatalogoPermisosProduccion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PRODUCCION" })),
   ...ArrCatalogoPermisosAlimentacion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "ALIMENTACION" })),
   ...ArrCatalogoPermisosSanidad.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "SANIDAD" })),
+  ...ArrCatalogoPermisosVentas.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "VENTAS" })),
 ] as const;
 
 const ArrCodigosPermisosClientesProveedores = [
@@ -244,7 +246,7 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     }
 
     const ArrPermisosOperador = ArrPermisosObligatorios.filter((ObjPermiso) =>
-      ([...ArrPermisosInventarioOperador, ...ArrPermisosProduccionOperador, ...ArrPermisosAlimentacionOperador, ...ArrPermisosSanidadOperador] as readonly string[]).includes(ObjPermiso.codigo),
+      ([...ArrPermisosInventarioOperador, ...ArrPermisosProduccionOperador, ...ArrPermisosAlimentacionOperador, ...ArrPermisosSanidadOperador, ...ArrPermisosVentasOperador] as readonly string[]).includes(ObjPermiso.codigo),
     );
     const ArrVinculosOperador = await ObjTx.usuarioRolPermiso.findMany({
       where: { rolId: ObjRolOperador.rolId }, select: { permisoId: true },

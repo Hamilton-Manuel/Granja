@@ -1,0 +1,10 @@
+import { z } from "zod";
+const ObjId = z.coerce.number().int().positive();
+const ObjFechaHora = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}-06:00$/);
+export const ObjConsultaVentas = z.object({ pagina:z.coerce.number().int().positive().default(1),limite:z.coerce.number().int().min(1).max(100).default(20),busqueda:z.string().trim().max(100).optional(),estado:z.enum(["CONFIRMADA","ANULADA"]).optional(),clienteId:ObjId.optional(),animalIdentificacion:z.string().trim().max(100).optional(),loteProduccionId:ObjId.optional(),formaPago:z.enum(["EFECTIVO","TRANSFERENCIA","DEPOSITO","CREDITO"]).optional(),fechaDesde:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),fechaHasta:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).strict();
+export const ObjParametroVenta = z.object({ventaId:ObjId}).strict();
+export const ObjRegistrarVenta = z.object({clienteId:ObjId,fechaVenta:ObjFechaHora,formaPago:z.enum(["EFECTIVO","TRANSFERENCIA","DEPOSITO","CREDITO"]),documentoReferencia:z.string().trim().max(150).nullable().optional(),observaciones:z.string().trim().max(1000).nullable().optional(),animales:z.array(z.object({animalId:ObjId,precioVenta:z.string().regex(/^(?!0+(?:\.0{1,2})?$)\d{1,14}(?:\.\d{1,2})?$/)}).strict()).min(1).max(500)}).strict();
+export const ObjRevertirVenta = z.object({motivo:z.string().trim().min(1).max(500)}).strict();
+export const ObjConsultaLookupVentas = z.object({busqueda:z.string().trim().max(100).optional(),pagina:z.coerce.number().int().positive().default(1),limite:z.coerce.number().int().min(1).max(100).default(20)}).strict();
+export const ObjConsultaAnimalesVentas = ObjConsultaLookupVentas.extend({loteProduccionId:ObjId.optional()}).strict();
+export const ObjCuerpoVacioVentas = z.object({}).strict();
