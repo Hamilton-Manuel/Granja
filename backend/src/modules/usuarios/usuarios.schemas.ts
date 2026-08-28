@@ -20,6 +20,7 @@ export const ObjEditarUsuario = z
     nombreCompleto: z.string().trim().min(1).max(200).optional(),
     nombreUsuario: z.string().trim().min(1).max(100).optional(),
     correo: z.string().trim().email().max(200).optional(),
+    nuevaContrasena: ObjContrasena.optional(),
   })
   .refine((ObjDatos) => Object.keys(ObjDatos).length > 0);
 
@@ -47,3 +48,8 @@ export const ObjConsultaUsuarios = z.object({
   estado: z.enum(["ACTIVO", "INACTIVO"]).optional(),
   rolId: z.coerce.number().int().positive().optional(),
 });
+
+export const ObjActualizarAccesos = z.object({
+  versionAccesos: z.number().int().nonnegative(), rolId: z.number().int().positive(),
+  cambios: z.array(z.object({ permisoId: z.number().int().positive(), estado: z.enum(["HEREDAR", "PERMITIR", "DENEGAR"]) })).max(500),
+}).superRefine((Obj, Ctx) => { if (new Set(Obj.cambios.map((C) => C.permisoId)).size !== Obj.cambios.length) Ctx.addIssue({ code: "custom", message: "Permisos duplicados" }); });

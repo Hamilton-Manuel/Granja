@@ -92,9 +92,9 @@ export function PaginaRegistrarAlimentacion() {
     const ArrFuentes = new Set<string>();
     for (const ObjLinea of ArrLineas) {
       if (!ObjLinea.ObjProducto || !ObjLinea.ObjAlmacen) return "Complete producto y almacén en todas las líneas.";
-      if (ObjLinea.ObjProducto.manejaLotes && !ObjLinea.ObjLote) return `Seleccione lote de Inventario para ${ObjLinea.ObjProducto.nombre}.`;
-      if (!/^(?!0+(?:\.0{1,4})?$)\d{1,14}(?:\.\d{1,4})?$/.test(ObjLinea.StrCantidad)) return "Las cantidades deben ser decimales positivos con máximo cuatro decimales.";
-      const StrFuente = `${ObjLinea.ObjProducto.productoId}:${ObjLinea.ObjAlmacen.inventarioId}:${ObjLinea.ObjLote?.loteInventarioId ?? "SIN_LOTE"}`;
+      if (!ObjLinea.ObjLote) return `Seleccione lote de Inventario para ${ObjLinea.ObjProducto.nombre}.`;
+      if (!/^(?!0+(?:\.0{1,6})?$)\d{1,18}(?:\.\d{1,6})?$/.test(ObjLinea.StrCantidad)) return "Las cantidades deben ser decimales positivos con máximo seis decimales.";
+      const StrFuente = `${ObjLinea.ObjProducto.productoId}:${ObjLinea.ObjAlmacen.inventarioId}:${ObjLinea.ObjLote.loteInventarioId}`;
       if (ArrFuentes.has(StrFuente)) return "Una misma fuente física no puede repetirse. Unifique su cantidad en una sola línea.";
       ArrFuentes.add(StrFuente);
     }
@@ -115,7 +115,7 @@ export function PaginaRegistrarAlimentacion() {
         detalles: ArrLineas.map((ObjLinea) => ({
           productoId: ObjLinea.ObjProducto!.productoId,
           inventarioId: ObjLinea.ObjAlmacen!.inventarioId,
-          ...(ObjLinea.ObjLote ? { loteInventarioId: ObjLinea.ObjLote.loteInventarioId } : {}),
+          loteInventarioId: ObjLinea.ObjLote!.loteInventarioId,
           cantidad: ObjLinea.StrCantidad,
         })),
       });
@@ -141,7 +141,7 @@ export function PaginaRegistrarAlimentacion() {
       <fieldset><legend>Alimentos y fuentes físicas</legend>{ArrLineas.map((ObjLinea, IntIndice) => <article className="alimentacion-linea-registro" key={ObjLinea.IntClave}>
         <Autocomplete StrEtiqueta={`Producto ${IntIndice + 1}`} StrPlaceholder="Buscar por código o nombre..." ObjSeleccion={ObjLinea.ObjProducto} Autocomplete_buscar={async (StrBusqueda) => ArrProductos.filter((Obj) => `${Obj.codigo} ${Obj.nombre}`.toLocaleLowerCase().includes(StrBusqueda.toLocaleLowerCase()))} Autocomplete_clave={(Obj) => Obj.productoId} Autocomplete_etiqueta={(Obj) => `${Obj.codigo} — ${Obj.nombre} — ${Obj.unidadMedida}`} Autocomplete_seleccionar={(Obj) => void Alimentacion_seleccionarProducto(ObjLinea.IntClave, Obj)} />
         {ObjLinea.ObjProducto && <Autocomplete StrEtiqueta="Almacén" StrPlaceholder="Buscar por código o nombre..." ObjSeleccion={ObjLinea.ObjAlmacen} Autocomplete_buscar={async (StrBusqueda) => { const ArrAlmacenes = await Alimentacion_buscarAlmacenes(StrBusqueda); const ArrIds = new Set(ObjLinea.ArrExistencias.map((Obj) => Obj.inventarioId)); return ArrAlmacenes.filter((Obj) => ArrIds.has(Obj.inventarioId)); }} Autocomplete_clave={(Obj) => Obj.inventarioId} Autocomplete_etiqueta={(Obj) => `${Obj.codigo} — ${Obj.nombre}`} Autocomplete_seleccionar={(Obj) => Alimentacion_actualizarLinea(ObjLinea.IntClave, { ObjAlmacen: Obj, ObjLote: null })} />}
-        {ObjLinea.ObjProducto?.manejaLotes && ObjLinea.ObjAlmacen && (StrFecha ? <Autocomplete StrEtiqueta="Lote de Inventario" StrPlaceholder="Buscar lote..." ObjSeleccion={ObjLinea.ObjLote} Autocomplete_buscar={async (StrBusqueda) => (await Alimentacion_buscarLotesInventario(ObjLinea.ObjProducto!.productoId, ObjLinea.ObjAlmacen!.inventarioId, Alimentacion_fechaBackend(StrFecha))).filter((Obj) => Obj.codigoLote.toLocaleLowerCase().includes(StrBusqueda.toLocaleLowerCase()))} Autocomplete_clave={(Obj) => Obj.loteInventarioId} Autocomplete_etiqueta={(Obj) => `${Obj.codigoLote} — Disponible: ${Obj.cantidadDisponible} ${ObjLinea.ObjProducto!.unidadMedida} — ${Obj.fechaVencimiento ? `Vence: ${Obj.fechaVencimiento}` : "Sin vencimiento"}`} Autocomplete_seleccionar={(Obj) => Alimentacion_actualizarLinea(ObjLinea.IntClave, { ObjLote: Obj })} /> : <p className="alimentacion-aviso">Indique la fecha efectiva para consultar lotes utilizables.</p>)}
+        {ObjLinea.ObjProducto && ObjLinea.ObjAlmacen && (StrFecha ? <Autocomplete StrEtiqueta="Lote de Inventario" StrPlaceholder="Buscar lote..." ObjSeleccion={ObjLinea.ObjLote} Autocomplete_buscar={async (StrBusqueda) => (await Alimentacion_buscarLotesInventario(ObjLinea.ObjProducto!.productoId, ObjLinea.ObjAlmacen!.inventarioId, Alimentacion_fechaBackend(StrFecha))).filter((Obj) => Obj.codigoLote.toLocaleLowerCase().includes(StrBusqueda.toLocaleLowerCase()))} Autocomplete_clave={(Obj) => Obj.loteInventarioId} Autocomplete_etiqueta={(Obj) => `${Obj.codigoLote} — Disponible: ${Obj.cantidadDisponible} ${ObjLinea.ObjProducto!.unidadMedida} — ${Obj.fechaVencimiento ? `Vence: ${Obj.fechaVencimiento}` : "Sin vencimiento"}`} Autocomplete_seleccionar={(Obj) => Alimentacion_actualizarLinea(ObjLinea.IntClave, { ObjLote: Obj })} /> : <p className="alimentacion-aviso">Indique la fecha efectiva para consultar lotes utilizables.</p>)}
         {ObjLinea.ObjProducto && <label>Cantidad ({ObjLinea.ObjProducto.unidadMedida})<input inputMode="decimal" required value={ObjLinea.StrCantidad} onChange={(E) => Alimentacion_actualizarLinea(ObjLinea.IntClave, { StrCantidad: E.target.value })} /></label>}
         <button type="button" className="boton-secundario" disabled={ArrLineas.length === 1} onClick={() => establecerLineas((Arr) => Arr.filter((Obj) => Obj.IntClave !== ObjLinea.IntClave))}>Quitar alimento</button>
       </article>)}<button type="button" className="boton-secundario" onClick={() => establecerLineas((Arr) => [...Arr, Alimentacion_nuevaLinea(IntSiguienteClave.current++)])}>Agregar alimento</button></fieldset>

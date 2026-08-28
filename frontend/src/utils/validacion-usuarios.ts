@@ -1,6 +1,6 @@
 import type { DatosCrearUsuario, DatosEditarUsuario } from "../types/usuarios.types";
 
-export type ErroresFormularioUsuario = Partial<Record<keyof DatosCrearUsuario, string>>;
+export type ErroresFormularioUsuario = Partial<Record<keyof DatosCrearUsuario | "nuevaContrasena" | "confirmarNuevaContrasena", string>>;
 
 function Usuarios_validarCorreo(StrCorreo: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(StrCorreo);

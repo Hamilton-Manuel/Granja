@@ -1,23 +1,34 @@
 import assert from "node:assert/strict";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import test, { after } from "node:test";
+import test, { after, before } from "node:test";
 
 import ObjAplicacion from "../../app.js";
 import { Autenticacion_generarTokenSesion, Autenticacion_hashearTokenSesion } from "../../auth/autenticacion.js";
-import { BaseDatos_desconectar, BaseDatos_obtenerCliente } from "../../database/prisma.js";
+import { BaseDatos_exigirBaseActual, BaseDatos_obtenerCliente } from "../../database/prisma.js";
 import { Fecha_calcularExpiracionGuatemala, Fecha_obtenerInstanteActual } from "../../datetime/fecha.js";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
+import { Usuarios_ejecutarBootstrap } from "../../scripts/bootstrap-usuarios.js";
+import { PruebasBaseDatos_crearTemporal, type BaseDatosTemporalPruebas } from "../../testing/base-datos-temporal.js";
 import * as Inventario from "./inventario.service.js";
 
-const StrBaseEsperada = "granja_inventario_fase0_pruebas";
-const BoolEjecutar = process.env.BASE_DATOS_ESPERADA === StrBaseEsperada;
+let ObjBaseTemporal: BaseDatosTemporalPruebas;
 
-after(async () => { if (BoolEjecutar) await BaseDatos_desconectar(); });
+before(async () => {
+  ObjBaseTemporal = await PruebasBaseDatos_crearTemporal("inventario_fase0");
+  process.env.BOOTSTRAP_WEBMASTER_NOMBRE_COMPLETO = "Webmaster integración Inventario";
+  process.env.BOOTSTRAP_WEBMASTER_USUARIO = "webmaster_inventario_test";
+  process.env.BOOTSTRAP_WEBMASTER_CORREO = "webmaster.inventario.test@example.invalid";
+  process.env.BOOTSTRAP_WEBMASTER_CONTRASENA = "Temporal-Integracion-2026";
+  await Usuarios_ejecutarBootstrap();
+});
 
-test("Fase 0 de Inventario integra contratos, saldos y reversiones", { skip: !BoolEjecutar }, async () => {
+after(async () => { await ObjBaseTemporal?.eliminar(); });
+
+test("Fase 0 de Inventario integra contratos, saldos y reversiones", async () => {
+  await BaseDatos_exigirBaseActual(ObjBaseTemporal.StrNombre);
   const ObjPrisma = BaseDatos_obtenerCliente();
-  const ObjUsuario = await ObjPrisma.usuarioCuenta.findUnique({ where: { nombreUsuario: "webmaster_fase0" } });
+  const ObjUsuario = await ObjPrisma.usuarioCuenta.findUnique({ where: { nombreUsuario: "webmaster_inventario_test" } });
   assert.ok(ObjUsuario);
   const IntUsuarioId = ObjUsuario.usuarioId;
   const ObjTipoProveedor = await ObjPrisma.proveedorTipo.findUnique({ where: { codigo: "PERSONA_JURIDICA" } });
@@ -35,12 +46,11 @@ test("Fase 0 de Inventario integra contratos, saldos y reversiones", { skip: !Bo
   await Inventario.Inventario_gestionarProveedorProducto({ proveedorId: ObjProveedor.proveedorId, productoId: ObjProducto.productoId, precioReferencia: "5.0000", IntUsuarioId });
   await Inventario.Inventario_gestionarProveedorProducto({ proveedorId: ObjProveedorAlterno.proveedorId, productoId: ObjProducto.productoId, precioReferencia: "5.0000", IntUsuarioId });
 
-  await Inventario.Inventario_registrarEntrada({ subtipo: "COMPRA", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, proveedorId: ObjProveedor.proveedorId, codigoLote: "LOTE-FASE-0", cantidad: "10.0000", costoUnitario: "5.0000", fechaVencimiento: null, IntUsuarioId });
-  const ObjLote = await ObjPrisma.inventarioLote.findFirstOrThrow({ where: { productoId: ObjProducto.productoId, codigoLote: "LOTE-FASE-0" } });
-  await assert.rejects(() => Inventario.Inventario_registrarEntrada({ subtipo: "COMPRA", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, proveedorId: ObjProveedor.proveedorId, codigoLote: ObjLote.codigoLote, cantidad: "1.0000", costoUnitario: "5.0000", IntUsuarioId }), (ObjError) => ObjError instanceof ErrorAplicacion && ObjError.StrCodigo === "LOTE_DUPLICADO");
-
-  await assert.rejects(() => Inventario.Inventario_registrarEntrada({ subtipo: "COMPRA", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, proveedorId: ObjProveedorAlterno.proveedorId, loteInventarioId: ObjLote.loteInventarioId, cantidad: "1.0000", costoUnitario: "5.0000", IntUsuarioId }), (ObjError) => ObjError instanceof ErrorAplicacion && ObjError.StrCodigo === "PROVEEDOR_LOTE_NO_COINCIDE");
-  await assert.rejects(() => Inventario.Inventario_registrarAjuste({ subtipo: "CONTEO_FISICO", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, cantidad: "1.0000", motivo: "Conteo temporal", IntUsuarioId }), (ObjError) => ObjError instanceof ErrorAplicacion && ObjError.StrCodigo === "LOTE_REQUERIDO");
+  const ObjEntrada = await Inventario.Inventario_registrarEntrada({ subtipo: "COMPRA", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, proveedorId: ObjProveedor.proveedorId, cantidadComercial: "10.0000", unidadComercial: "kg", precioTotalIngreso: "50.0000", fechaVencimiento: null, IntUsuarioId });
+  const ObjLote = await ObjPrisma.inventarioLote.findUniqueOrThrow({ where: { loteInventarioId: ObjEntrada.lote.loteInventarioId } });
+  const ObjSegundaEntrada = await Inventario.Inventario_registrarEntrada({ subtipo: "COMPRA", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, proveedorId: ObjProveedorAlterno.proveedorId, cantidadComercial: "1.0000", unidadComercial: "kg", precioTotalIngreso: "5.0000", IntUsuarioId });
+  assert.notEqual(ObjSegundaEntrada.lote.loteInventarioId, ObjLote.loteInventarioId);
+  await Inventario.Inventario_registrarAjuste({ subtipo: "CONTEO_FISICO", productoId: ObjProducto.productoId, inventarioId: ObjAlmacenOrigen.inventarioId, loteInventarioId: ObjLote.loteInventarioId, cantidad: "1.0000", motivo: "Conteo temporal", IntUsuarioId });
   await assert.rejects(() => Inventario.Inventario_editarProducto(ObjProducto.productoId, { manejaLotes: false }, IntUsuarioId), (ObjError) => ObjError instanceof ErrorAplicacion && ObjError.StrCodigo === "MANEJO_LOTES_NO_MODIFICABLE");
 
   const ObjTransferencia = await Inventario.Inventario_registrarTransferencia({ productoId: ObjProducto.productoId, inventarioOrigenId: ObjAlmacenOrigen.inventarioId, inventarioDestinoId: ObjAlmacenDestino.inventarioId, loteInventarioId: ObjLote.loteInventarioId, cantidad: "4.0000", motivo: "Prueba Fase 0", IntUsuarioId });
@@ -89,7 +99,7 @@ test("Fase 0 de Inventario integra contratos, saldos y reversiones", { skip: !Bo
   assert.equal(ObjExistencias.datos.every((ObjDato) => ObjDato.producto.productoId === ObjProducto.productoId), true);
   const ObjExistenciaOrigen = ObjExistencias.datos.find((ObjDato) => ObjDato.inventarioId === ObjAlmacenOrigen.inventarioId);
   assert.ok(ObjExistenciaOrigen);
-  await Inventario.Inventario_editarMinimo(ObjExistenciaOrigen.inventarioProductoId, "11.0000", IntUsuarioId);
+  await Inventario.Inventario_editarMinimo(ObjExistenciaOrigen.inventarioProductoId, "13.0000", IntUsuarioId);
   const ObjBajoMinimo = await Inventario.Inventario_listarExistencias({ IntPagina: 1, IntLimite: 20, BoolBajoMinimo: true });
   assert.equal(ObjBajoMinimo.datos.some((ObjDato) => ObjDato.inventarioProductoId === ObjExistenciaOrigen.inventarioProductoId), true);
 

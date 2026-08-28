@@ -29,7 +29,7 @@ test("Sanidad conserva vía por detalle y Decimal string", () =>
           unidadDosisId: 1,
           viaAdministracionId: 1,
           alcanceDosis: "INDIVIDUAL",
-          fuentes: [{ inventarioId: 1, cantidad: "2.5000" }],
+          fuentes: [{ inventarioId: 1, loteInventarioId: 1, cantidad: "2.5000" }],
         },
       ],
     }).success,

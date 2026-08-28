@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { ArrCodigosPermisosUsuarios, ArrDefinicionesRolesUsuarios, ObjRolesUsuarios } from "./usuarios.constants.js";
 import { Usuarios_esRolReservado, Usuarios_obtenerIdsFaltantes, Usuarios_puedeOperarSobreCuenta } from "./usuarios.politicas.js";
+import { Usuarios_resolverCodigos, Usuarios_resolverPermiso } from "./usuarios-accesos.js";
 
 test("WEBMASTER es un rol reservado para creación y asignación administrativa", () => {
   assert.equal(Usuarios_esRolReservado(ObjRolesUsuarios.WEBMASTER), true);
@@ -42,4 +43,11 @@ test("el cálculo aditivo de vínculos es idempotente", () => {
   assert.deepEqual(Usuarios_obtenerIdsFaltantes([1, 2, 3], []), [1, 2, 3]);
   assert.deepEqual(Usuarios_obtenerIdsFaltantes([1, 2, 3], [1, 2, 3]), []);
   assert.deepEqual(Usuarios_obtenerIdsFaltantes([1, 2, 3], [1, 3]), [2]);
+});
+
+test("los overrides respetan precedencia e inactividad", () => {
+  assert.deepEqual(Usuarios_resolverPermiso({ activo: true, heredado: true, efecto: "DENY" }), { permitido: false, origen: "DENEGADO_DIRECTAMENTE" });
+  assert.deepEqual(Usuarios_resolverPermiso({ activo: true, heredado: false, efecto: "ALLOW" }), { permitido: true, origen: "PERMITIDO_DIRECTAMENTE" });
+  assert.deepEqual(Usuarios_resolverPermiso({ activo: false, heredado: true, efecto: "ALLOW" }), { permitido: false, origen: "PERMISO_INACTIVO" });
+  assert.deepEqual(Usuarios_resolverCodigos({ rol: { rolesPermisos: [{ permiso: { codigo: "HEREDADO", activo: true } }, { permiso: { codigo: "DENEGADO", activo: true } }] }, permisosDirectos: [{ efecto: "DENY", permiso: { codigo: "DENEGADO", activo: true } }, { efecto: "ALLOW", permiso: { codigo: "DIRECTO", activo: true } }] }).sort(), ["DIRECTO", "HEREDADO"]);
 });

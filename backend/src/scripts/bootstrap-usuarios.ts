@@ -79,7 +79,7 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     let BoolBootstrapInicial = false;
     let BoolJerarquiaReconciliada = false;
 
-    const ObjRoles = new Map<string, { rolId: number; nombre: string; activo: boolean }>();
+    const ObjRoles = new Map<string, { rolId: number; nombre: string; activo: boolean; esReservado: boolean }>();
     for (const ObjDefinicion of ArrDefinicionesRolesUsuarios) {
       let ObjRol = await ObjTx.usuarioRol.findUnique({ where: { nombre: ObjDefinicion.StrNombre } });
       if (ObjRol === null) {
@@ -149,6 +149,10 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
     if (ObjRolWebmaster === undefined || ObjRolAdministrador === undefined || ObjRolOperador === undefined) {
       throw new Error("No fue posible garantizar el catálogo completo de roles.");
     }
+    if (!ObjRolWebmaster.esReservado) {
+      await ObjTx.usuarioRol.update({ where: { rolId: ObjRolWebmaster.rolId }, data: { esReservado: true } });
+      IntCambiosCatalogos += 1;
+    }
 
     const [ObjPorUsuario, ObjPorCorreo, ArrWebmasters] = await Promise.all([
       ObjTx.usuarioCuenta.findUnique({ where: { nombreUsuario: ObjIdentidad.data.BOOTSTRAP_WEBMASTER_USUARIO } }),
@@ -179,11 +183,16 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
           nombreUsuario: ObjIdentidad.data.BOOTSTRAP_WEBMASTER_USUARIO,
           correo: ObjIdentidad.data.BOOTSTRAP_WEBMASTER_CORREO,
           contrasenaHash: await Autenticacion_hashearContrasena(ObjContrasena.data),
+          esProtegida: true,
         },
       });
       BoolBootstrapInicial = true;
     } else {
       ObjWebmaster = ObjPorUsuario;
+      if (!ObjWebmaster.esProtegida) {
+        ObjWebmaster = await ObjTx.usuarioCuenta.update({ where: { usuarioId: ObjWebmaster.usuarioId }, data: { esProtegida: true } });
+        IntCambiosCatalogos += 1;
+      }
       if (
         ObjWebmaster.nombreCompleto !== ObjIdentidad.data.BOOTSTRAP_WEBMASTER_NOMBRE_COMPLETO ||
         ObjWebmaster.estado !== "ACTIVO"

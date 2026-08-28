@@ -4,9 +4,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
-
 import {
   Autenticacion_cerrarSesion as Autenticacion_solicitarCierre,
   Autenticacion_consultarSesion,
@@ -22,6 +22,7 @@ export interface ContextoSesion {
   Autenticacion_iniciarSesion: (StrIdentificador: string, StrContrasena: string) => Promise<void>;
   Autenticacion_cerrarSesion: () => Promise<void>;
   Autenticacion_reintentarSesion: () => Promise<void>;
+  Autenticacion_refrescarSesionSilenciosa: () => Promise<UsuarioAutenticado | null>;
   Autenticacion_tienePermiso: (StrCodigo: string) => boolean;
   Autenticacion_manejarErrorProtegido: (ObjError: unknown) => boolean;
 }
@@ -56,6 +57,31 @@ export function ProveedorSesion({ children: ObjContenido }: PropiedadesProveedor
       establecerError(ObjErrorApi);
       establecerEstado("error");
     }
+  }, []);
+
+  const RefPromesaRefresco = useRef<Promise<UsuarioAutenticado | null> | null>(null);
+  const Autenticacion_refrescarSesionSilenciosa = useCallback((): Promise<UsuarioAutenticado | null> => {
+    if (RefPromesaRefresco.current) return RefPromesaRefresco.current;
+    const ObjPromesa = (async (): Promise<UsuarioAutenticado | null> => {
+      try {
+        const ObjRespuesta = await Autenticacion_consultarSesion();
+        establecerUsuario(ObjRespuesta.datos.usuario);
+        establecerError(null);
+        establecerEstado("autenticada");
+        return ObjRespuesta.datos.usuario;
+      } catch (ObjErrorCapturado) {
+        if (ObjErrorCapturado instanceof ErrorApi && ObjErrorCapturado.IntEstadoHttp === 401) {
+          establecerUsuario(null);
+          establecerError(null);
+          establecerEstado("noAutenticada");
+        }
+        return null;
+      } finally {
+        RefPromesaRefresco.current = null;
+      }
+    })();
+    RefPromesaRefresco.current = ObjPromesa;
+    return ObjPromesa;
   }, []);
 
   useEffect(() => {
@@ -97,8 +123,11 @@ export function ProveedorSesion({ children: ObjContenido }: PropiedadesProveedor
       establecerEstado("noAutenticada");
       return true;
     }
+    if (ObjErrorCapturado instanceof ErrorApi && ObjErrorCapturado.IntEstadoHttp === 403) {
+      void Autenticacion_refrescarSesionSilenciosa();
+    }
     return false;
-  }, []);
+  }, [Autenticacion_refrescarSesionSilenciosa]);
 
   const ObjValor = useMemo<ContextoSesion>(() => ({
     ObjUsuario,
@@ -107,6 +136,7 @@ export function ProveedorSesion({ children: ObjContenido }: PropiedadesProveedor
     Autenticacion_iniciarSesion,
     Autenticacion_cerrarSesion,
     Autenticacion_reintentarSesion,
+    Autenticacion_refrescarSesionSilenciosa,
     Autenticacion_tienePermiso,
     Autenticacion_manejarErrorProtegido,
   }), [
@@ -116,6 +146,7 @@ export function ProveedorSesion({ children: ObjContenido }: PropiedadesProveedor
     Autenticacion_iniciarSesion,
     Autenticacion_cerrarSesion,
     Autenticacion_reintentarSesion,
+    Autenticacion_refrescarSesionSilenciosa,
     Autenticacion_tienePermiso,
     Autenticacion_manejarErrorProtegido,
   ]);

@@ -13,6 +13,7 @@ import {
   Usuarios_marcarSesionExpirada,
   Usuarios_obtenerSesionParaAutenticacion,
 } from "../modules/usuarios/usuarios.repository.js";
+import { Usuarios_resolverCodigos } from "../modules/usuarios/usuarios-accesos.js";
 
 export async function Middleware_requerirAutenticacion(
   ObjSolicitud: Request,
@@ -71,9 +72,7 @@ export async function Middleware_requerirAutenticacion(
       throw new ErrorAplicacion(403, "ROL_INACTIVO", "El rol del usuario está inactivo.");
     }
 
-    const ArrPermisos = ObjSesion.usuario.rol.rolesPermisos
-      .filter((ObjAsignacion) => ObjAsignacion.permiso.activo)
-      .map((ObjAsignacion) => ObjAsignacion.permiso.codigo);
+    const ArrPermisos = Usuarios_resolverCodigos(ObjSesion.usuario);
 
     ObjSolicitud.ObjAutenticacion = {
       IntUsuarioId: ObjSesion.usuarioId,

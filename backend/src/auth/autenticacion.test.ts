@@ -13,6 +13,7 @@ import {
 import {
   ObjCambiarContrasena,
   ObjCrearUsuario,
+  ObjEditarUsuario,
   ObjLoginUsuario,
 } from "../modules/usuarios/usuarios.schemas.js";
 
@@ -53,6 +54,8 @@ test("la política exige de 8 a 128 caracteres sin reglas de composición", () =
   assert.equal(ObjCambiarContrasena.safeParse({ contrasenaActual: "actual", contrasenaNueva: "a".repeat(128) }).success, true);
   assert.equal(ObjCrearUsuario.safeParse({ ...ObjBaseUsuario, contrasena: "a".repeat(7) }).success, false);
   assert.equal(ObjCrearUsuario.safeParse({ ...ObjBaseUsuario, contrasena: "a".repeat(129) }).success, false);
+  assert.equal(ObjEditarUsuario.safeParse({ nuevaContrasena: "abcdefgh" }).success, true);
+  assert.equal(ObjEditarUsuario.safeParse({ nuevaContrasena: "a".repeat(7) }).success, false);
 });
 
 test("el login acepta una contraseña incorrecta corta para responderla como credencial inválida", () => {

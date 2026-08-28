@@ -98,8 +98,8 @@ export interface DiagnosticoAlimentacion {
 export interface DestinoAnimalAlimentacion { animalId:number; identificacion:string; sexo:string; tipoAnimal:{tipoAnimalId:number;nombre:string}; loteVigente:{loteProduccionId:number;codigo:string;nombre:string}; }
 export interface DestinoLoteAlimentacion { loteProduccionId:number; codigo:string; nombre:string; tipoAnimal:{tipoAnimalId:number;nombre:string}; cantidadAnimalesVigentes:number; }
 export interface AlmacenAlimentacion { inventarioId:number; codigo:string; nombre:string; }
-export interface ExistenciaAlimentacion { inventarioId:number; productoId:number; cantidadDisponible:DecimalAlimentacion; manejaLotes:boolean; unidadBase:string; costoPromedio:DecimalAlimentacion|null; almacen:{codigo:string;nombre:string}; }
+export interface ExistenciaAlimentacion { inventarioId:number; productoId:number; cantidadDisponible:DecimalAlimentacion; unidadBase:string; almacen:{codigo:string;nombre:string}; }
 export interface LoteFuenteAlimentacion { loteInventarioId:number; codigoLote:string; cantidadDisponible:DecimalAlimentacion; fechaVencimiento:string|null; costoUnitario:DecimalAlimentacion|null; activo:boolean; }
-export interface DetalleRegistroAlimentacion { productoId:number; inventarioId:number; loteInventarioId?:number|null; cantidad:DecimalAlimentacion; }
+export interface DetalleRegistroAlimentacion { productoId:number; inventarioId:number; loteInventarioId:number; cantidad:DecimalAlimentacion; }
 export interface DatosRegistroAlimentacion { formulaId?:number|null; fechaEfectiva:string; destino:{tipo:"ANIMAL";animalId:number}|{tipo:"LOTE";loteProduccionId:number}; observaciones?:string|null; detalles:DetalleRegistroAlimentacion[]; }
 export type ErrorAlimentacion = ErrorApi;

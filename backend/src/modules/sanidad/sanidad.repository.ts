@@ -17,7 +17,7 @@ type SanidadDetalleEntrada = {
   alcanceDosis: "INDIVIDUAL" | "POR_ANIMAL" | "TOTAL_LOTE";
   fuentes: Array<{
     inventarioId: number;
-    loteInventarioId?: number | null | undefined;
+    loteInventarioId: number;
     cantidad: Prisma.Decimal;
   }>;
 };
@@ -115,35 +115,29 @@ export async function Sanidad_registrar(Obj: SanidadRegistroEntrada) {
           },
         });
         for (const ObjOrigen of ObjLinea.fuentes) {
-          let IntExistenciaLoteId: number | undefined;
-          if (ObjProductoDb.manejaLotes) {
-            if (!ObjOrigen.loteInventarioId)
-              throw new Error("LOTE_INVENTARIO_REQUERIDO");
-            const ObjFuente = await ObjTx.inventarioExistenciaLote.findFirst({
-              where: {
-                loteInventarioId: ObjOrigen.loteInventarioId,
-                productoId: ObjLinea.productoId,
-                existencia: { inventarioId: ObjOrigen.inventarioId },
-              },
-              include: { lote: true },
-            });
-            if (!ObjFuente) throw new Error("FUENTE_INVENTARIO_INCONSISTENTE");
-            if (!ObjFuente.lote.activo) throw new Error("LOTE_INACTIVO");
-            if (
-              ObjFuente.lote.fechaVencimiento &&
-              Fecha_formatearFechaCivil(ObjFuente.lote.fechaVencimiento) <
-                Fecha_formatearFechaCivil(Obj.fechaAplicacion)
-            )
-              throw new Error("LOTE_INVENTARIO_VENCIDO");
-            IntExistenciaLoteId = ObjFuente.existenciaLoteId;
-          } else if (ObjOrigen.loteInventarioId)
-            throw new Error("PRODUCTO_NO_MANEJA_LOTES");
+          const ObjFuente = await ObjTx.inventarioExistenciaLote.findFirst({
+            where: {
+              loteInventarioId: ObjOrigen.loteInventarioId,
+              productoId: ObjLinea.productoId,
+              existenciaActual: { gt: 0 },
+              existencia: { inventarioId: ObjOrigen.inventarioId },
+            },
+            include: { lote: true },
+          });
+          if (!ObjFuente) throw new Error("FUENTE_INVENTARIO_INCONSISTENTE");
+          if (!ObjFuente.lote.activo) throw new Error("LOTE_INACTIVO");
+          if (
+            ObjFuente.lote.fechaVencimiento &&
+            Fecha_formatearFechaCivil(ObjFuente.lote.fechaVencimiento) <
+              Fecha_formatearFechaCivil(Obj.fechaAplicacion)
+          )
+            throw new Error("LOTE_INVENTARIO_VENCIDO");
           const ObjFuenteCreada = await ObjTx.sanidadAplicacionFuente.create({
             data: {
               detalleSanidadId: ObjDetalle.detalleSanidadId,
               productoId: ObjLinea.productoId,
-              inventarioId: IntExistenciaLoteId ? null : ObjOrigen.inventarioId,
-              existenciaLoteId: IntExistenciaLoteId ?? null,
+              inventarioId: null,
+              existenciaLoteId: ObjFuente.existenciaLoteId,
               cantidadConsumida: ObjOrigen.cantidad,
             },
           });
@@ -152,7 +146,7 @@ export async function Sanidad_registrar(Obj: SanidadRegistroEntrada) {
             subtipo: "SANIDAD",
             productoId: ObjLinea.productoId,
             inventarioId: ObjOrigen.inventarioId,
-            loteInventarioId: ObjOrigen.loteInventarioId ?? undefined,
+            loteInventarioId: ObjOrigen.loteInventarioId,
             cantidad: ObjOrigen.cantidad.negated(),
             motivo: Obj.motivo,
             IntUsuarioId: Obj.IntUsuarioId,
@@ -502,26 +496,27 @@ export const Sanidad_existencias = (
   BaseDatos_obtenerCliente().inventarioExistencia.findMany({
     where: {
       productoId: IntProductoId,
+      existenciaActual: { gt: 0 },
       activo: true,
       almacen: { activo: true },
+      existenciasLote: { some: { existenciaActual: { gt: 0 }, lote: { activo: true } } },
       ...(IntInventarioId ? { inventarioId: IntInventarioId } : {}),
     },
     select: {
       inventarioId: true,
       productoId: true,
       existenciaActual: true,
-      costoPromedioActual: true,
-      producto: { select: { manejaLotes: true, unidadMedida: true } },
+      producto: { select: { unidadMedida: true } },
       almacen: { select: { codigo: true, nombre: true } },
     },
   });
-export const Sanidad_lotes = (IntProductoId: number, IntInventarioId: number) =>
+export const Sanidad_lotes = (IntProductoId: number, IntInventarioId: number, DtFecha?: Date) =>
   BaseDatos_obtenerCliente().inventarioExistenciaLote.findMany({
     where: {
       productoId: IntProductoId,
       existencia: { inventarioId: IntInventarioId },
       existenciaActual: { gt: 0 },
-      lote: { activo: true },
+      lote: { activo: true, ...(DtFecha ? { OR: [{ fechaVencimiento: null }, { fechaVencimiento: { gte: DtFecha } }] } : {}) },
     },
     select: {
       loteInventarioId: true,

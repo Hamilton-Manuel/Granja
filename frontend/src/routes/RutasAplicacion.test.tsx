@@ -85,6 +85,25 @@ describe("sesión y rutas", () => {
     expect(screen.queryByRole("link", { name: /Inventario/ })).not.toBeInTheDocument();
   });
 
+  it("navega internamente sin volver a consultar la sesión ni desmontar el layout", async () => {
+    let Usuarios_resolver: ((ObjRespuesta: Response) => void) | undefined;
+    const ObjFetch = vi.fn().mockImplementation((StrRuta: string) => {
+      if (StrRuta === "/api/usuarios/sesion") return Promise.resolve(Autenticacion_respuestaJson({ datos: { usuario: ObjUsuario } }));
+      if (StrRuta.startsWith("/api/usuarios?")) return new Promise<Response>((ObjResolver) => { Usuarios_resolver = ObjResolver; });
+      throw new Error(`Ruta inesperada: ${StrRuta}`);
+    });
+    vi.stubGlobal("fetch", ObjFetch);
+    Autenticacion_renderizar("/inicio");
+    expect(await screen.findByText("Sesión activa")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: /Usuarios/ }));
+
+    expect(screen.queryByText("Comprobando su sesión…")).not.toBeInTheDocument();
+    expect(screen.getByText("Administradora El Chiflón")).toBeInTheDocument();
+    expect(ObjFetch.mock.calls.filter(([StrRuta]) => StrRuta === "/api/usuarios/sesion")).toHaveLength(1);
+
+    Usuarios_resolver?.(Autenticacion_respuestaJson({ datos: [], paginacion: { pagina: 1, limite: 20, total: 0 } }));
+  });
+
   it("muestra Inventario y protege sus rutas mediante INVENTARIO_CONSULTAR", async () => {
     const ObjFetch = vi.fn().mockImplementation((ObjRuta: string) => {
       if (ObjRuta === "/api/usuarios/sesion") return Promise.resolve(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, rol: { rolId: 3, nombre: "OPERADOR" }, permisos: ["INVENTARIO_CONSULTAR"] } } }));

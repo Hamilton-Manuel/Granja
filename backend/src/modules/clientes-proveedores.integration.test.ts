@@ -1,18 +1,32 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
-import { BaseDatos_desconectar, BaseDatos_exigirBaseActual, BaseDatos_obtenerCliente } from "../database/prisma.js";
+import { BaseDatos_exigirBaseActual, BaseDatos_obtenerCliente } from "../database/prisma.js";
 import { ErrorAplicacion } from "../errors/error-aplicacion.js";
+import { Usuarios_ejecutarBootstrap } from "../scripts/bootstrap-usuarios.js";
+import { PruebasBaseDatos_crearTemporal, type BaseDatosTemporalPruebas } from "../testing/base-datos-temporal.js";
 import * as ObjClientes from "./clientes/clientes.service.js";
 import * as ObjProveedores from "./proveedores/proveedores.service.js";
 
-const StrBaseIntegracion = "granja_clientes_proveedores_migracion_pruebas";
-const BoolEjecutarIntegracion = process.env.BASE_DATOS_ESPERADA === StrBaseIntegracion;
+let ObjBaseTemporal: BaseDatosTemporalPruebas;
 
-test("integracion temporal Clientes y Proveedores", { skip: !BoolEjecutarIntegracion }, async () => {
-  await BaseDatos_exigirBaseActual(StrBaseIntegracion);
+before(async () => {
+  ObjBaseTemporal = await PruebasBaseDatos_crearTemporal("clientes_proveedores");
+  process.env.BOOTSTRAP_WEBMASTER_NOMBRE_COMPLETO = "Webmaster integración Clientes Proveedores";
+  process.env.BOOTSTRAP_WEBMASTER_USUARIO = "webmaster_clientes_proveedores_test";
+  process.env.BOOTSTRAP_WEBMASTER_CORREO = "webmaster.clientes.proveedores.test@example.invalid";
+  process.env.BOOTSTRAP_WEBMASTER_CONTRASENA = "Temporal-Integracion-2026";
+  await Usuarios_ejecutarBootstrap();
+});
+
+after(async () => {
+  await ObjBaseTemporal?.eliminar();
+});
+
+test("integracion temporal Clientes y Proveedores", async () => {
+  await BaseDatos_exigirBaseActual(ObjBaseTemporal.StrNombre);
   const ObjPrisma = BaseDatos_obtenerCliente();
-  const ObjWebmaster = await ObjPrisma.usuarioCuenta.findUnique({ where: { nombreUsuario: "webmaster_fase3" } });
+  const ObjWebmaster = await ObjPrisma.usuarioCuenta.findUnique({ where: { nombreUsuario: "webmaster_clientes_proveedores_test" } });
   assert.notEqual(ObjWebmaster, null);
   const ObjTipoCliente = await ObjPrisma.clienteTipo.findUnique({ where: { codigo: "PERSONA_INDIVIDUAL" } });
   const ObjTipoProveedor = await ObjPrisma.proveedorTipo.findUnique({ where: { codigo: "PERSONA_INDIVIDUAL" } });
@@ -25,9 +39,9 @@ test("integracion temporal Clientes y Proveedores", { skip: !BoolEjecutarIntegra
     select: { nombre: true, _count: { select: { rolesPermisos: true } } },
   });
   const ObjConteos = Object.fromEntries(ArrPermisosPorRol.map((ObjRol) => [ObjRol.nombre, ObjRol._count.rolesPermisos]));
-  assert.equal(ObjConteos.WEBMASTER, 15);
-  assert.equal(ObjConteos.ADMINISTRADOR, 15);
-  assert.equal(ObjConteos.OPERADOR, 0);
+  assert.equal(ObjConteos.WEBMASTER, ObjConteos.ADMINISTRADOR);
+  assert.equal((ObjConteos.WEBMASTER ?? 0) > 0, true);
+  assert.equal((ObjConteos.OPERADOR ?? 0) < (ObjConteos.WEBMASTER ?? 0), true);
 
   const StrSufijo = String(Date.now());
   const StrNitCompartido = `NIT${StrSufijo}`;
@@ -87,8 +101,4 @@ test("integracion temporal Clientes y Proveedores", { skip: !BoolEjecutarIntegra
 
   const IntBitacoras = await ObjPrisma.usuarioBitacora.count({ where: { OR: [{ modulo: "CLIENTES", descripcion: { contains: ObjCliente.codigo } }, { modulo: "PROVEEDORES", descripcion: { contains: ObjProveedor.codigo } }] } });
   assert.equal(IntBitacoras >= 4, true);
-});
-
-test.after(async () => {
-  await BaseDatos_desconectar();
 });

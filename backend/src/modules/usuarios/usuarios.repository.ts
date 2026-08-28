@@ -20,6 +20,7 @@ const ObjSeleccionUsuarioPublico = {
 } satisfies Prisma.UsuarioCuentaSelect;
 
 const ObjIncluirAutenticacion = {
+  permisosDirectos: { include: { permiso: true } },
   rol: {
     include: {
       rolesPermisos: {
@@ -184,7 +185,8 @@ export function Usuarios_obtenerCuentaParaPolitica(IntUsuarioId: number) {
     select: {
       usuarioId: true,
       estado: true,
-      rol: { select: { rolId: true, nombre: true, activo: true } },
+      esProtegida: true,
+      rol: { select: { rolId: true, nombre: true, activo: true, esReservado: true } },
     },
   });
 }
@@ -254,6 +256,7 @@ export async function Usuarios_editarCuenta(ObjDatos: {
   StrNombreCompleto?: string | undefined;
   StrNombreUsuario?: string | undefined;
   StrCorreo?: string | undefined;
+  StrContrasenaHash?: string | undefined;
   IntUsuarioActorId: number;
   StrDireccionIp?: string | undefined;
 }) {
@@ -265,11 +268,15 @@ export async function Usuarios_editarCuenta(ObjDatos: {
         ...(ObjDatos.StrNombreCompleto === undefined ? {} : { nombreCompleto: ObjDatos.StrNombreCompleto }),
         ...(ObjDatos.StrNombreUsuario === undefined ? {} : { nombreUsuario: ObjDatos.StrNombreUsuario }),
         ...(ObjDatos.StrCorreo === undefined ? {} : { correo: ObjDatos.StrCorreo }),
+        ...(ObjDatos.StrContrasenaHash === undefined ? {} : { contrasenaHash: ObjDatos.StrContrasenaHash }),
         fechaActualizacion: DtFechaActualizacion,
       },
       select: ObjSeleccionUsuarioPublico,
     });
     await Usuarios_registrarAccionTx(ObjTx, ObjDatos.IntUsuarioActorId, "USUARIO_ACTUALIZADO", ObjDatos.IntUsuarioId, ObjDatos.StrDireccionIp);
+    if (ObjDatos.StrContrasenaHash !== undefined) {
+      await Usuarios_registrarAccionTx(ObjTx, ObjDatos.IntUsuarioActorId, "CONTRASENA_ACTUALIZADA", ObjDatos.IntUsuarioId, ObjDatos.StrDireccionIp);
+    }
     return ObjUsuario;
   });
 }
@@ -387,6 +394,7 @@ export function Usuarios_listarRoles() {
       nombre: true,
       descripcion: true,
       activo: true,
+      esReservado: true,
       _count: { select: { rolesPermisos: true, usuarios: true } },
     },
     orderBy: { nombre: "asc" },
@@ -397,6 +405,50 @@ export function Usuarios_listarPermisos() {
   return BaseDatos_obtenerCliente().usuarioPermiso.findMany({
     select: { permisoId: true, codigo: true, nombre: true, modulo: true, accion: true, activo: true },
     orderBy: [{ modulo: "asc" }, { codigo: "asc" }],
+  });
+}
+
+export async function Usuarios_listarCuentasAccesos(ObjConsulta: { IntPagina: number; IntLimite: number; StrBusqueda?: string | undefined }) {
+  const ObjWhere: Prisma.UsuarioCuentaWhereInput = ObjConsulta.StrBusqueda ? { OR: [{ nombreCompleto: { contains: ObjConsulta.StrBusqueda } }, { nombreUsuario: { contains: ObjConsulta.StrBusqueda } }] } : {};
+  const ObjPrisma = BaseDatos_obtenerCliente();
+  const [ArrUsuarios, IntTotal] = await ObjPrisma.$transaction([
+    ObjPrisma.usuarioCuenta.findMany({ where: ObjWhere, select: { usuarioId: true, nombreCompleto: true, nombreUsuario: true, estado: true, esProtegida: true, rol: { select: { rolId: true, nombre: true } } }, orderBy: { nombreCompleto: "asc" }, skip: (ObjConsulta.IntPagina - 1) * ObjConsulta.IntLimite, take: ObjConsulta.IntLimite }),
+    ObjPrisma.usuarioCuenta.count({ where: ObjWhere }),
+  ]);
+  return { ArrUsuarios, IntTotal };
+}
+
+export function Usuarios_obtenerDetalleAccesos(IntUsuarioId: number) {
+  return BaseDatos_obtenerCliente().usuarioCuenta.findUnique({ where: { usuarioId: IntUsuarioId }, include: { rol: { include: { rolesPermisos: { include: { permiso: true } } } }, permisosDirectos: { include: { permiso: true } } } });
+}
+
+export function Usuarios_obtenerCatalogoAccesos() {
+  return BaseDatos_obtenerCliente().usuarioPermiso.findMany({ orderBy: [{ modulo: "asc" }, { codigo: "asc" }] });
+}
+
+export async function Usuarios_actualizarAccesos(ObjDatos: { IntUsuarioId: number; IntVersionAccesos: number; IntRolId: number; ArrCambios: Array<{ IntPermisoId: number; StrEstado: "HEREDAR" | "PERMITIR" | "DENEGAR" }>; IntUsuarioActorId: number; StrDireccionIp?: string | undefined }) {
+  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+    const ObjCuenta = await ObjTx.usuarioCuenta.findUnique({ where: { usuarioId: ObjDatos.IntUsuarioId }, include: { permisosDirectos: true } });
+    if (ObjCuenta === null) throw new Error("USUARIO_NO_ENCONTRADO");
+    if (ObjCuenta.versionAccesos !== ObjDatos.IntVersionAccesos) throw new Error("VERSION_ACCESOS_CONFLICTO");
+    const ObjActuales = new Map(ObjCuenta.permisosDirectos.map((Obj) => [Obj.permisoId, Obj]));
+    let BoolCambio = ObjCuenta.rolId !== ObjDatos.IntRolId;
+    if (BoolCambio) await ObjTx.usuarioAccesoEvento.create({ data: { usuarioId: ObjDatos.IntUsuarioId, actorUsuarioId: ObjDatos.IntUsuarioActorId, tipo: "CAMBIO_ROL", rolAnteriorId: ObjCuenta.rolId, rolNuevoId: ObjDatos.IntRolId, direccionIp: ObjDatos.StrDireccionIp ?? null } });
+    for (const ObjCambio of ObjDatos.ArrCambios) {
+      const ObjActual = ObjActuales.get(ObjCambio.IntPermisoId);
+      const StrAnterior = ObjActual?.efecto === "ALLOW" ? "PERMITIR" : ObjActual?.efecto === "DENY" ? "DENEGAR" : "HEREDAR";
+      if (StrAnterior === ObjCambio.StrEstado) continue;
+      BoolCambio = true;
+      if (ObjCambio.StrEstado === "HEREDAR") await ObjTx.usuarioPermisoDirecto.deleteMany({ where: { usuarioId: ObjDatos.IntUsuarioId, permisoId: ObjCambio.IntPermisoId } });
+      else await ObjTx.usuarioPermisoDirecto.upsert({ where: { usuarioId_permisoId: { usuarioId: ObjDatos.IntUsuarioId, permisoId: ObjCambio.IntPermisoId } }, create: { usuarioId: ObjDatos.IntUsuarioId, permisoId: ObjCambio.IntPermisoId, efecto: ObjCambio.StrEstado === "PERMITIR" ? "ALLOW" : "DENY", asignadoPorUsuarioId: ObjDatos.IntUsuarioActorId }, update: { efecto: ObjCambio.StrEstado === "PERMITIR" ? "ALLOW" : "DENY", asignadoPorUsuarioId: ObjDatos.IntUsuarioActorId, fechaActualizacion: Fecha_obtenerAhoraGuatemala() } });
+      await ObjTx.usuarioAccesoEvento.create({ data: { usuarioId: ObjDatos.IntUsuarioId, actorUsuarioId: ObjDatos.IntUsuarioActorId, tipo: "CAMBIO_OVERRIDE", permisoId: ObjCambio.IntPermisoId, estadoAnterior: StrAnterior, estadoNuevo: ObjCambio.StrEstado, direccionIp: ObjDatos.StrDireccionIp ?? null } });
+    }
+    if (BoolCambio) {
+      const ObjActualizacion = await ObjTx.usuarioCuenta.updateMany({ where: { usuarioId: ObjDatos.IntUsuarioId, versionAccesos: ObjDatos.IntVersionAccesos }, data: { rolId: ObjDatos.IntRolId, versionAccesos: { increment: 1 }, fechaActualizacion: Fecha_obtenerAhoraGuatemala() } });
+      if (ObjActualizacion.count !== 1) throw new Error("VERSION_ACCESOS_CONFLICTO");
+      await Usuarios_registrarAccionTx(ObjTx, ObjDatos.IntUsuarioActorId, "ACCESOS_USUARIO_ACTUALIZADOS", ObjDatos.IntUsuarioId, ObjDatos.StrDireccionIp);
+    }
+    return BoolCambio;
   });
 }
 

@@ -2,6 +2,8 @@ import { Prisma } from "../../../generated/prisma/client.js";
 import { BaseDatos_obtenerCliente } from "../../database/prisma.js";
 import { Fecha_obtenerAhoraGuatemala } from "../../datetime/fecha.js";
 
+async function Inventario_ejecutarSerializable<T>(Inventario_operacion:(ObjTx:Prisma.TransactionClient)=>Promise<T>,_ObjOpciones?:unknown):Promise<T>{for(let IntIntento=1;IntIntento<=3;IntIntento+=1){try{return await BaseDatos_obtenerCliente().$transaction(Inventario_operacion,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});}catch(ObjError){if(!(ObjError instanceof Prisma.PrismaClientKnownRequestError)||ObjError.code!=="P2034"||IntIntento===3)throw ObjError;}}throw new Error("TRANSACCION_NO_COMPLETADA");}
+
 const ObjSeleccionProductoResumen = { productoId: true, codigo: true, nombre: true, unidadMedida: true, manejaLotes: true, activo: true } satisfies Prisma.InventarioProductoSelect;
 const ObjSeleccionAlmacenResumen = { inventarioId: true, codigo: true, nombre: true, activo: true } satisfies Prisma.InventarioAlmacenSelect;
 const ObjSeleccionProveedorResumen = { proveedorId: true, codigo: true, nombre: true, nombreComercial: true, activo: true } satisfies Prisma.ProveedorRegistroSelect;
@@ -28,6 +30,7 @@ export const Inventario_obtenerProducto = (IntProductoId: number) => BaseDatos_o
 export const Inventario_obtenerLote = (IntLoteId: number) => BaseDatos_obtenerCliente().inventarioLote.findUnique({ where: { loteInventarioId: IntLoteId }, include: { producto: true } });
 export const Inventario_obtenerProveedorProducto = (IntProveedorId: number, IntProductoId: number) => BaseDatos_obtenerCliente().proveedorProducto.findUnique({ where: { proveedorId_productoId: { proveedorId: IntProveedorId, productoId: IntProductoId } }, include: { proveedor: true } });
 export const Inventario_obtenerProveedor = (IntProveedorId: number) => BaseDatos_obtenerCliente().proveedorRegistro.findUnique({ where: { proveedorId: IntProveedorId }, select: ObjSeleccionProveedorResumen });
+export async function Inventario_obtenerUnidad(StrCodigo:string){const Arr=await BaseDatos_obtenerCliente().$queryRaw<Array<{codigo:string;nombre:string;dimension:string;factorReferencia:string;activo:boolean}>>`SELECT codigo,nombre,dimension,CONVERT(NVARCHAR(100),factor_referencia) factorReferencia,activo FROM dbo.inventario_unidades_medida WHERE codigo=${StrCodigo}`;return Arr[0]??null;}
 export const Inventario_obtenerExistencia = (IntInventarioProductoId: number) => BaseDatos_obtenerCliente().inventarioExistencia.findUnique({ where: { inventarioProductoId: IntInventarioProductoId } });
 export async function Inventario_productoTieneActividad(IntProductoId: number): Promise<boolean> {
   const ObjPrisma = BaseDatos_obtenerCliente();
@@ -147,84 +150,70 @@ export async function Inventario_obtenerResumen(DtHoy: Date, DtLimite: Date) {
   return { productosActivos, existenciasOperativas, existenciasBajoMinimo: Number(ArrBajoMinimo[0]?.total ?? 0n), lotesActivos, lotesProximosVencer, lotesVencidos, movimientosRecientes: ArrMovimientos.map(Inventario_proyectarMovimiento) };
 }
 
-export type InventarioDatosMovimiento = { tipo: "INGRESO" | "SALIDA" | "AJUSTE"; subtipo: string; productoId: number; inventarioId: number; loteInventarioId?: number | undefined; codigoLote?: string | undefined; proveedorId?: number | undefined; cantidad: Prisma.Decimal; costoUnitario?: Prisma.Decimal | undefined | null; fechaFabricacion?: Date | undefined | null; fechaVencimiento?: Date | undefined | null; documentoReferencia?: string | undefined | null; motivo?: string | undefined | null; observaciones?: string | undefined | null; IntUsuarioId: number; StrIp?: string | undefined; animalId?: number | undefined | null; loteProduccionId?: number | undefined | null; alimentacionDetalleId?: number | undefined | null; sanidadFuenteId?: number | undefined | null };
+export type InventarioDatosMovimiento = { tipo: "SALIDA" | "AJUSTE"; subtipo: string; productoId: number; inventarioId: number; loteInventarioId: number; proveedorId?: number | undefined; cantidad: Prisma.Decimal; documentoReferencia?: string | undefined | null; motivo?: string | undefined | null; observaciones?: string | undefined | null; IntUsuarioId: number; StrIp?: string | undefined; animalId?: number | undefined | null; loteProduccionId?: number | undefined | null; alimentacionDetalleId?: number | undefined | null; sanidadFuenteId?: number | undefined | null };
 
-function Inventario_calcularCostoPromedio(DecSaldo: Prisma.Decimal, DecCostoActual: Prisma.Decimal | null, DecCantidad: Prisma.Decimal, DecCostoMovimiento: Prisma.Decimal): Prisma.Decimal | null {
-  const DecNuevoSaldo = DecSaldo.plus(DecCantidad);
-  if (DecNuevoSaldo.isZero()) return null;
-  if (DecCostoActual === null && !DecSaldo.isZero()) throw new Error("COSTO_PROMEDIO_NO_DISPONIBLE");
-  return DecSaldo.mul(DecCostoActual ?? DecCostoMovimiento).plus(DecCantidad.mul(DecCostoMovimiento)).div(DecNuevoSaldo).toDecimalPlaces(4);
+export function Inventario_registrarEntradaConLote(ObjDatos: { subtipo: "COMPRA" | "INVENTARIO_INICIAL"; productoId: number; inventarioId: number; proveedorId?: number | undefined; cantidadComercial: Prisma.Decimal; unidadComercial: string; factorConversion: Prisma.Decimal; cantidadBase: Prisma.Decimal; unidadBase: string; precioTotalIngreso: Prisma.Decimal; costoUnitario: Prisma.Decimal; fechaFabricacion?: Date | null | undefined; fechaVencimiento?: Date | null | undefined; documentoReferencia?: string | null | undefined; motivo?: string | null | undefined; observaciones?: string | null | undefined; IntUsuarioId: number; StrIp?: string | undefined }) {
+  return Inventario_ejecutarSerializable(async (ObjTx) => {
+    const DtAhora = Fecha_obtenerAhoraGuatemala();
+    const ObjExistencia = await ObjTx.inventarioExistencia.upsert({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } }, create: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId }, update: {} });
+    const ObjLote = await ObjTx.inventarioLote.create({ data: { productoId: ObjDatos.productoId, proveedorId: ObjDatos.proveedorId ?? null, unidadBaseSnapshot: ObjDatos.unidadBase, costoUnitario: ObjDatos.costoUnitario, fechaFabricacion: ObjDatos.fechaFabricacion ?? null, fechaVencimiento: ObjDatos.fechaVencimiento ?? null, observaciones: ObjDatos.observaciones ?? null } });
+    await ObjTx.$executeRawUnsafe(`UPDATE dbo.inventario_lotes SET costo_unitario=CAST('${ObjDatos.costoUnitario.toFixed(18)}' AS DECIMAL(38,18)) WHERE lote_inventario_id=${ObjLote.loteInventarioId}`);
+    const ObjExistenciaLote = await ObjTx.inventarioExistenciaLote.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, loteInventarioId: ObjLote.loteInventarioId, productoId: ObjDatos.productoId, existenciaActual: ObjDatos.cantidadBase } });
+    await ObjTx.inventarioExistencia.update({ where: { inventarioProductoId: ObjExistencia.inventarioProductoId }, data: { existenciaActual: { increment: ObjDatos.cantidadBase }, fechaActualizacion: DtAhora } });
+    const ObjMovimiento = await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaLoteId: ObjExistenciaLote.existenciaLoteId, usuarioId: ObjDatos.IntUsuarioId, proveedorId: ObjDatos.proveedorId ?? null, tipoTransaccion: "INGRESO", subtipoTransaccion: ObjDatos.subtipo, cantidadComercial: ObjDatos.cantidadComercial, unidadComercial: ObjDatos.unidadComercial, factorConversion: ObjDatos.factorConversion, cantidad: ObjDatos.cantidadBase, unidadBaseSnapshot: ObjDatos.unidadBase, precioTotalIngreso: ObjDatos.precioTotalIngreso, costoUnitario: ObjDatos.costoUnitario, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null } });
+    await ObjTx.$executeRawUnsafe(`UPDATE dbo.inventario_transacciones SET factor_conversion=CAST('${ObjDatos.factorConversion.toFixed(15)}' AS DECIMAL(30,15)),costo_unitario=CAST('${ObjDatos.costoUnitario.toFixed(18)}' AS DECIMAL(38,18)) WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}`);
+    await ObjTx.inventarioLote.update({ where: { loteInventarioId: ObjLote.loteInventarioId }, data: { transaccionOrigenId: ObjMovimiento.transaccionInventarioId } });
+    await Inventario_bitacora(ObjTx, ObjDatos.IntUsuarioId, "INVENTARIO_INGRESO_REGISTRADO", `Movimiento ${ObjMovimiento.transaccionInventarioId}; lote ${ObjLote.codigoLote}.`, ObjDatos.StrIp);
+    const [ObjMovimientoExacto,ObjLoteExacto]=await Promise.all([ObjTx.inventarioTransaccion.findUniqueOrThrow({where:{transaccionInventarioId:ObjMovimiento.transaccionInventarioId}}),ObjTx.inventarioLote.findUniqueOrThrow({where:{loteInventarioId:ObjLote.loteInventarioId}})]);return { ...ObjMovimientoExacto, lote: ObjLoteExacto };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function Inventario_aplicarMovimientoConTx(ObjTx: Prisma.TransactionClient, ObjDatos: InventarioDatosMovimiento) {
     const DtAhora = Fecha_obtenerAhoraGuatemala();
-    const ObjProducto = await ObjTx.inventarioProducto.findUnique({ where: { productoId: ObjDatos.productoId } });
-    if (ObjProducto === null) throw new Error("PRODUCTO_NO_ENCONTRADO");
-    const ObjExistencia = await ObjTx.inventarioExistencia.upsert({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } }, create: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId }, update: {} });
-    let IntExistenciaLoteId: number | undefined;
-    let DecCostoMovimiento = ObjDatos.costoUnitario === undefined || ObjDatos.costoUnitario === null ? null : new Prisma.Decimal(ObjDatos.costoUnitario);
-    if (ObjProducto.manejaLotes) {
-      if (ObjDatos.loteInventarioId === undefined && ObjDatos.codigoLote === undefined) throw new Error("PRODUCTO_REQUIERE_LOTE");
-      let ObjLote = ObjDatos.loteInventarioId === undefined ? null : await ObjTx.inventarioLote.findUnique({ where: { loteInventarioId: ObjDatos.loteInventarioId } });
-      if (ObjLote === null && ObjDatos.codigoLote !== undefined) ObjLote = await ObjTx.inventarioLote.create({ data: { productoId: ObjDatos.productoId, proveedorId: ObjDatos.proveedorId ?? null, codigoLote: ObjDatos.codigoLote, costoUnitario: ObjDatos.costoUnitario ?? null, fechaFabricacion: ObjDatos.fechaFabricacion ?? null, fechaVencimiento: ObjDatos.fechaVencimiento ?? null } });
-      if (ObjLote === null) throw new Error("LOTE_NO_ENCONTRADO");
-      if (ObjLote.productoId !== ObjDatos.productoId) throw new Error("LOTE_PRODUCTO_INCONSISTENTE");
-      if (ObjLote.costoUnitario === null) throw new Error("COSTO_LOTE_NO_DISPONIBLE");
-      if (DecCostoMovimiento !== null && !DecCostoMovimiento.equals(ObjLote.costoUnitario)) throw new Error("COSTO_LOTE_NO_COINCIDE");
-      DecCostoMovimiento = ObjLote.costoUnitario;
-      const ObjSaldoLote = await ObjTx.inventarioExistenciaLote.upsert({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjExistencia.inventarioProductoId, loteInventarioId: ObjLote.loteInventarioId } }, create: { inventarioProductoId: ObjExistencia.inventarioProductoId, loteInventarioId: ObjLote.loteInventarioId, productoId: ObjDatos.productoId }, update: {} });
-      IntExistenciaLoteId = ObjSaldoLote.existenciaLoteId;
-      const ObjActualizacionLote = await ObjTx.inventarioExistenciaLote.updateMany({ where: { existenciaLoteId: ObjSaldoLote.existenciaLoteId, existenciaActual: { gte: ObjDatos.cantidad.negated() } }, data: { existenciaActual: { increment: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
-      if (ObjActualizacionLote.count !== 1) throw new Error("STOCK_INSUFICIENTE");
-    } else {
-      if (ObjDatos.loteInventarioId !== undefined || ObjDatos.codigoLote !== undefined) throw new Error("PRODUCTO_NO_MANEJA_LOTES");
-      if (ObjDatos.cantidad.isPositive() && DecCostoMovimiento === null) throw new Error("COSTO_UNITARIO_REQUERIDO");
-      if (DecCostoMovimiento === null) DecCostoMovimiento = ObjExistencia.costoPromedioActual;
-      if (DecCostoMovimiento === null) throw new Error("COSTO_PROMEDIO_NO_DISPONIBLE");
-    }
-    const DecCostoPromedio = ObjProducto.manejaLotes ? ObjExistencia.costoPromedioActual : Inventario_calcularCostoPromedio(ObjExistencia.existenciaActual, ObjExistencia.costoPromedioActual, ObjDatos.cantidad, DecCostoMovimiento);
-    const ObjActualizacion = await ObjTx.inventarioExistencia.updateMany({ where: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaActual: { gte: ObjDatos.cantidad.negated() } }, data: { existenciaActual: { increment: ObjDatos.cantidad }, costoPromedioActual: DecCostoPromedio, fechaActualizacion: DtAhora } });
+    const ObjExistencia = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } } });
+    if (!ObjExistencia) throw new Error("STOCK_INSUFICIENTE");
+    const ObjSaldoLote = await ObjTx.inventarioExistenciaLote.findUnique({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjExistencia.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId } }, include: { lote: true } });
+    if (!ObjSaldoLote || ObjSaldoLote.productoId !== ObjDatos.productoId) throw new Error("FUENTE_INVENTARIO_INCONSISTENTE");
+    const ObjActualizacionLote = await ObjTx.inventarioExistenciaLote.updateMany({ where: { existenciaLoteId: ObjSaldoLote.existenciaLoteId, existenciaActual: { gte: ObjDatos.cantidad.negated() } }, data: { existenciaActual: { increment: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
+    if (ObjActualizacionLote.count !== 1) throw new Error("STOCK_INSUFICIENTE");
+    const ObjActualizacion = await ObjTx.inventarioExistencia.updateMany({ where: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaActual: { gte: ObjDatos.cantidad.negated() } }, data: { existenciaActual: { increment: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
     if (ObjActualizacion.count !== 1) throw new Error("STOCK_INSUFICIENTE");
-    const ObjMovimiento = await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaLoteId: IntExistenciaLoteId ?? null, usuarioId: ObjDatos.IntUsuarioId, proveedorId: ObjDatos.proveedorId ?? null, animalId: ObjDatos.animalId ?? null, loteProduccionId: ObjDatos.loteProduccionId ?? null, alimentacionDetalleId: ObjDatos.alimentacionDetalleId ?? null, sanidadFuenteId: ObjDatos.sanidadFuenteId ?? null, tipoTransaccion: ObjDatos.tipo, subtipoTransaccion: ObjDatos.subtipo, cantidad: ObjDatos.cantidad, costoUnitario: DecCostoMovimiento, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null } });
+    const ObjMovimiento = await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaLoteId: ObjSaldoLote.existenciaLoteId, usuarioId: ObjDatos.IntUsuarioId, proveedorId: ObjDatos.proveedorId ?? null, animalId: ObjDatos.animalId ?? null, loteProduccionId: ObjDatos.loteProduccionId ?? null, alimentacionDetalleId: ObjDatos.alimentacionDetalleId ?? null, sanidadFuenteId: ObjDatos.sanidadFuenteId ?? null, tipoTransaccion: ObjDatos.tipo, subtipoTransaccion: ObjDatos.subtipo, cantidad: ObjDatos.cantidad, unidadBaseSnapshot: ObjSaldoLote.lote.unidadBaseSnapshot, costoUnitario: ObjSaldoLote.lote.costoUnitario, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null } });
+    await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET costo_unitario=(SELECT costo_unitario FROM dbo.inventario_lotes WHERE lote_inventario_id=${ObjDatos.loteInventarioId}) WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}`;
     await Inventario_bitacora(ObjTx, ObjDatos.IntUsuarioId, `INVENTARIO_${ObjDatos.tipo}_REGISTRADO`, `Movimiento ${ObjMovimiento.transaccionInventarioId}; producto ${ObjDatos.productoId}; subtipo ${ObjDatos.subtipo}.`, ObjDatos.StrIp);
     return ObjMovimiento;
 }
 
 export function Inventario_registrarMovimiento(ObjDatos: InventarioDatosMovimiento) {
-  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+  return Inventario_ejecutarSerializable(async (ObjTx) => {
     return Inventario_aplicarMovimientoConTx(ObjTx, ObjDatos);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
-export function Inventario_registrarTransferencia(ObjDatos: { productoId: number; inventarioOrigenId: number; inventarioDestinoId: number; loteInventarioId?: number | undefined; cantidad: Prisma.Decimal; documentoReferencia?: string | undefined | null; motivo?: string | undefined | null; observaciones?: string | undefined | null; IntUsuarioId: number; StrIp?: string | undefined }) {
-  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+export function Inventario_registrarTransferencia(ObjDatos: { productoId: number; inventarioOrigenId: number; inventarioDestinoId: number; loteInventarioId: number; cantidad: Prisma.Decimal; documentoReferencia?: string | undefined | null; motivo?: string | undefined | null; observaciones?: string | undefined | null; IntUsuarioId: number; StrIp?: string | undefined }) {
+  return Inventario_ejecutarSerializable(async (ObjTx) => {
     const DtAhora = Fecha_obtenerAhoraGuatemala();
     const ObjOrigen = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioOrigenId, productoId: ObjDatos.productoId } } });
     if (!ObjOrigen) throw new Error("STOCK_INSUFICIENTE");
     const ObjDestino = await ObjTx.inventarioExistencia.upsert({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioDestinoId, productoId: ObjDatos.productoId } }, create: { inventarioId: ObjDatos.inventarioDestinoId, productoId: ObjDatos.productoId }, update: {} });
-    let ObjLoteOrigen: { existenciaLoteId: number } | null = null;
-    let ObjLoteDestino: { existenciaLoteId: number } | null = null;
-    let DecCostoTransferencia = ObjOrigen.costoPromedioActual;
-    if (ObjDatos.loteInventarioId !== undefined) {
-      ObjLoteOrigen = await ObjTx.inventarioExistenciaLote.findUnique({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjOrigen.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId } } });
-      if (!ObjLoteOrigen) throw new Error("STOCK_INSUFICIENTE");
-      const ObjLote = await ObjTx.inventarioLote.findUniqueOrThrow({ where: { loteInventarioId: ObjDatos.loteInventarioId } });
-      DecCostoTransferencia = ObjLote.costoUnitario;
-      ObjLoteDestino = await ObjTx.inventarioExistenciaLote.upsert({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjDestino.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId } }, create: { inventarioProductoId: ObjDestino.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId, productoId: ObjDatos.productoId }, update: {} });
-      const ObjCambioLote = await ObjTx.inventarioExistenciaLote.updateMany({ where: { existenciaLoteId: ObjLoteOrigen.existenciaLoteId, existenciaActual: { gte: ObjDatos.cantidad } }, data: { existenciaActual: { decrement: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
-      if (ObjCambioLote.count !== 1) throw new Error("STOCK_INSUFICIENTE");
-      await ObjTx.inventarioExistenciaLote.update({ where: { existenciaLoteId: ObjLoteDestino.existenciaLoteId }, data: { existenciaActual: { increment: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
-    }
+    const ObjLoteOrigen = await ObjTx.inventarioExistenciaLote.findUnique({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjOrigen.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId } } });
+    if (!ObjLoteOrigen) throw new Error("STOCK_INSUFICIENTE");
+    const ObjLote = await ObjTx.inventarioLote.findUniqueOrThrow({ where: { loteInventarioId: ObjDatos.loteInventarioId } });
+    if (ObjLote.productoId !== ObjDatos.productoId) throw new Error("FUENTE_INVENTARIO_INCONSISTENTE");
+    const DecCostoTransferencia = ObjLote.costoUnitario;
+    const ObjLoteDestino = await ObjTx.inventarioExistenciaLote.upsert({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjDestino.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId } }, create: { inventarioProductoId: ObjDestino.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId, productoId: ObjDatos.productoId }, update: {} });
+    const ObjCambioLote = await ObjTx.inventarioExistenciaLote.updateMany({ where: { existenciaLoteId: ObjLoteOrigen.existenciaLoteId, existenciaActual: { gte: ObjDatos.cantidad } }, data: { existenciaActual: { decrement: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
+    if (ObjCambioLote.count !== 1) throw new Error("STOCK_INSUFICIENTE");
+    await ObjTx.inventarioExistenciaLote.update({ where: { existenciaLoteId: ObjLoteDestino.existenciaLoteId }, data: { existenciaActual: { increment: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
     const ObjCambio = await ObjTx.inventarioExistencia.updateMany({ where: { inventarioProductoId: ObjOrigen.inventarioProductoId, existenciaActual: { gte: ObjDatos.cantidad } }, data: { existenciaActual: { decrement: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
     if (ObjCambio.count !== 1) throw new Error("STOCK_INSUFICIENTE");
-    if (DecCostoTransferencia === null) throw new Error("COSTO_PROMEDIO_NO_DISPONIBLE");
-    const DecCostoDestino = ObjDatos.loteInventarioId === undefined ? Inventario_calcularCostoPromedio(ObjDestino.existenciaActual, ObjDestino.costoPromedioActual, ObjDatos.cantidad, DecCostoTransferencia) : ObjDestino.costoPromedioActual;
-    await ObjTx.inventarioExistencia.update({ where: { inventarioProductoId: ObjDestino.inventarioProductoId }, data: { existenciaActual: { increment: ObjDatos.cantidad }, costoPromedioActual: DecCostoDestino, fechaActualizacion: DtAhora } });
-    const ObjTransferencia = await ObjTx.inventarioTransferencia.create({ data: { productoId: ObjDatos.productoId, inventarioProductoOrigenId: ObjOrigen.inventarioProductoId, inventarioProductoDestinoId: ObjDestino.inventarioProductoId, existenciaLoteOrigenId: ObjLoteOrigen?.existenciaLoteId ?? null, existenciaLoteDestinoId: ObjLoteDestino?.existenciaLoteId ?? null, loteInventarioId: ObjDatos.loteInventarioId ?? null, usuarioId: ObjDatos.IntUsuarioId, cantidad: ObjDatos.cantidad, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null } });
+    await ObjTx.inventarioExistencia.update({ where: { inventarioProductoId: ObjDestino.inventarioProductoId }, data: { existenciaActual: { increment: ObjDatos.cantidad }, fechaActualizacion: DtAhora } });
+    const ObjTransferencia = await ObjTx.inventarioTransferencia.create({ data: { productoId: ObjDatos.productoId, inventarioProductoOrigenId: ObjOrigen.inventarioProductoId, inventarioProductoDestinoId: ObjDestino.inventarioProductoId, existenciaLoteOrigenId: ObjLoteOrigen.existenciaLoteId, existenciaLoteDestinoId: ObjLoteDestino.existenciaLoteId, loteInventarioId: ObjDatos.loteInventarioId, usuarioId: ObjDatos.IntUsuarioId, cantidad: ObjDatos.cantidad, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null } });
     await ObjTx.inventarioTransaccion.createMany({ data: [
-      { inventarioProductoId: ObjOrigen.inventarioProductoId, existenciaLoteId: ObjLoteOrigen?.existenciaLoteId ?? null, transferenciaId: ObjTransferencia.transferenciaId, usuarioId: ObjDatos.IntUsuarioId, tipoTransaccion: "SALIDA", subtipoTransaccion: "TRANSFERENCIA_SALIDA", cantidad: ObjDatos.cantidad.negated(), costoUnitario: DecCostoTransferencia, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null },
-      { inventarioProductoId: ObjDestino.inventarioProductoId, existenciaLoteId: ObjLoteDestino?.existenciaLoteId ?? null, transferenciaId: ObjTransferencia.transferenciaId, usuarioId: ObjDatos.IntUsuarioId, tipoTransaccion: "INGRESO", subtipoTransaccion: "TRANSFERENCIA_ENTRADA", cantidad: ObjDatos.cantidad, costoUnitario: DecCostoTransferencia, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null },
+      { inventarioProductoId: ObjOrigen.inventarioProductoId, existenciaLoteId: ObjLoteOrigen.existenciaLoteId, transferenciaId: ObjTransferencia.transferenciaId, usuarioId: ObjDatos.IntUsuarioId, tipoTransaccion: "SALIDA", subtipoTransaccion: "TRANSFERENCIA_SALIDA", cantidad: ObjDatos.cantidad.negated(), unidadBaseSnapshot: ObjLote.unidadBaseSnapshot, costoUnitario: DecCostoTransferencia, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null },
+      { inventarioProductoId: ObjDestino.inventarioProductoId, existenciaLoteId: ObjLoteDestino.existenciaLoteId, transferenciaId: ObjTransferencia.transferenciaId, usuarioId: ObjDatos.IntUsuarioId, tipoTransaccion: "INGRESO", subtipoTransaccion: "TRANSFERENCIA_ENTRADA", cantidad: ObjDatos.cantidad, unidadBaseSnapshot: ObjLote.unidadBaseSnapshot, costoUnitario: DecCostoTransferencia, documentoReferencia: ObjDatos.documentoReferencia ?? null, motivo: ObjDatos.motivo ?? null, observaciones: ObjDatos.observaciones ?? null },
     ] });
+    await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET costo_unitario=(SELECT costo_unitario FROM dbo.inventario_lotes WHERE lote_inventario_id=${ObjDatos.loteInventarioId}) WHERE transferencia_id=${ObjTransferencia.transferenciaId}`;
     await Inventario_bitacora(ObjTx, ObjDatos.IntUsuarioId, "INVENTARIO_TRANSFERENCIA_REGISTRADA", `Transferencia ${ObjTransferencia.transferenciaId}; producto ${ObjDatos.productoId}.`, ObjDatos.StrIp);
     return ObjTransferencia;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -232,20 +221,20 @@ export function Inventario_registrarTransferencia(ObjDatos: { productoId: number
 
 export async function Inventario_revertirMovimientoConTx(ObjTx: Prisma.TransactionClient, ObjMovimiento: Prisma.InventarioTransaccionGetPayload<object>, IntUsuarioId: number, DtAhora: Date) {
   const DecReversion = ObjMovimiento.cantidad.negated();
-  const ObjExistencia = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioProductoId: ObjMovimiento.inventarioProductoId }, include: { producto: true } });
+  if (ObjMovimiento.existenciaLoteId === null) throw new Error("MOVIMIENTO_LEGADO_SIN_LOTE");
+  const ObjExistencia = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioProductoId: ObjMovimiento.inventarioProductoId } });
   if (ObjExistencia === null) throw new Error("EXISTENCIA_NO_ENCONTRADA");
-  const DecCostoPromedio = ObjExistencia.producto.manejaLotes ? ObjExistencia.costoPromedioActual : Inventario_calcularCostoPromedio(ObjExistencia.existenciaActual, ObjExistencia.costoPromedioActual, DecReversion, ObjMovimiento.costoUnitario ?? new Prisma.Decimal(0));
-  const ObjSaldo = await ObjTx.inventarioExistencia.updateMany({ where: { inventarioProductoId: ObjMovimiento.inventarioProductoId, existenciaActual: { gte: DecReversion.negated() } }, data: { existenciaActual: { increment: DecReversion }, costoPromedioActual: DecCostoPromedio, fechaActualizacion: DtAhora } });
+  const ObjSaldo = await ObjTx.inventarioExistencia.updateMany({ where: { inventarioProductoId: ObjMovimiento.inventarioProductoId, existenciaActual: { gte: DecReversion.negated() } }, data: { existenciaActual: { increment: DecReversion }, fechaActualizacion: DtAhora } });
   if (ObjSaldo.count !== 1) throw new Error("STOCK_INSUFICIENTE");
-  if (ObjMovimiento.existenciaLoteId !== null) {
-    const ObjSaldoLote = await ObjTx.inventarioExistenciaLote.updateMany({ where: { existenciaLoteId: ObjMovimiento.existenciaLoteId, existenciaActual: { gte: DecReversion.negated() } }, data: { existenciaActual: { increment: DecReversion }, fechaActualizacion: DtAhora } });
-    if (ObjSaldoLote.count !== 1) throw new Error("STOCK_INSUFICIENTE");
-  }
-  return ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjMovimiento.inventarioProductoId, existenciaLoteId: ObjMovimiento.existenciaLoteId, usuarioId: IntUsuarioId, tipoTransaccion: "AJUSTE", subtipoTransaccion: "REVERSION", cantidad: DecReversion, costoUnitario: ObjMovimiento.costoUnitario, transaccionRevertidaId: ObjMovimiento.transaccionInventarioId, motivo: `Reversion del movimiento ${ObjMovimiento.transaccionInventarioId}.` } });
+  const ObjSaldoLote = await ObjTx.inventarioExistenciaLote.updateMany({ where: { existenciaLoteId: ObjMovimiento.existenciaLoteId, existenciaActual: { gte: DecReversion.negated() } }, data: { existenciaActual: { increment: DecReversion }, fechaActualizacion: DtAhora } });
+  if (ObjSaldoLote.count !== 1) throw new Error("STOCK_INSUFICIENTE");
+  const ObjReversion=await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjMovimiento.inventarioProductoId, existenciaLoteId: ObjMovimiento.existenciaLoteId, usuarioId: IntUsuarioId, tipoTransaccion: "AJUSTE", subtipoTransaccion: "REVERSION", cantidad: DecReversion, unidadBaseSnapshot: ObjMovimiento.unidadBaseSnapshot, costoUnitario: ObjMovimiento.costoUnitario, transaccionRevertidaId: ObjMovimiento.transaccionInventarioId, motivo: `Reversion del movimiento ${ObjMovimiento.transaccionInventarioId}.` } });
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET costo_unitario=(SELECT costo_unitario FROM dbo.inventario_transacciones WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}) WHERE transaccion_inventario_id=${ObjReversion.transaccionInventarioId}`;
+  return ObjTx.inventarioTransaccion.findUniqueOrThrow({where:{transaccionInventarioId:ObjReversion.transaccionInventarioId}});
 }
 
 export function Inventario_revertirMovimiento(IntTransaccionId: number, IntUsuarioId: number, StrIp?: string | undefined) {
-  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+  return Inventario_ejecutarSerializable(async (ObjTx) => {
     const ObjOriginal = await ObjTx.inventarioTransaccion.findUnique({ where: { transaccionInventarioId: IntTransaccionId }, include: { reversion: true } });
     if (!ObjOriginal) throw new Error("MOVIMIENTO_NO_ENCONTRADO");
     if (ObjOriginal.transferenciaId !== null) throw new Error("REVERSION_TRANSFERENCIA_REQUIERE_ENDPOINT");
@@ -258,7 +247,7 @@ export function Inventario_revertirMovimiento(IntTransaccionId: number, IntUsuar
 }
 
 export function Inventario_revertirTransferencia(IntTransferenciaId: number, IntUsuarioId: number, StrIp?: string | undefined) {
-  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+  return Inventario_ejecutarSerializable(async (ObjTx) => {
     const ObjTransferencia = await ObjTx.inventarioTransferencia.findUnique({ where: { transferenciaId: IntTransferenciaId }, include: { transacciones: { include: { reversion: true }, orderBy: { transaccionInventarioId: "asc" } } } });
     if (!ObjTransferencia) throw new Error("TRANSFERENCIA_NO_ENCONTRADA");
     const ArrOriginales = ObjTransferencia.transacciones.filter((ObjMovimiento) => ObjMovimiento.subtipoTransaccion === "TRANSFERENCIA_SALIDA" || ObjMovimiento.subtipoTransaccion === "TRANSFERENCIA_ENTRADA");

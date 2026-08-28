@@ -256,7 +256,7 @@ export async function Sanidad_lotesInventario(
     const q = Sanidad_validar(Z.ObjConsultaLotesSanidad,Req.query);
     Res.json({
       ok: true,
-      datos: await S.Sanidad_lotes(q.productoId, q.inventarioId),
+      datos: await S.Sanidad_lotes(q.productoId, q.inventarioId, q.fechaAplicacion),
     });
   } catch (e) {
     Next(e);

@@ -16,5 +16,16 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
 
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: granja-azurite
+    restart: unless-stopped
+    command: azurite-blob --blobHost 0.0.0.0 --location /data
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite_data:/data
+
 volumes:
   sqlserver_data:
+  azurite_data:

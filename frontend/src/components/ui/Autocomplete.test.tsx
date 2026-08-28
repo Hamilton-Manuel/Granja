@@ -15,4 +15,11 @@ describe("Autocomplete", () => {
     expect(Autocomplete_seleccionar).toHaveBeenLastCalledWith({ id: 41, etiqueta: "ARETE-154 — HEMBRA — Bovino" });
     expect(screen.queryByText(/^41$/)).not.toBeInTheDocument();
   });
+
+  it("permite enriquecer visualmente una opción sin cambiar su etiqueta accesible", async () => {
+    const Autocomplete_buscar = vi.fn().mockResolvedValue([{ id: 7, etiqueta: "Rubén Catalán" }]);
+    render(<Autocomplete<OpcionPrueba> StrEtiqueta="Buscar usuario" StrPlaceholder="Buscar..." ObjSeleccion={null} Autocomplete_buscar={Autocomplete_buscar} Autocomplete_clave={(ObjOpcion) => ObjOpcion.id} Autocomplete_etiqueta={(ObjOpcion) => ObjOpcion.etiqueta} Autocomplete_seleccionar={vi.fn()} Autocomplete_renderizarOpcion={(ObjOpcion) => <span><strong>{ObjOpcion.etiqueta}</strong><small>rcatalan · ADMINISTRADOR</small></span>} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Buscar usuario" }), { target: { value: "Rubén" } });
+    expect(await screen.findByRole("option", { name: /Rubén Catalán.*rcatalan/ })).toBeInTheDocument();
+  });
 });

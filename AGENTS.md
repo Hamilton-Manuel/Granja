@@ -2,477 +2,130 @@
 
 ## Proyecto
 
-Sistema web para la administración de registros y trazabilidad de la Granja El Chiflón, Rabinal, Baja Verapaz.
+Sistema web para la administración de registros y trazabilidad de la Granja El Chiflón, Rabinal, Baja Verapaz, Guatemala.
 
-El sistema centraliza información administrativa y operativa relacionada con usuarios, clientes, proveedores, inventario, producción animal, alimentación, sanidad, ventas y reportes.
+Módulos principales: Usuarios, Clientes, Proveedores, Inventario, Producción, Alimentación, Sanidad, Ventas y Reportes.
 
-## Stack tecnológico
+## Stack
 
-- Frontend: React + TypeScript.
-- Backend: Node.js + Express + TypeScript.
-- ORM: Prisma 7.
+- Frontend: React + TypeScript + Vite + React Router.
+- Backend: Node.js + Express + TypeScript + Prisma 7.
 - Base de datos: Microsoft SQL Server.
-- Desarrollo local: Docker Desktop y Docker Compose.
+- Desarrollo local: Docker Desktop / Docker Compose.
 - Producción futura: Azure Container Apps + Azure SQL Database.
-- Control de versiones: Git y GitHub.
-
-## Estructura del repositorio
-
-- `backend/`: API Node.js + Express + Prisma.
-- `backend/src/`: código fuente del backend.
-- `backend/prisma/schema.prisma`: modelo Prisma.
-- `backend/prisma/migrations/`: historial de migraciones de base de datos.
-- `frontend/`: aplicación React.
-- `compose.yaml`: servicios locales Docker.
-- `docs/`: documentación técnica.
-- `scripts/`: scripts auxiliares.
+- Control de versiones: Git + GitHub.
 
 ---
 
-## Arquitectura del frontend y navegación
+# 1. Forma de trabajo con Codex
 
-La aplicación debe utilizar componentes reutilizables y evitar duplicar elementos comunes entre páginas.
+## Uso eficiente del contexto
 
-### Layout autenticado
+Trabajar únicamente con los archivos necesarios para la tarea actual.
 
-Una vez que el usuario haya iniciado sesión, todas las páginas internas del sistema deben utilizar un layout compartido.
+- No recorrer todo el repositorio sin necesidad.
+- No leer archivos completos si una búsqueda puntual es suficiente.
+- No volver a investigar decisiones ya evidentes en el código.
+- Preferir `git status --short` y `git diff` focalizado.
+- Evitar logs extensos innecesarios.
+- No repetir pruebas costosas si no cambió código relacionado.
+- Entregar resultados finales breves.
+- No generar planes largos para tareas pequeñas y claramente definidas.
+- Para cambios complejos o que afecten arquitectura/modelo, presentar un plan breve.
+- No hacer refactors no relacionados con la tarea solicitada.
 
-Ese layout debe contener como mínimo:
+## Git
 
-- menú lateral de navegación;
-- encabezado superior si corresponde;
-- información básica de la sesión;
-- opción para cerrar sesión;
-- área donde se renderiza el contenido de cada módulo.
+Codex NO debe ejecutar salvo autorización explícita:
 
-No copiar ni recrear manualmente el menú lateral dentro de cada página.
+- `git add`
+- `git commit`
+- `git push`
 
-Crear una estructura reutilizable similar a:
+El usuario realiza normalmente estas acciones manualmente después de validar.
 
-```text
-frontend/src/
-├── components/
-│   ├── layout/
-│   │   ├── MenuLateral.tsx
-│   │   ├── Encabezado.tsx
-│   │   └── LayoutAutenticado.tsx
-│   └── ui/
-├── pages/
-│   ├── usuarios/
-│   ├── clientes/
-│   ├── proveedores/
-│   ├── inventario/
-│   ├── produccion/
-│   ├── alimentacion/
-│   ├── sanidad/
-│   ├── ventas/
-│   └── reportes/
-└── routes/
-```
-
-Todas las páginas internas deberán utilizar conceptualmente:
-
-```tsx
-<LayoutAutenticado>
-  <PaginaActual />
-</LayoutAutenticado>
-```
-
-`LayoutAutenticado` será responsable de mostrar, según corresponda:
-
-```tsx
-<MenuLateral />
-<Encabezado />
-<Contenido />
-```
-
-La pantalla de inicio de sesión no utiliza `LayoutAutenticado`.
-
-### Menú lateral
-
-El menú lateral debe estar disponible en todas las rutas protegidas después del inicio de sesión.
-
-Debe contemplar los módulos principales:
-
-- Inicio / Dashboard.
-- Usuarios.
-- Clientes.
-- Proveedores.
-- Inventario.
-- Producción.
-- Alimentación.
-- Sanidad.
-- Ventas.
-- Reportes.
-
-La visibilidad de opciones podrá depender de los permisos del usuario.
-
-Ocultar una opción del menú no sustituye la validación de permisos en el backend.
-
-No crear copias separadas del mismo menú para cada módulo.
-
-Ejemplo incorrecto:
-
-```text
-MenuInventario.tsx
-MenuVentas.tsx
-MenuProduccion.tsx
-```
-
-Debe existir un único componente reutilizable, por ejemplo:
-
-```text
-MenuLateral.tsx
-```
-
-### Componentes reutilizables
-
-Reutilizar componentes cuando exista comportamiento realmente común, por ejemplo:
-
-- tablas;
-- formularios;
-- modales;
-- botones;
-- mensajes;
-- indicadores;
-- cargadores;
-- confirmaciones;
-- encabezados de página.
-
-Evitar duplicación innecesaria de JSX entre módulos.
+No considerar una tarea terminada si existen errores de compilación, TypeScript, pruebas o Prisma relacionados con el cambio.
 
 ---
 
-## Arquitectura MVC y organización del backend
+# 2. Arquitectura backend
 
-El sistema mantiene una arquitectura basada en MVC.
-
-- Vista: frontend React.
-- Controlador: rutas y controllers de Express.
-- Modelo: lógica de negocio, acceso a datos, Prisma y SQL Server.
-
-Para mantener organizado el backend, la capa Modelo se divide internamente en `Service` y `Repository`.
-
-El flujo general será:
+Mantener el flujo:
 
 ```text
-Vista React
-    ↓
 Route
-    ↓
+  ↓
 Controller
-    ↓
+  ↓
 Service
-    ↓
+  ↓
 Repository
-    ↓
+  ↓
 Prisma
-    ↓
+  ↓
 SQL Server
 ```
 
 Responsabilidades:
 
-- `Route`: define endpoints y middleware.
-- `Controller`: recibe la petición HTTP, obtiene parámetros y devuelve la respuesta.
-- `Service`: implementa reglas y procesos de negocio.
-- `Repository`: concentra el acceso a datos mediante Prisma.
-- `Prisma`: ORM encargado de interactuar con SQL Server.
-
-Esta separación no reemplaza MVC. `Service` y `Repository` forman parte de la organización interna de la capa Modelo.
+- Route: endpoints y middleware.
+- Controller: HTTP, parámetros y respuesta.
+- Service: reglas de negocio.
+- Repository: acceso a datos.
+- Prisma: acceso ORM a SQL Server.
 
 Reglas:
 
+- No consultar Prisma directamente desde controllers.
 - No colocar lógica de negocio compleja en controllers.
-- No realizar consultas Prisma directamente desde controllers.
-- Los controllers manejan HTTP y validación de entrada/salida.
-- Los services contienen reglas de negocio.
-- Los repositories contienen acceso a datos.
-- Evitar lógica de negocio dentro de routes.
-- Reutilizar código compartido cuando corresponda.
-- No crear capas adicionales sin una necesidad clara.
+- No colocar reglas de negocio en routes.
+- Reutilizar services, repositories y primitivas existentes cuando corresponda.
+- No crear capas adicionales sin necesidad clara.
 
-La organización esperada por módulo será similar a:
+---
+
+# 3. Arquitectura frontend
+
+Todas las páginas autenticadas reutilizan el layout compartido existente.
+
+Reutilizar cuando corresponda:
+
+- `LayoutAutenticado`
+- `MenuLateral`
+- encabezado compartido
+- componentes UI existentes
+- `Autocomplete` compartido
+- helpers de fecha
+- helpers Decimal/monetarios
+- infraestructura API existente
+
+No duplicar menús ni componentes equivalentes por módulo.
+
+La visibilidad y acceso a acciones depende de PERMISOS, no del nombre del rol.
+
+Nunca autorizar así:
 
 ```text
-backend/src/modules/
-├── salud/
-│   ├── salud.routes.ts
-│   ├── salud.controller.ts
-│   ├── salud.service.ts
-│   └── salud.repository.ts
-├── usuarios/
-│   ├── usuarios.routes.ts
-│   ├── usuarios.controller.ts
-│   ├── usuarios.service.ts
-│   └── usuarios.repository.ts
-├── inventario/
-│   ├── inventario.routes.ts
-│   ├── inventario.controller.ts
-│   ├── inventario.service.ts
-│   └── inventario.repository.ts
-└── ventas/
-    ├── ventas.routes.ts
-    ├── ventas.controller.ts
-    ├── ventas.service.ts
-    └── ventas.repository.ts
+role === "ADMINISTRADOR"
+role === "OPERADOR"
+role === "WEBMASTER"
 ```
 
-### Convención del módulo de salud
+Ocultar una acción en frontend NO sustituye autorización backend.
 
-El módulo interno encargado del Health Check debe utilizar nombres en español.
+---
 
-La carpeta y archivos serán:
+# 4. Convenciones de nombres
+
+El código propio del proyecto utiliza nombres en español.
+
+Funciones de negocio:
 
 ```text
-backend/src/modules/salud/
-├── salud.routes.ts
-├── salud.controller.ts
-├── salud.service.ts
-└── salud.repository.ts
+Modulo_nombreFuncion
 ```
 
-Las funciones propias del módulo utilizarán el prefijo `Salud_`.
-
-Ejemplos:
-
-```typescript
-Salud_obtenerEstado();
-Salud_verificarBaseDatos();
-```
-
-Aunque internamente el módulo se denomine `salud`, el endpoint HTTP público se mantendrá como:
-
-```text
-GET /api/health
-```
-
-Se conserva `/health` por ser una convención técnica común para endpoints de comprobación de estado, mientras que el código interno mantiene la nomenclatura en español definida para el proyecto.
-
----
-
-## Base de datos y Prisma
-
-`backend/prisma/schema.prisma` y las migraciones existentes representan el modelo de datos aprobado del proyecto.
-
-### Reglas obligatorias
-
-- No modificar `schema.prisma` sin autorización explícita del usuario.
-- No crear una nueva migración sin autorización explícita.
-- No modificar migraciones que ya fueron aplicadas.
-- No eliminar migraciones existentes.
-- No ejecutar `prisma migrate reset` sin autorización explícita.
-- No ejecutar comandos destructivos sobre la base de datos sin autorización.
-- No ejecutar `docker compose down -v` sin autorización.
-- No eliminar volúmenes Docker de SQL Server.
-- No crear tablas manualmente si deben formar parte del modelo Prisma.
-- Mantener los nombres físicos definidos con `@map` y `@@map`.
-- Todas las tablas físicas conservan el prefijo de su módulo.
-- Mantener `onDelete: NoAction` y `onUpdate: NoAction` donde ya fueron definidos para SQL Server.
-- Revisar las migraciones existentes antes de cambiar lógica que dependa de `CHECK CONSTRAINT`, índices filtrados u otras reglas SQL personalizadas.
-- No utilizar `prisma db push` como sustituto de las migraciones sin autorización.
-- No usar `prisma db pull` para sobrescribir el modelo aprobado salvo que se solicite expresamente.
-- No modificar manualmente datos de producción.
-- Nunca asumir que un cambio en Prisma es seguro sin revisar las relaciones y restricciones existentes.
-
-### Política temporal
-
-- La zona funcional única es `America/Guatemala`, equivalente a `Central America Standard Time` en SQL Server.
-- Toda columna `DATETIME2(7)` representa componentes de hora civil Guatemala.
-- Toda columna `DATE` representa una fecha civil sin hora ni conversión de zona.
-- Utilizar exclusivamente la infraestructura transversal `Fecha_` para convertir entre instantes de JavaScript y valores `DATETIME2` usados por Prisma.
-- No tratar directamente un `Date` leído desde un `DATETIME2` Guatemala como instante real mediante `getTime()` o `toISOString()` sin convertirlo primero con `Fecha_`.
-- No utilizar `@default(now())` para nuevos timestamps ni `@updatedAt`; los defaults SQL deben usar `SYSUTCDATETIME() AT TIME ZONE 'UTC' AT TIME ZONE 'Central America Standard Time'` convertido a `DATETIME2(7)` y los Repositories deben asignar `fechaActualizacion` mediante `Fecha_`.
-- No utilizar triggers para normalizar zonas horarias.
-- No depender del timezone predeterminado de Windows, Docker, Node, Azure SQL u otro host.
-- No restar ni sumar seis horas manualmente en módulos del sistema.
-
-### Migraciones
-
-Cuando se autorice modificar el modelo de datos:
-
-1. modificar `schema.prisma`;
-2. ejecutar `npx prisma validate`;
-3. ejecutar `npx prisma format`;
-4. volver a ejecutar `npx prisma validate`;
-5. crear la migración con `--create-only`;
-6. revisar `migration.sql`;
-7. agregar restricciones SQL personalizadas si son necesarias;
-8. aplicar la migración únicamente después de revisarla;
-9. ejecutar `npx prisma migrate status`;
-10. ejecutar `npx prisma generate`.
-
-No aplicar migraciones destructivas sin autorización explícita.
-
----
-
-## Datos históricos
-
-No realizar hard delete de información histórica u operacional.
-
-Cuando exista un campo como:
-
-- `activo`;
-- `estado`;
-
-utilizarlo para desactivar, cerrar, finalizar o anular registros según corresponda.
-
-No eliminar físicamente registros históricos salvo que el requerimiento lo indique expresamente.
-
----
-
-## Inventario
-
-Reglas de negocio:
-
-- Un ingreso de inventario utiliza cantidad positiva.
-- Una salida de inventario utiliza cantidad negativa.
-- Un ajuste nunca puede tener cantidad cero.
-- `inventario_transacciones` representa el historial de movimientos.
-- `inventario_existencias` representa el saldo actual por producto y almacén.
-- Los productos pueden manejar lotes o no manejar lotes.
-- Si un producto no maneja lotes, `lote_inventario_id` puede ser `NULL`.
-- Una actualización de existencia y su transacción correspondiente deben ejecutarse de forma atómica.
-- No modificar stock sin dejar la transacción correspondiente.
-- Los movimientos confirmados forman parte del historial y no deben eliminarse arbitrariamente.
-- La lógica debe respetar las restricciones existentes en SQL Server.
-
----
-
-## Producción
-
-Reglas de negocio:
-
-- Toda entrada y venta de animales se realiza mediante un lote de producción.
-- Un lote de producción contiene uno o más animales.
-- Una venta de un solo animal utiliza un lote que contiene un solo animal.
-- Si se vende un animal individual que pertenece a un lote con varios animales, debe trasladarse primero a un lote de una unidad conservando el historial de asignaciones.
-- `produccion_asignaciones_lotes` conserva el historial de pertenencia de cada animal.
-- Un animal solamente puede tener una asignación `VIGENTE` al mismo tiempo.
-- `produccion_transacciones` registra cambios cuantitativos del lote.
-- `INGRESO` de producción utiliza cantidad positiva.
-- `VENTA` de producción utiliza cantidad negativa.
-- `produccion_eventos` registra sucesos que no representan movimientos cuantitativos.
-
-Tipos principales de eventos:
-
-- `MEDICION`
-- `ALIMENTACION`
-- `APLICACION_SANITARIA`
-- `CAMBIO_LOTE`
-- `CAMBIO_ESTADO`
-
-No agregar `animal_id` a `produccion_transacciones`.
-
----
-
-## Alimentación y sanidad
-
-- Una asignación o registro puede corresponder a un animal o a un lote, respetando las restricciones existentes en la base de datos.
-- El consumo real de productos de alimentación queda registrado en `alimentacion_detalles`.
-- Las aplicaciones sanitarias pueden consumir productos de inventario.
-- Los consumos deben generar las salidas de inventario correspondientes.
-- No modificar existencias sin registrar la transacción de inventario.
-- Las operaciones que consuman inventario deben ejecutarse de forma transaccional.
-- Respetar las restricciones XOR existentes entre animal y lote.
-
----
-
-## Ventas
-
-- Toda venta se realiza mediante lotes de producción.
-- `ventas_detalles` referencia `produccion_lotes`.
-- No agregar `animal_id` a `ventas_detalles`.
-- Una venta puede contener varios lotes.
-- El número de recibo debe ser único.
-- Una venta confirmada debe mantener consistencia entre venta, detalles, recibo y movimientos de producción.
-- Las operaciones críticas de confirmación o anulación deben ejecutarse dentro de una transacción de base de datos.
-- Una operación parcial nunca debe quedar persistida si otro paso falla.
-- Una venta individual se representa mediante un lote de producción de una unidad.
-- No confirmar una venta si las reglas de disponibilidad del lote no se cumplen.
-
----
-
-## Transacciones
-
-Para operaciones que afectan varias tablas utilizar transacciones Prisma.
-
-Ejemplos:
-
-- confirmación de venta;
-- movimientos de inventario;
-- registro de alimentación con consumo de inventario;
-- aplicación sanitaria con consumo de inventario;
-- traslado de animales entre lotes;
-- actualización de existencias junto con su movimiento.
-
-Si cualquier operación dentro del proceso falla, toda la operación debe revertirse.
-
-No implementar procesos críticos mediante varias escrituras independientes si deben ser atómicas.
-
----
-
-## Seguridad
-
-- Nunca guardar contraseñas en texto plano.
-- Utilizar hash seguro para contraseñas.
-- Nunca registrar contraseñas, tokens o secretos en logs.
-- Nunca mostrar `contrasena_hash` en respuestas de API.
-- Nunca escribir secretos dentro del código fuente.
-- No modificar ni versionar `.env`.
-- No incluir credenciales de SQL Server o Azure en archivos versionados.
-- Aplicar autenticación y autorización a las rutas protegidas.
-- Validar permisos en backend y no depender solamente del frontend.
-- Validar y sanitizar los datos recibidos.
-- No devolver detalles internos sensibles de errores al cliente.
-- Las rutas administrativas requieren permisos adecuados.
-
----
-
-## Dependencias
-
-- No agregar nuevas dependencias de producción sin justificar su necesidad.
-- Preferir las dependencias ya instaladas cuando sean suficientes.
-- No cambiar versiones importantes del stack sin autorización.
-- No reemplazar Prisma, Express, React, SQL Server o Docker por otras tecnologías sin autorización explícita.
-- Antes de instalar una dependencia, explicar brevemente para qué se necesita.
-- Evitar dependencias redundantes.
-
----
-
-## Estilo de desarrollo
-
-- Usar TypeScript.
-- Mantener `strict` habilitado.
-- Evitar `any` salvo que exista una razón justificada.
-- Utilizar nombres descriptivos.
-- Mantener funciones pequeñas y con una responsabilidad clara.
-- Evitar duplicación innecesaria.
-- No hacer refactors no relacionados con la tarea solicitada.
-- No modificar archivos fuera del alcance de la tarea sin necesidad.
-- Las variables, funciones y métodos propios del negocio deben nombrarse en español.
-- Utilizar las convenciones de nombres definidas en este documento.
-- Los componentes compartidos de interfaz no deben duplicarse entre páginas.
-- Mantener una estructura consistente entre los módulos.
-- No considerar terminada una tarea si el proyecto no compila.
-
----
-
-## Convenciones de nombres
-
-El código desarrollado específicamente para este proyecto debe utilizar nombres en español para variables, funciones, métodos, servicios y componentes de negocio, salvo nombres impuestos por librerías, frameworks o APIs externas.
-
-### Prefijo obligatorio por módulo en funciones
-
-Todas las funciones y métodos propios del sistema deben incluir como prefijo el módulo al que pertenecen, incluso cuando el código ya esté organizado en carpetas separadas por módulo.
-
-Formato obligatorio:
-
-`Modulo_nombreFuncion`
-
-El nombre del módulo inicia con mayúscula, seguido de guion bajo `_`, y la acción se escribe en español usando camelCase.
-
-Prefijos oficiales:
+Prefijos principales:
 
 - `Usuarios_`
 - `Clientes_`
@@ -483,230 +136,458 @@ Prefijos oficiales:
 - `Sanidad_`
 - `Ventas_`
 - `Reportes_`
-- `Autenticacion_` únicamente para funcionalidad transversal de autenticación que no pertenezca específicamente al módulo Usuarios.
 
-Ejemplos:
+Infraestructura:
 
-```typescript
-async function Usuarios_iniciarSesion() {}
-async function Usuarios_crearUsuario() {}
-async function Usuarios_obtenerUsuarioPorId() {}
-async function Usuarios_actualizarUsuario() {}
+- `Autenticacion_`
+- `Configuracion_`
+- `BaseDatos_`
+- `Servidor_`
+- `Api_`
+- `Middleware_`
+- `Salud_`
+- `Fecha_`
 
-async function Clientes_crearCliente() {}
-async function Clientes_buscarClientePorId() {}
+Variables TypeScript propias del proyecto:
 
-async function Proveedores_crearProveedor() {}
-async function Proveedores_obtenerProductosProveedor() {}
+- `Str`: String
+- `Int`: integer
+- `Dec`: Decimal/monto
+- `Bool`: Boolean
+- `Dt`: Date/DateTime
+- `Arr`: Array
+- `Obj`: Object
 
-async function Inventario_registrarEntrada() {}
-async function Inventario_registrarSalida() {}
-async function Inventario_actualizarExistencia() {}
-async function Inventario_obtenerProductos() {}
+No renombrar campos ni modelos Prisma para aplicar estos prefijos.
 
-async function Produccion_crearLote() {}
-async function Produccion_registrarAnimal() {}
-async function Produccion_trasladarAnimalDeLote() {}
-
-async function Alimentacion_registrarAlimentacion() {}
-async function Alimentacion_asignarFormula() {}
-
-async function Sanidad_registrarAplicacion() {}
-
-async function Ventas_crearVenta() {}
-async function Ventas_confirmarVenta() {}
-async function Ventas_anularVenta() {}
-async function Ventas_generarRecibo() {}
-
-async function Reportes_generarReporteInventario() {}
-async function Reportes_generarReporteVentas() {}
-```
-
-No utilizar funciones de negocio sin prefijo, por ejemplo:
-
-```typescript
-crearUsuario();
-confirmarVenta();
-registrarEntrada();
-```
-
-Utilizar:
-
-```typescript
-Usuarios_crearUsuario();
-Ventas_confirmarVenta();
-Inventario_registrarEntrada();
-```
-
-### Prefijos transversales y de infraestructura
-
-- `Configuracion_` para carga y validación de configuración.
-- `BaseDatos_` para conexión, comprobación y cierre de base de datos.
-- `Servidor_` para inicio, cierre y ciclo de vida del servidor.
-- `Api_` para infraestructura general de rutas y API.
-- `Middleware_` para middleware transversal.
-- `Salud_` para el módulo de Health Check.
-
-Ejemplos:
-
-```typescript
-Configuracion_validarVariablesEntorno();
-
-BaseDatos_verificarConexion();
-BaseDatos_desconectar();
-
-Servidor_iniciar();
-Servidor_cerrar();
-
-Api_configurarRutas();
-
-Middleware_manejarErrores();
-Middleware_rutaNoEncontrada();
-
-Salud_obtenerEstado();
-Salud_verificarBaseDatos();
-```
-
-Los prefijos transversales siguen la misma regla que los módulos de negocio.
-
-No crear funciones propias del sistema sin prefijo solamente porque pertenezcan a infraestructura, configuración o middleware.
-
-### Funciones que interactúan con varios módulos
-
-Cuando una operación involucre varios módulos, el prefijo corresponde al módulo responsable de la operación.
-
-Ejemplo:
-
-```typescript
-Ventas_confirmarVenta();
-```
-
-Aunque internamente la confirmación también afecte producción.
-
-No utilizar:
-
-```typescript
-Ventas_Produccion_confirmarVenta();
-Inventario_Ventas_actualizar();
-```
-
-### Funciones internas
-
-Las funciones auxiliares privadas que contienen lógica propia del negocio también deben utilizar el prefijo del módulo.
-
-Ejemplos:
-
-```typescript
-function Ventas_calcularSubtotal() {}
-function Ventas_validarLoteDisponible() {}
-function Inventario_validarExistencia() {}
-```
-
-Las funciones impuestas por Express, React, Prisma, Node.js o librerías externas no deben renombrarse artificialmente.
+Mantener TypeScript `strict` y evitar `any` salvo justificación real.
 
 ---
 
-### Variables
+# 5. Prisma y base de datos
 
-Las variables propias del proyecto deben utilizar un prefijo que permita identificar rápidamente su tipo de dato.
+`backend/prisma/schema.prisma` y las migraciones representan el modelo aprobado.
 
-Convención principal:
+NO hacer sin autorización explícita:
 
-- `Str` para `String`.
-- `Int` para números enteros.
-- `Dec` para números decimales o montos.
-- `Bool` para `Boolean`.
-- `Dt` para `Date` o `DateTime`.
-- `Arr` para arreglos.
-- `Obj` para objetos.
+- modificar `schema.prisma`;
+- crear migraciones;
+- modificar migraciones aplicadas;
+- eliminar migraciones;
+- ejecutar `prisma migrate reset`;
+- ejecutar `prisma db push`;
+- ejecutar `docker compose down -v`;
+- eliminar volúmenes Docker;
+- modificar datos reales arbitrariamente.
 
-Ejemplos:
+Cuando se autorice una modificación de modelo:
 
-```typescript
-const StrNombre = "Hamilton";
-const StrCorreo = "usuario@correo.com";
+1. modificar `schema.prisma`;
+2. `npx prisma validate`;
+3. `npx prisma format`;
+4. validar nuevamente;
+5. crear migración `--create-only` cuando sea posible;
+6. revisar manualmente `migration.sql`;
+7. agregar SQL personalizado necesario;
+8. validar sobre BD temporal reconstruida desde cero;
+9. aplicar a BD real únicamente con autorización;
+10. `npx prisma migrate status`;
+11. `npx prisma generate`.
 
-const IntCantidadAnimales = 10;
-const IntUsuarioId = 5;
+No utilizar `db push` como sustituto de migraciones.
 
-const DecMonto = 1250.50;
-const DecPrecioUnitario = 250.00;
-
-const BoolUsuarioActivo = true;
-const BoolTienePermiso = false;
-
-const DtFechaVenta = new Date();
-
-const ArrUsuarios = [];
-const ArrProductos = [];
-
-const ObjCliente = {};
-```
-
-No utilizar `Int` para valores decimales.
-
-Correcto:
-
-```typescript
-const DecMontoTotal = 1250.50;
-```
-
-Incorrecto:
-
-```typescript
-const IntMontoTotal = 1250.50;
-```
-
-Los identificadores numéricos enteros sí utilizan `Int`:
-
-```typescript
-const IntUsuarioId = 1;
-const IntVentaId = 15;
-```
-
-### Parámetros
-
-Los parámetros de funciones propias del proyecto deben utilizar las mismas convenciones cuando representen tipos simples.
-
-Ejemplo:
-
-```typescript
-async function Usuarios_obtenerUsuarioPorId(IntUsuarioId: number) {
-  // ...
-}
-```
-
-### Modelos Prisma
-
-No cambiar los nombres de modelos o campos existentes en `schema.prisma` para aplicar la convención de variables.
-
-Por ejemplo, un campo Prisma:
-
-```prisma
-nombreCompleto String
-```
-
-no debe convertirse en:
-
-```prisma
-StrNombreCompleto String
-```
-
-Las convenciones `Str`, `Int`, `Dec`, `Bool`, `Dt`, `Arr` y `Obj` aplican principalmente al código TypeScript del proyecto.
+Mantener nombres físicos `@map` / `@@map`, prefijos de tablas por módulo y reglas SQL Server existentes.
 
 ---
 
-## Rutas y API
+# 6. Política temporal
 
-- Mantener una estructura REST coherente.
-- Las rutas deben agruparse por módulo.
-- No colocar reglas de negocio dentro de archivos de rutas.
-- Las rutas protegidas deben validar autenticación y permisos.
-- Utilizar códigos HTTP apropiados.
-- Mantener respuestas JSON consistentes.
-- No exponer información sensible.
+Zona funcional:
 
-Ejemplo conceptual:
+```text
+America/Guatemala
+```
+
+SQL Server:
+
+```text
+Central America Standard Time
+```
+
+Reglas:
+
+- `DATETIME2(7)` representa hora civil de Guatemala.
+- `DATE` representa fecha civil sin timezone.
+- Utilizar infraestructura `Fecha_`.
+- No sumar ni restar 6 horas manualmente.
+- No depender del timezone del host.
+- No usar `toISOString()` directamente sobre DATETIME2 Guatemala si cambia su significado.
+- No usar `@default(now())` ni `@updatedAt` para nuevos campos temporales del dominio.
+
+## Fechas generadas automáticamente por SQL Server
+
+Únicamente cuando SQL Server deba generar automáticamente un timestamp, utilizar
+un DEFAULT que obtenga la hora civil de Guatemala:
+
+```sql
+CONVERT(
+    datetime2(7),
+    (SYSUTCDATETIME() AT TIME ZONE 'UTC')
+        AT TIME ZONE 'Central America Standard Time'
+)
+
+---
+
+# 7. Datos históricos y transacciones
+
+No realizar hard delete de información histórica u operacional.
+
+Preferir estados como ACTIVO/INACTIVO, CONFIRMADO/ANULADO, VIGENTE/FINALIZADO o equivalentes.
+
+Toda operación que afecte varias tablas y deba ser atómica debe utilizar una transacción Prisma.
+
+Ejemplos:
+
+- movimientos de inventario;
+- transferencias;
+- alimentación con consumo;
+- sanidad con consumo;
+- venta;
+- reversión de venta;
+- traslado de animales.
+
+Si una etapa falla, no debe persistir una operación parcial.
+
+Cuando ya exista un `Prisma.TransactionClient`, reutilizar primitivas `ConTx` y NO abrir transacciones anidadas.
+
+---
+
+# 8. Usuarios y seguridad
+
+Autenticación existente:
+
+- sesiones opacas en BD;
+- token aleatorio;
+- hash SHA-256 del token almacenado;
+- cookie HttpOnly;
+- SameSite Strict;
+- Secure en producción;
+- duración absoluta definida por backend;
+- Argon2id para contraseñas.
+
+No almacenar tokens en `localStorage` ni `sessionStorage`.
+
+No leer manualmente cookies de sesión desde frontend.
+
+Nunca:
+
+- guardar contraseñas en texto plano;
+- registrar secretos/tokens/contraseñas;
+- exponer hashes;
+- versionar `.env`;
+- introducir credenciales en código.
+
+WEBMASTER es rol reservado/protegido.
+
+No crear bypasses por nombre de rol.
+
+---
+
+# 9. Inventario
+
+Inventario representa INSUMOS operativos, no animales de producción.
+
+Ejemplos: alimentación, concentrados, medicamentos, vitaminas, productos sanitarios y materiales operativos.
+
+Los animales pertenecen a Producción.
+
+## Movimientos
+
+- ingreso: cantidad positiva;
+- salida: cantidad negativa;
+- ajuste: nunca cero.
+
+`inventario_transacciones` es autoridad histórica.
+
+`inventario_existencias` mantiene saldo materializado.
+
+Toda modificación de saldo debe tener su transacción correspondiente.
+
+Movimientos confirmados no se eliminan; las correcciones utilizan reversión vinculada.
+
+## Lotes
+
+Un producto puede manejar o no lotes.
+
+Los lotes de Inventario son distintos de los lotes de Producción.
+
+Cuando un producto maneja lote:
+
+- selección explícita;
+- costo exacto del lote;
+- vencimiento cuando aplique.
+
+No usar FIFO/FEFO automáticamente salvo requerimiento futuro explícito.
+
+## Costos
+
+Usar `Prisma.Decimal` / Decimal exacto.
+
+No usar `Number`/float como autoridad monetaria.
+
+Productos sin lotes mantienen costo promedio materializado según la lógica existente.
+
+## Unidad de medida
+
+Actualmente cada producto posee UNA unidad base para existencias y movimientos.
+
+La unidad debe normalizarse desde un catálogo/select de frontend y NO mediante texto libre.
+
+Valores iniciales normalizados:
+
+Peso:
+- `kg`
+- `g`
+- `lb`
+- `oz`
+- `t`
+
+Volumen:
+- `L`
+- `mL`
+
+Unidad:
+- `unidad`
+
+IMPORTANTE: actualmente NO existen conversiones automáticas entre unidades.
+
+Ejemplo futuro pendiente:
+
+```text
+compra en toneladas
+↓
+conversión
+↓
+existencia/consumo en libras
+```
+
+No implementar conversiones sin un requerimiento específico y cambio de modelo autorizado.
+
+---
+
+# 10. Producción
+
+Producción utiliza censo individual obligatorio.
+
+Cada animal:
+
+- posee identificación propia;
+- pertenece históricamente a lotes;
+- si está ACTIVO debe tener exactamente una asignación VIGENTE;
+- puede cambiar de lote conservando historial.
+
+Estados principales:
+
+- ACTIVO
+- VENDIDO
+- FALLECIDO
+- RETIRADO
+
+Un lote puede contener múltiples animales.
+
+Un lote puede permanecer ACTIVO aunque quede vacío.
+
+NO cerrar automáticamente un lote por vender su último animal.
+
+## Venta de animales
+
+IMPORTANTE: NO es necesario trasladar un animal a un lote unitario para venderlo.
+
+Ventas puede seleccionar animales exactos directamente desde sus lotes actuales.
+
+Una venta puede incluir:
+
+- un animal;
+- varios animales del mismo lote;
+- animales de múltiples lotes;
+- animales de diferentes tipos.
+
+La venta conserva el lote de origen de cada animal.
+
+`produccion_asignaciones_lotes` conserva el historial.
+
+Las operaciones de venta/reversión utilizan las primitivas transaccionales existentes de Producción.
+
+---
+
+# 11. Alimentación
+
+Una alimentación puede aplicarse directamente a un animal o globalmente a un lote.
+
+Una alimentación de lote NO distribuye artificialmente consumo/costo entre cada animal.
+
+El consumo real genera salidas de Inventario.
+
+Puede consumir múltiples productos y fuentes físicas.
+
+Las fórmulas son plantillas editables, no autoridad histórica del consumo.
+
+Los registros confirmados son inmutables y las correcciones utilizan reversión completa.
+
+---
+
+# 12. Sanidad
+
+Una aplicación sanitaria puede corresponder a un animal o globalmente a un lote.
+
+Una aplicación de lote NO distribuye artificialmente cantidad/costo entre animales.
+
+Puede consumir productos de Inventario, pero un procedimiento puede no consumir productos.
+
+La dosis clínica es independiente de la cantidad física consumida en inventario.
+
+Cada detalle clínico puede registrar producto, dosis, unidad clínica, vía de administración, alcance y fuentes físicas de inventario.
+
+Registros confirmados son inmutables; correcciones mediante reversión completa.
+
+---
+
+# 13. Ventas
+
+Ventas trabaja con ANIMALES EXACTOS.
+
+Estructura conceptual:
+
+```text
+ventas_registros
+  ├── ventas_recibos
+  └── ventas_detalles
+        └── ventas_detalles_animales
+```
+
+`ventas_registros`: maestro de venta.
+
+`ventas_detalles`: agrupación por lote de origen.
+
+`ventas_detalles_animales` conserva los animales exactos vendidos, precio individual y referencias históricas necesarias para reversión.
+
+## Reglas
+
+Una venta puede incluir:
+
+- un animal;
+- varios animales;
+- múltiples lotes;
+- múltiples tipos animales.
+
+Cada animal posee su propio `precioVenta`.
+
+`precioVenta > 0`.
+
+No existe descuento en Ventas v1.
+
+El total es la suma exacta de precios individuales.
+
+No usar float/Number como autoridad monetaria.
+
+Cliente activo obligatorio.
+
+Consumidor Final es un cliente real seleccionable.
+
+Formas de pago cerradas:
+
+- EFECTIVO
+- TRANSFERENCIA
+- DEPOSITO
+- CREDITO
+
+No existen pagos parciales en v1.
+
+Una venta se confirma directamente; no existen borradores.
+
+## Recibo
+
+Documento actual: `RECIBO`.
+
+El recibo almacena por separado:
+
+```text
+serie
+numero
+```
+
+Ejemplo físico:
+
+```text
+serie = A
+numero = 1
+```
+
+Presentación frontend:
+
+```text
+A-000001
+```
+
+Nunca usar un campo concatenado como autoridad.
+
+`(serie, numero)` debe ser único.
+
+El número es generado de forma segura por backend/SQL.
+
+Una reversión:
+
+- NO reutiliza número;
+- conserva serie/número;
+- marca venta ANULADA;
+- marca recibo ANULADO.
+
+Actualmente la serie estructural inicial es `A`.
+
+PENDIENTE FUTURO: administración de series por tipo de documento mediante configuración persistida. No implementar esa administración salvo solicitud expresa.
+
+## Reversión
+
+Una venta confirmada es inmutable.
+
+La corrección se realiza mediante reversión completa.
+
+Al revertir:
+
+- animales vuelven a ACTIVO si las reglas lo permiten;
+- se crean nuevas asignaciones vigentes al lote original;
+- no se revive artificialmente la asignación histórica cerrada;
+- el lote original debe estar ACTIVO;
+- Ventas NO reabre lotes automáticamente.
+
+---
+
+# 14. PDF de recibos
+
+Frontend utiliza:
+
+- `jspdf`
+- `jspdf-autotable`
+
+El PDF se genera desde datos estructurados.
+
+No usar capturas del DOM como autoridad.
+
+La misma venta debe producir el mismo recibo desde resultado, historial, detalle, vista de recibo y descarga PDF.
+
+Las ventas anuladas conservan recibo histórico con indicación:
+
+```text
+RECIBO ANULADO
+```
+
+---
+
+# 15. API y permisos
+
+Mantener rutas REST agrupadas por módulo.
+
+Ejemplos:
 
 ```text
 /api/health
@@ -721,86 +602,85 @@ Ejemplo conceptual:
 /api/reportes
 ```
 
-El endpoint `/api/health` pertenece internamente al módulo `salud`.
+No inventar endpoints antes de revisar los existentes.
 
-El nombre externo del endpoint no obliga a utilizar nombres en inglés para carpetas, archivos, variables o funciones internas.
+Para frontend, el backend real es la fuente de verdad del contrato.
 
----
-
-## Manejo de errores
-
-- Centralizar el manejo de errores del backend mediante middleware.
-- No duplicar bloques de manejo de errores cuando pueda utilizarse un mecanismo común.
-- Registrar información útil para diagnóstico sin incluir secretos.
-- Diferenciar errores de validación, autenticación, autorización, negocio y errores internos.
-- No devolver stack traces al cliente en producción.
+Nunca usar nombres de roles para autorizar funcionalidad; evaluar permisos explícitos.
 
 ---
 
-## Comandos backend
+# 16. Dependencias
 
-Ejecutar desde `backend/`:
+No agregar dependencias sin necesidad real.
+
+Antes de instalar:
+
+- revisar si ya existe funcionalidad equivalente;
+- justificar brevemente la dependencia.
+
+No realizar upgrades mayores del stack sin autorización.
+
+No ejecutar:
+
+```text
+npm audit fix --force
+```
+
+sin autorización.
+
+Si `npm audit` muestra vulnerabilidades transitivas conocidas de tooling y la corrección propuesta implica downgrade/upgrade incompatible, reportarlas y no forzar cambios.
+
+---
+
+# 17. Pruebas y validación
+
+Para frontend, según corresponda:
 
 ```bash
-npm run dev
 npm run typecheck
+npm test
 npm run build
+git diff --check
+```
+
+Ejecutar `npm audit` cuando se agreguen dependencias, cambie `package-lock` o sea necesario validar seguridad de dependencias.
+
+Para backend:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+git diff --check
+```
+
+Cuando corresponda Prisma:
+
+```bash
 npx prisma validate
 npx prisma generate
 npx prisma migrate status
 ```
 
-No ejecutar comandos destructivos de Prisma o Docker sin autorización.
+No ejecutar mutaciones reales únicamente para probar una UI salvo autorización.
+
+Preferir tests, mocks, BD temporal para integración y consultas de solo lectura.
 
 ---
 
-## Verificación de cambios
+# 18. Finalización de tareas
 
-Antes de considerar terminada una tarea de backend:
+Al finalizar informar brevemente:
 
-1. Ejecutar `npm run typecheck`.
-2. Ejecutar `npm run build`.
-3. Ejecutar pruebas relacionadas cuando existan.
-4. Si la tarea interactúa con Prisma, comprobar que Prisma Client compile correctamente.
-5. Si se autorizó modificar el schema, ejecutar `npx prisma validate`.
-6. Revisar que no se hayan agregado secretos al repositorio.
-7. Revisar `git diff`.
-8. Informar los archivos creados y modificados.
-9. No declarar la tarea terminada si existen errores de compilación, errores de tipos o pruebas fallidas.
+1. archivos creados;
+2. archivos modificados;
+3. funcionalidad implementada;
+4. pruebas ejecutadas;
+5. resultados de typecheck/build;
+6. cambios de BD si hubo;
+7. problemas pendientes.
 
-Para frontend, cuando ya exista:
+No hacer commit ni push salvo autorización explícita.
 
-1. ejecutar el typecheck correspondiente;
-2. ejecutar build;
-3. comprobar rutas principales;
-4. comprobar layout autenticado;
-5. comprobar que el menú lateral no esté duplicado;
-6. comprobar permisos cuando correspondan.
-
----
-
-## Forma de trabajo con Codex
-
-Antes de cambios grandes o que afecten varios módulos:
-
-- leer primero `AGENTS.md`;
-- revisar los archivos relacionados;
-- revisar el modelo Prisma y las migraciones relevantes;
-- presentar un plan breve antes de implementar cuando la tarea sea compleja;
-- no asumir requisitos de negocio que no estén documentados;
-- detenerse y solicitar autorización si una decisión puede cambiar el modelo de datos o la arquitectura.
-
-Para tareas pequeñas y claramente definidas puede implementar directamente respetando las reglas de este documento.
-
-Al finalizar una tarea informar:
-
-- archivos creados;
-- archivos modificados;
-- decisiones importantes;
-- comandos ejecutados;
-- resultados de validación;
-- pruebas ejecutadas;
-- cualquier punto pendiente;
-- cualquier riesgo detectado.
-
-No modificar `schema.prisma`, migraciones existentes, secretos, configuración destructiva de Docker o arquitectura principal sin autorización explícita.
+No declarar terminado si existen errores relevantes.

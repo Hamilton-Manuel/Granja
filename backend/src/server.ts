@@ -6,6 +6,7 @@ import {
   BaseDatos_verificarConexion,
 } from "./database/prisma.js";
 import { Configuracion_obtenerEntorno } from "./config/configuracion-entorno.js";
+import { Almacenamiento_inicializar } from "./storage/almacenamiento-blob.js";
 
 let ObjServidor: Server | undefined;
 let BoolCierreEnCurso = false;
@@ -65,6 +66,7 @@ export async function Servidor_iniciar(): Promise<void> {
     const ObjEntorno = Configuracion_obtenerEntorno();
 
     await BaseDatos_verificarConexion();
+    await Almacenamiento_inicializar();
     ObjServidor = await Servidor_escuchar(ObjEntorno.PORT);
     Servidor_registrarSenales();
 

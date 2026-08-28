@@ -12,6 +12,7 @@ const ArrModulosFuturos = ["Reportes"];
 export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: PropiedadesMenuLateral) {
   const { Autenticacion_tienePermiso } = useSesion();
   const BoolMostrarUsuarios = Autenticacion_tienePermiso("USUARIOS_CONSULTAR");
+  const BoolMostrarAccesos = Autenticacion_tienePermiso("USUARIOS_ASIGNAR_ROL");
   const BoolMostrarClientes = Autenticacion_tienePermiso("CLIENTES_CONSULTAR");
   const BoolMostrarProveedores = Autenticacion_tienePermiso("PROVEEDORES_CONSULTAR");
   const BoolMostrarInventario = Autenticacion_tienePermiso("INVENTARIO_CONSULTAR");
@@ -49,6 +50,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
               <span aria-hidden="true">♙</span> Usuarios
             </NavLink>
           )}
+          {BoolMostrarAccesos && <NavLink to="/accesos" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">A</span> Accesos</NavLink>}
           {BoolMostrarClientes && <NavLink to="/clientes" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">C</span> Clientes</NavLink>}
           {BoolMostrarProveedores && <NavLink to="/proveedores" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">P</span> Proveedores</NavLink>}
           {BoolMostrarInventario && <NavLink to="/inventario" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">I</span> Inventario</NavLink>}

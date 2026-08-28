@@ -2,7 +2,7 @@ import { z } from "zod";
 const ObjId = z.coerce.number().int().positive();
 const ObjDecimal = z
   .string()
-  .regex(/^(?!0+(?:\.0{1,4})?$)\d{1,14}(?:\.\d{1,4})?$/);
+  .regex(/^(?!0+(?:\.0{1,6})?$)\d{1,18}(?:\.\d{1,6})?$/);
 const ObjTexto = (IntMax: number) =>
   z
     .string()
@@ -51,7 +51,7 @@ export const ObjConsultaLotesSanidad = z
 const ObjFuente = z
   .object({
     inventarioId: ObjId,
-    loteInventarioId: ObjId.nullable().optional(),
+    loteInventarioId: ObjId,
     cantidad: ObjDecimal,
   })
   .strict();

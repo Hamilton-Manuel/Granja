@@ -1,5 +1,5 @@
 import { Api_solicitar } from "./api.service";
-import type { ConsultaUsuarios, DatosCrearUsuario, DatosEditarUsuario, EstadoUsuario, RespuestaListadoUsuarios, RespuestaRoles, RespuestaUsuario } from "../types/usuarios.types";
+import type { ConsultaUsuarios, DatosCrearUsuario, DatosEditarUsuario, EstadoAcceso, EstadoUsuario, RespuestaDetalleAccesos, RespuestaListadoAccesos, RespuestaListadoUsuarios, RespuestaRoles, RespuestaUsuario } from "../types/usuarios.types";
 
 export function Usuarios_listar(ObjConsulta: ConsultaUsuarios): Promise<RespuestaListadoUsuarios> {
   const ObjParametros = new URLSearchParams({ pagina: String(ObjConsulta.pagina), limite: String(ObjConsulta.limite) });
@@ -32,3 +32,6 @@ export function Usuarios_cambiarRol(IntUsuarioId: number, IntRolId: number): Pro
 export function Usuarios_revocarSesiones(IntUsuarioId: number): Promise<void> {
   return Api_solicitar<void>(`/api/usuarios/${IntUsuarioId}/sesiones/revocar`, { method: "POST" });
 }
+export function Usuarios_listarAccesos(StrBusqueda = ""): Promise<RespuestaListadoAccesos> { return Api_solicitar(`/api/usuarios/accesos?pagina=1&limite=50&busqueda=${encodeURIComponent(StrBusqueda)}`); }
+export function Usuarios_obtenerAccesos(IntUsuarioId: number): Promise<RespuestaDetalleAccesos> { return Api_solicitar(`/api/usuarios/${IntUsuarioId}/accesos`); }
+export function Usuarios_actualizarAccesos(IntUsuarioId: number, ObjDatos: { versionAccesos: number; rolId: number; cambios: Array<{ permisoId: number; estado: EstadoAcceso }> }): Promise<RespuestaDetalleAccesos> { return Api_solicitar(`/api/usuarios/${IntUsuarioId}/accesos`, { method: "PATCH", ObjCuerpo: ObjDatos }); }

@@ -23,7 +23,7 @@ function Usuarios_mensajeError(ObjError: unknown): string {
 }
 
 export function useUsuarios() {
-  const { ObjUsuario, Autenticacion_tienePermiso, Autenticacion_manejarErrorProtegido, Autenticacion_reintentarSesion } = useSesion();
+  const { ObjUsuario, Autenticacion_tienePermiso, Autenticacion_manejarErrorProtegido, Autenticacion_refrescarSesionSilenciosa } = useSesion();
   const [ArrUsuarios, establecerUsuarios] = useState<UsuarioAdministrativo[]>([]);
   const [ArrRoles, establecerRoles] = useState<RolAdministrativo[]>([]);
   const [IntTotal, establecerTotal] = useState(0);
@@ -98,9 +98,9 @@ export function useUsuarios() {
   const Usuarios_crear = useCallback((ObjDatos: DatosCrearUsuario) => Usuarios_ejecutar("crear", "Usuario creado correctamente.", () => ObjServicio.Usuarios_crear(ObjDatos)), [Usuarios_ejecutar]);
   const Usuarios_editar = useCallback(async (IntUsuarioId: number, ObjDatos: DatosEditarUsuario) => {
     const ObjResultado = await Usuarios_ejecutar(`editar-${IntUsuarioId}`, "Usuario actualizado correctamente.", () => ObjServicio.Usuarios_editar(IntUsuarioId, ObjDatos));
-    if (IntUsuarioId === ObjUsuario?.usuarioId) await Autenticacion_reintentarSesion();
+    if (IntUsuarioId === ObjUsuario?.usuarioId) await Autenticacion_refrescarSesionSilenciosa();
     return ObjResultado;
-  }, [Usuarios_ejecutar, ObjUsuario?.usuarioId, Autenticacion_reintentarSesion]);
+  }, [Usuarios_ejecutar, ObjUsuario?.usuarioId, Autenticacion_refrescarSesionSilenciosa]);
   const Usuarios_cambiarEstado = useCallback((IntUsuarioId: number, StrEstado: EstadoUsuario) => Usuarios_ejecutar(`estado-${IntUsuarioId}`, "Estado actualizado correctamente.", () => ObjServicio.Usuarios_cambiarEstado(IntUsuarioId, StrEstado)), [Usuarios_ejecutar]);
   const Usuarios_cambiarRol = useCallback((IntUsuarioId: number, IntRolId: number) => Usuarios_ejecutar(`rol-${IntUsuarioId}`, "Rol actualizado correctamente.", () => ObjServicio.Usuarios_cambiarRol(IntUsuarioId, IntRolId)), [Usuarios_ejecutar]);
   const Usuarios_revocar = useCallback(async (IntUsuarioId: number) => {
@@ -113,14 +113,14 @@ export function useUsuarios() {
     establecerError(null);
     try {
       await ObjServicio.Usuarios_revocarSesiones(IntUsuarioId);
-      await Autenticacion_reintentarSesion();
+      await Autenticacion_refrescarSesionSilenciosa();
     } catch (ObjError) {
       if (!Autenticacion_manejarErrorProtegido(ObjError)) establecerError(Usuarios_mensajeError(ObjError));
       throw ObjError;
     } finally {
       establecerOperacion(null);
     }
-  }, [Usuarios_ejecutar, ObjUsuario?.usuarioId, Autenticacion_reintentarSesion, Autenticacion_manejarErrorProtegido]);
+  }, [Usuarios_ejecutar, ObjUsuario?.usuarioId, Autenticacion_refrescarSesionSilenciosa, Autenticacion_manejarErrorProtegido]);
 
   return {
     ArrUsuarios, ArrRoles, ArrRolesAsignables: useMemo(() => ArrRoles.filter((ObjRol) => ObjRol.activo && ObjRol.nombre !== "WEBMASTER"), [ArrRoles]),

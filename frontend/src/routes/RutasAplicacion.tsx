@@ -6,6 +6,7 @@ import { PaginaInicio } from "../pages/PaginaInicio";
 import { PaginaLogin } from "../pages/PaginaLogin";
 import { PaginaNoEncontrada } from "../pages/PaginaNoEncontrada";
 import { PaginaUsuarios } from "../pages/usuarios/PaginaUsuarios";
+import { PaginaAccesos } from "../pages/usuarios/PaginaAccesos";
 import { PaginaClientes } from "../pages/clientes/PaginaClientes";
 import { PaginaProveedores } from "../pages/proveedores/PaginaProveedores";
 import { LayoutInventario } from "../components/inventario/LayoutInventario";
@@ -74,6 +75,7 @@ export function RutasAplicacion() {
           <Route element={<RutaConPermiso StrPermiso="USUARIOS_CONSULTAR" />}>
             <Route path="/usuarios" element={<PaginaUsuarios />} />
           </Route>
+          <Route element={<RutaConPermiso StrPermiso="USUARIOS_ASIGNAR_ROL" />}><Route path="/accesos" element={<PaginaAccesos />} /></Route>
           <Route element={<RutaConPermiso StrPermiso="CLIENTES_CONSULTAR" />}>
             <Route path="/clientes" element={<PaginaClientes />} />
           </Route>
@@ -87,7 +89,7 @@ export function RutasAplicacion() {
               <Route path="lotes" element={<PaginaLotesInventario />} />
               <Route path="movimientos" element={<PaginaMovimientosInventario />} />
               <Route path="transferencias" element={<PaginaTransferenciasInventario />} />
-              <Route element={<RutaConPermiso ArrPermisosAlguno={["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO", "INVENTARIO_PROVEEDORES_PRODUCTOS_GESTIONAR"]} />}>
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO"]} />}>
                 <Route path="catalogos" element={<PaginaCatalogosInventario />} />
               </Route>
               <Route element={<RutaConPermiso StrPermiso="INVENTARIO_RECONCILIACION_EJECUTAR" />}>

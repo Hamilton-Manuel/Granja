@@ -71,7 +71,7 @@ export async function Usuarios_editar(ObjSolicitud: Request, ObjRespuesta: Respo
   const ObjParametro = Usuarios_validarEntrada(ObjEsquemas.ObjParametroUsuario, ObjSolicitud.params);
   const ObjDatos = Usuarios_validarEntrada(ObjEsquemas.ObjEditarUsuario, ObjSolicitud.body);
   const ObjActor = Usuarios_obtenerAutenticacion(ObjSolicitud);
-  const ObjUsuario = await ObjServicio.Usuarios_editar({ IntUsuarioId: ObjParametro.usuarioId, StrNombreCompleto: ObjDatos.nombreCompleto, StrNombreUsuario: ObjDatos.nombreUsuario, StrCorreo: ObjDatos.correo, IntUsuarioActorId: ObjActor.IntUsuarioId, StrDireccionIp: ObjSolicitud.ip });
+  const ObjUsuario = await ObjServicio.Usuarios_editar({ IntUsuarioId: ObjParametro.usuarioId, StrNombreCompleto: ObjDatos.nombreCompleto, StrNombreUsuario: ObjDatos.nombreUsuario, StrCorreo: ObjDatos.correo, StrContrasenaNueva: ObjDatos.nuevaContrasena, IntUsuarioActorId: ObjActor.IntUsuarioId, StrDireccionIp: ObjSolicitud.ip });
   ObjRespuesta.json({ datos: ObjUsuario });
 }
 
@@ -113,4 +113,22 @@ export async function Usuarios_revocarSesiones(ObjSolicitud: Request, ObjRespues
   const ObjActor = Usuarios_obtenerAutenticacion(ObjSolicitud);
   await ObjServicio.Usuarios_revocarSesiones({ IntUsuarioId: ObjParametro.usuarioId, IntUsuarioActorId: ObjActor.IntUsuarioId, StrDireccionIp: ObjSolicitud.ip });
   ObjRespuesta.status(204).end();
+}
+
+export async function Usuarios_listarAccesos(ObjSolicitud: Request, ObjRespuesta: Response): Promise<void> {
+  const ObjConsulta = Usuarios_validarEntrada(ObjEsquemas.ObjConsultaUsuarios, ObjSolicitud.query);
+  const ObjResultado = await ObjServicio.Usuarios_listarAccesos({ IntPagina: ObjConsulta.pagina, IntLimite: ObjConsulta.limite, StrBusqueda: ObjConsulta.busqueda });
+  ObjRespuesta.json({ datos: ObjResultado.ArrUsuarios, paginacion: { pagina: ObjConsulta.pagina, limite: ObjConsulta.limite, total: ObjResultado.IntTotal } });
+}
+
+export async function Usuarios_obtenerAccesos(ObjSolicitud: Request, ObjRespuesta: Response): Promise<void> {
+  const ObjParametro = Usuarios_validarEntrada(ObjEsquemas.ObjParametroUsuario, ObjSolicitud.params);
+  ObjRespuesta.json({ datos: await ObjServicio.Usuarios_obtenerAccesos(ObjParametro.usuarioId) });
+}
+
+export async function Usuarios_actualizarAccesos(ObjSolicitud: Request, ObjRespuesta: Response): Promise<void> {
+  const ObjParametro = Usuarios_validarEntrada(ObjEsquemas.ObjParametroUsuario, ObjSolicitud.params);
+  const ObjDatos = Usuarios_validarEntrada(ObjEsquemas.ObjActualizarAccesos, ObjSolicitud.body);
+  const ObjActor = Usuarios_obtenerAutenticacion(ObjSolicitud);
+  ObjRespuesta.json({ datos: await ObjServicio.Usuarios_actualizarAccesos({ IntUsuarioId: ObjParametro.usuarioId, IntVersionAccesos: ObjDatos.versionAccesos, IntRolId: ObjDatos.rolId, ArrCambios: ObjDatos.cambios.map((Obj) => ({ IntPermisoId: Obj.permisoId, StrEstado: Obj.estado })), IntUsuarioActorId: ObjActor.IntUsuarioId, StrDireccionIp: ObjSolicitud.ip }) });
 }

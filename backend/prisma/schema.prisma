@@ -16,11 +16,14 @@ model UsuarioRol {
   nombre             String   @unique @db.NVarChar(100)
   descripcion        String?  @db.NVarChar(500)
   activo             Boolean  @default(true)
+  esReservado        Boolean  @default(false) @map("es_reservado")
   fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
-  usuarios      UsuarioCuenta[]
-  rolesPermisos UsuarioRolPermiso[]
+  usuarios                 UsuarioCuenta[]
+  rolesPermisos            UsuarioRolPermiso[]
+  eventosAccesoRolAnterior UsuarioAccesoEvento[] @relation("AccesoRolAnterior")
+  eventosAccesoRolNuevo    UsuarioAccesoEvento[] @relation("AccesoRolNuevo")
 
   @@map("usuarios_roles")
 }
@@ -34,7 +37,9 @@ model UsuarioPermiso {
   activo        Boolean  @default(true)
   fechaCreacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
 
-  rolesPermisos UsuarioRolPermiso[]
+  rolesPermisos          UsuarioRolPermiso[]
+  usuarioPermisoDirectos UsuarioPermisoDirecto[]
+  usuarioAccesoEventos   UsuarioAccesoEvento[]
 
   @@map("usuarios_permisos")
 }
@@ -47,6 +52,8 @@ model UsuarioCuenta {
   correo             String   @unique @db.NVarChar(200)
   contrasenaHash     String   @map("contrasena_hash") @db.NVarChar(255)
   estado             String   @default("ACTIVO") @db.NVarChar(20)
+  versionAccesos     Int      @default(0) @map("version_accesos")
+  esProtegida        Boolean  @default(false) @map("es_protegida")
   fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
@@ -71,9 +78,58 @@ model UsuarioCuenta {
   alimentacionReversiones    AlimentacionRegistro[]      @relation("AlimentacionUsuarioReversion")
   sanidadAplicaciones        SanidadAplicacion[]
   sanidadReversiones         SanidadAplicacion[]         @relation("SanidadUsuarioReversion")
+  permisosDirectos           UsuarioPermisoDirecto[]     @relation("UsuarioPermisosDirectos")
+  permisosDirectosAsignados  UsuarioPermisoDirecto[]     @relation("UsuarioAsignadorPermisoDirecto")
+  eventosAccesoAfectado      UsuarioAccesoEvento[]       @relation("UsuarioAccesoAfectado")
+  eventosAccesoActor         UsuarioAccesoEvento[]       @relation("UsuarioAccesoActor")
+  fotosAnimalesCreadas       ProduccionAnimalFoto[]
 
   @@index([rolId])
   @@map("usuarios_cuentas")
+}
+
+model UsuarioPermisoDirecto {
+  permisoDirectoId     Int      @id @default(autoincrement()) @map("permiso_directo_id")
+  usuarioId            Int      @map("usuario_id")
+  permisoId            Int      @map("permiso_id")
+  efecto               String   @db.NVarChar(10)
+  asignadoPorUsuarioId Int      @map("asignado_por_usuario_id")
+  fechaCreacion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion   DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
+
+  usuario     UsuarioCuenta  @relation("UsuarioPermisosDirectos", fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  permiso     UsuarioPermiso @relation(fields: [permisoId], references: [permisoId], onDelete: NoAction, onUpdate: NoAction)
+  asignadoPor UsuarioCuenta  @relation("UsuarioAsignadorPermisoDirecto", fields: [asignadoPorUsuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([usuarioId, permisoId])
+  @@index([permisoId])
+  @@index([asignadoPorUsuarioId])
+  @@map("usuarios_permisos_directos")
+}
+
+model UsuarioAccesoEvento {
+  accesoEventoId Int      @id @default(autoincrement()) @map("acceso_evento_id")
+  usuarioId      Int      @map("usuario_id")
+  actorUsuarioId Int      @map("actor_usuario_id")
+  tipo           String   @db.NVarChar(30)
+  permisoId      Int?     @map("permiso_id")
+  rolAnteriorId  Int?     @map("rol_anterior_id")
+  rolNuevoId     Int?     @map("rol_nuevo_id")
+  estadoAnterior String?  @map("estado_anterior") @db.NVarChar(10)
+  estadoNuevo    String?  @map("estado_nuevo") @db.NVarChar(10)
+  fecha          DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @db.DateTime2
+  direccionIp    String?  @map("direccion_ip") @db.NVarChar(45)
+
+  usuario     UsuarioCuenta   @relation("UsuarioAccesoAfectado", fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  actor       UsuarioCuenta   @relation("UsuarioAccesoActor", fields: [actorUsuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  permiso     UsuarioPermiso? @relation(fields: [permisoId], references: [permisoId], onDelete: NoAction, onUpdate: NoAction)
+  rolAnterior UsuarioRol?     @relation("AccesoRolAnterior", fields: [rolAnteriorId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
+  rolNuevo    UsuarioRol?     @relation("AccesoRolNuevo", fields: [rolNuevoId], references: [rolId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([usuarioId, fecha])
+  @@index([actorUsuarioId])
+  @@index([permisoId])
+  @@map("usuarios_accesos_eventos")
 }
 
 model UsuarioRolPermiso {
@@ -237,19 +293,38 @@ model InventarioCategoria {
   @@map("inventario_categorias")
 }
 
+model InventarioUnidadMedida {
+  unidadMedidaId     Int      @id @default(autoincrement()) @map("unidad_medida_id")
+  codigo             String   @unique @db.NVarChar(20)
+  nombre             String   @db.NVarChar(100)
+  dimension          String   @db.NVarChar(20)
+  factorReferencia   Decimal  @map("factor_referencia") @db.Decimal(30, 15)
+  activo             Boolean  @default(true)
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
+
+  productos              InventarioProducto[]    @relation("InventarioUnidadProducto")
+  transaccionesComercial InventarioTransaccion[] @relation("InventarioUnidadComercial")
+
+  @@unique([dimension, codigo])
+  @@index([dimension, activo])
+  @@map("inventario_unidades_medida")
+}
+
 model InventarioProducto {
   productoId         Int      @id @default(autoincrement()) @map("producto_id")
   categoriaId        Int      @map("categoria_id")
   codigo             String   @unique @db.NVarChar(50)
   nombre             String   @db.NVarChar(200)
   descripcion        String?  @db.NVarChar(500)
-  unidadMedida       String   @map("unidad_medida") @db.NVarChar(50)
-  manejaLotes        Boolean  @default(false) @map("maneja_lotes")
+  unidadMedida       String   @map("unidad_medida") @db.NVarChar(20)
+  manejaLotes        Boolean  @default(true) @map("maneja_lotes")
   activo             Boolean  @default(true)
   fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
-  categoria InventarioCategoria @relation(fields: [categoriaId], references: [categoriaId], onDelete: NoAction, onUpdate: NoAction)
+  categoria InventarioCategoria    @relation(fields: [categoriaId], references: [categoriaId], onDelete: NoAction, onUpdate: NoAction)
+  unidad    InventarioUnidadMedida @relation("InventarioUnidadProducto", fields: [unidadMedida], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
 
   proveedores              ProveedorProducto[]
   existencias              InventarioExistencia[]
@@ -287,8 +362,8 @@ model InventarioExistencia {
   inventarioProductoId Int      @id @default(autoincrement()) @map("inventario_producto_id")
   inventarioId         Int      @map("inventario_id")
   productoId           Int      @map("producto_id")
-  existenciaActual     Decimal  @default(0) @map("existencia_actual") @db.Decimal(18, 4)
-  existenciaMinima     Decimal  @default(0) @map("existencia_minima") @db.Decimal(18, 4)
+  existenciaActual     Decimal  @default(0) @map("existencia_actual") @db.Decimal(24, 6)
+  existenciaMinima     Decimal  @default(0) @map("existencia_minima") @db.Decimal(24, 6)
   costoPromedioActual  Decimal? @map("costo_promedio_actual") @db.Decimal(18, 4)
   activo               Boolean  @default(true)
   fechaCreacion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
@@ -313,25 +388,28 @@ model InventarioExistencia {
 }
 
 model InventarioLote {
-  loteInventarioId   Int       @id @default(autoincrement()) @map("lote_inventario_id")
-  productoId         Int       @map("producto_id")
-  proveedorId        Int?      @map("proveedor_id")
-  codigoLote         String    @map("codigo_lote") @db.NVarChar(100)
-  fechaIngreso       DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_ingreso") @db.DateTime2
-  fechaFabricacion   DateTime? @map("fecha_fabricacion") @db.Date
-  fechaVencimiento   DateTime? @map("fecha_vencimiento") @db.Date
-  costoUnitario      Decimal?  @map("costo_unitario") @db.Decimal(18, 4)
-  activo             Boolean   @default(true)
-  observaciones      String?   @db.NVarChar(1000)
-  fechaCreacion      DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
-  fechaActualizacion DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
+  loteInventarioId    Int       @id @default(autoincrement()) @map("lote_inventario_id")
+  productoId          Int       @map("producto_id")
+  proveedorId         Int?      @map("proveedor_id")
+  transaccionOrigenId Int?      @unique @map("transaccion_origen_id")
+  codigoLote          String    @default(dbgenerated()) @map("codigo_lote") @db.NVarChar(100)
+  unidadBaseSnapshot  String    @map("unidad_base_snapshot") @db.NVarChar(20)
+  fechaIngreso        DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_ingreso") @db.DateTime2
+  fechaFabricacion    DateTime? @map("fecha_fabricacion") @db.Date
+  fechaVencimiento    DateTime? @map("fecha_vencimiento") @db.Date
+  costoUnitario       Decimal   @map("costo_unitario") @db.Decimal(38, 18)
+  activo              Boolean   @default(true)
+  observaciones       String?   @db.NVarChar(1000)
+  fechaCreacion       DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion  DateTime  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
-  producto       InventarioProducto         @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
-  proveedor      ProveedorRegistro?         @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
-  existencias    InventarioExistenciaLote[]
-  transferencias InventarioTransferencia[]
+  producto          InventarioProducto         @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  proveedor         ProveedorRegistro?         @relation(fields: [proveedorId], references: [proveedorId], onDelete: NoAction, onUpdate: NoAction)
+  transaccionOrigen InventarioTransaccion?     @relation("InventarioLoteOrigen", fields: [transaccionOrigenId], references: [transaccionInventarioId], onDelete: NoAction, onUpdate: NoAction)
+  existencias       InventarioExistenciaLote[]
+  transferencias    InventarioTransferencia[]
 
-  @@unique([productoId, codigoLote])
+  @@unique([codigoLote])
   @@unique([loteInventarioId, productoId])
   @@index([productoId])
   @@index([proveedorId])
@@ -346,7 +424,7 @@ model InventarioExistenciaLote {
   inventarioProductoId Int      @map("inventario_producto_id")
   loteInventarioId     Int      @map("lote_inventario_id")
   productoId           Int      @map("producto_id")
-  existenciaActual     Decimal  @default(0) @map("existencia_actual") @db.Decimal(18, 4)
+  existenciaActual     Decimal  @default(0) @map("existencia_actual") @db.Decimal(24, 6)
   fechaCreacion        DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
   fechaActualizacion   DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_actualizacion") @db.DateTime2
 
@@ -372,23 +450,23 @@ model InventarioTransferencia {
   productoId                  Int      @map("producto_id")
   inventarioProductoOrigenId  Int      @map("inventario_producto_origen_id")
   inventarioProductoDestinoId Int      @map("inventario_producto_destino_id")
-  existenciaLoteOrigenId      Int?     @map("existencia_lote_origen_id")
-  existenciaLoteDestinoId     Int?     @map("existencia_lote_destino_id")
-  loteInventarioId            Int?     @map("lote_inventario_id")
+  existenciaLoteOrigenId      Int      @map("existencia_lote_origen_id")
+  existenciaLoteDestinoId     Int      @map("existencia_lote_destino_id")
+  loteInventarioId            Int      @map("lote_inventario_id")
   usuarioId                   Int      @map("usuario_id")
-  cantidad                    Decimal  @db.Decimal(18, 4)
+  cantidad                    Decimal  @db.Decimal(24, 6)
   documentoReferencia         String?  @map("documento_referencia") @db.NVarChar(150)
   motivo                      String?  @db.NVarChar(500)
   observaciones               String?  @db.NVarChar(1000)
   fechaTransferencia          DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_transferencia") @db.DateTime2
 
-  producto      InventarioProducto        @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
-  origen        InventarioExistencia      @relation("InventarioTransferenciaOrigen", fields: [inventarioProductoOrigenId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
-  destino       InventarioExistencia      @relation("InventarioTransferenciaDestino", fields: [inventarioProductoDestinoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
-  loteOrigen    InventarioExistenciaLote? @relation("InventarioTransferenciaLoteOrigen", fields: [existenciaLoteOrigenId], references: [existenciaLoteId], onDelete: NoAction, onUpdate: NoAction)
-  loteDestino   InventarioExistenciaLote? @relation("InventarioTransferenciaLoteDestino", fields: [existenciaLoteDestinoId], references: [existenciaLoteId], onDelete: NoAction, onUpdate: NoAction)
-  lote          InventarioLote?           @relation(fields: [loteInventarioId], references: [loteInventarioId], onDelete: NoAction, onUpdate: NoAction)
-  usuario       UsuarioCuenta             @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  producto      InventarioProducto       @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  origen        InventarioExistencia     @relation("InventarioTransferenciaOrigen", fields: [inventarioProductoOrigenId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
+  destino       InventarioExistencia     @relation("InventarioTransferenciaDestino", fields: [inventarioProductoDestinoId], references: [inventarioProductoId], onDelete: NoAction, onUpdate: NoAction)
+  loteOrigen    InventarioExistenciaLote @relation("InventarioTransferenciaLoteOrigen", fields: [existenciaLoteOrigenId], references: [existenciaLoteId], onDelete: NoAction, onUpdate: NoAction)
+  loteDestino   InventarioExistenciaLote @relation("InventarioTransferenciaLoteDestino", fields: [existenciaLoteDestinoId], references: [existenciaLoteId], onDelete: NoAction, onUpdate: NoAction)
+  lote          InventarioLote           @relation(fields: [loteInventarioId], references: [loteInventarioId], onDelete: NoAction, onUpdate: NoAction)
+  usuario       UsuarioCuenta            @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
   transacciones InventarioTransaccion[]
 
   @@index([productoId])
@@ -520,6 +598,7 @@ model ProduccionAnimal {
   produccionEventos        ProduccionEvento[]
   operaciones              ProduccionOperacionAnimal[]
   ventasAnimales           VentaDetalleAnimal[]
+  fotos                    ProduccionAnimalFoto[]
 
   @@unique([animalId, tipoAnimalId])
   @@index([tipoAnimalId])
@@ -527,6 +606,27 @@ model ProduccionAnimal {
   @@index([madreAnimalId])
   @@index([estadoActual])
   @@map("produccion_animales")
+}
+
+model ProduccionAnimalFoto {
+  animalFotoId       Int      @id @default(autoincrement()) @map("animal_foto_id")
+  animalId           Int      @map("animal_id")
+  blobNombre         String   @unique @map("blob_nombre") @db.NVarChar(500)
+  nombreOriginal     String   @map("nombre_original") @db.NVarChar(255)
+  mimeType           String   @map("mime_type") @db.NVarChar(50)
+  tamanoBytes        Int      @map("tamano_bytes")
+  anchoPixeles       Int      @map("ancho_pixeles")
+  altoPixeles        Int      @map("alto_pixeles")
+  esPrincipal        Boolean  @default(true) @map("es_principal")
+  creadoPorUsuarioId Int      @map("creado_por_usuario_id")
+  fechaCreacion      DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_creacion") @db.DateTime2
+
+  animal  ProduccionAnimal @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
+  creador UsuarioCuenta    @relation(fields: [creadoPorUsuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([animalId, fechaCreacion])
+  @@index([creadoPorUsuarioId])
+  @@map("produccion_animales_fotos")
 }
 
 model ProduccionAsignacionLote {
@@ -759,15 +859,15 @@ model AlimentacionDetalle {
   alimentacionId        Int      @map("alimentacion_id")
   productoId            Int      @map("producto_id")
   inventarioId          Int?     @map("inventario_id")
-  existenciaLoteId      Int?     @map("existencia_lote_id")
-  cantidadConsumida     Decimal  @map("cantidad_consumida") @db.Decimal(18, 4)
+  existenciaLoteId      Int      @map("existencia_lote_id")
+  cantidadConsumida     Decimal  @map("cantidad_consumida") @db.Decimal(24, 6)
   unidadMedida          String   @map("unidad_medida") @db.NVarChar(30)
   fechaRegistro         DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_registro") @db.DateTime2
 
-  alimentacion            AlimentacionRegistro      @relation(fields: [alimentacionId], references: [alimentacionId], onDelete: NoAction, onUpdate: NoAction)
-  producto                InventarioProducto        @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
-  existencia              InventarioExistencia?     @relation(fields: [inventarioId, productoId], references: [inventarioId, productoId], onDelete: NoAction, onUpdate: NoAction)
-  existenciaLote          InventarioExistenciaLote? @relation(fields: [existenciaLoteId, productoId], references: [existenciaLoteId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  alimentacion            AlimentacionRegistro     @relation(fields: [alimentacionId], references: [alimentacionId], onDelete: NoAction, onUpdate: NoAction)
+  producto                InventarioProducto       @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  existencia              InventarioExistencia?    @relation(fields: [inventarioId, productoId], references: [inventarioId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  existenciaLote          InventarioExistenciaLote @relation(fields: [existenciaLoteId, productoId], references: [existenciaLoteId, productoId], onDelete: NoAction, onUpdate: NoAction)
   inventarioTransacciones InventarioTransaccion[]
 
   @@index([alimentacionId])
@@ -892,16 +992,16 @@ model SanidadAplicacionDetalle {
 }
 
 model SanidadAplicacionFuente {
-  fuenteSanidadId         Int                       @id @default(autoincrement()) @map("fuente_sanidad_id")
-  detalleSanidadId        Int                       @map("detalle_sanidad_id")
-  productoId              Int                       @map("producto_id")
-  inventarioId            Int?                      @map("inventario_id")
-  existenciaLoteId        Int?                      @map("existencia_lote_id")
-  cantidadConsumida       Decimal                   @map("cantidad_consumida") @db.Decimal(18, 4)
-  fechaRegistro           DateTime                  @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_registro") @db.DateTime2
-  detalle                 SanidadAplicacionDetalle  @relation(fields: [detalleSanidadId], references: [detalleSanidadId], onDelete: NoAction, onUpdate: NoAction)
-  existencia              InventarioExistencia?     @relation(fields: [inventarioId, productoId], references: [inventarioId, productoId], onDelete: NoAction, onUpdate: NoAction)
-  existenciaLote          InventarioExistenciaLote? @relation(fields: [existenciaLoteId, productoId], references: [existenciaLoteId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  fuenteSanidadId         Int                      @id @default(autoincrement()) @map("fuente_sanidad_id")
+  detalleSanidadId        Int                      @map("detalle_sanidad_id")
+  productoId              Int                      @map("producto_id")
+  inventarioId            Int?                     @map("inventario_id")
+  existenciaLoteId        Int                      @map("existencia_lote_id")
+  cantidadConsumida       Decimal                  @map("cantidad_consumida") @db.Decimal(24, 6)
+  fechaRegistro           DateTime                 @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_registro") @db.DateTime2
+  detalle                 SanidadAplicacionDetalle @relation(fields: [detalleSanidadId], references: [detalleSanidadId], onDelete: NoAction, onUpdate: NoAction)
+  existencia              InventarioExistencia?    @relation(fields: [inventarioId, productoId], references: [inventarioId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  existenciaLote          InventarioExistenciaLote @relation(fields: [existenciaLoteId, productoId], references: [existenciaLoteId, productoId], onDelete: NoAction, onUpdate: NoAction)
   inventarioTransacciones InventarioTransaccion[]
 
   @@index([detalleSanidadId])
@@ -1026,12 +1126,18 @@ model InventarioTransaccion {
   proveedorId             Int?     @map("proveedor_id")
   loteProduccionId        Int?     @map("lote_produccion_id")
   animalId                Int?     @map("animal_id")
-  alimentacionDetalleId   Int?     @map("alimentacion_detalle_id")
-  sanidadFuenteId         Int?     @map("sanidad_fuente_id")
+  alimentacionDetalleId   Int?     @unique @map("alimentacion_detalle_id")
+  sanidadFuenteId         Int?     @unique @map("sanidad_fuente_id")
   tipoTransaccion         String   @map("tipo_transaccion") @db.NVarChar(30)
   subtipoTransaccion      String   @map("subtipo_transaccion") @db.NVarChar(40)
-  cantidad                Decimal  @db.Decimal(18, 4)
-  costoUnitario           Decimal? @map("costo_unitario") @db.Decimal(18, 4)
+  cantidadComercial       Decimal? @map("cantidad_comercial") @db.Decimal(24, 6)
+  unidadComercial         String?  @map("unidad_comercial") @db.NVarChar(20)
+  factorConversion        Decimal? @map("factor_conversion") @db.Decimal(30, 15)
+  cantidad                Decimal  @db.Decimal(24, 6)
+  unidadBaseSnapshot      String?  @map("unidad_base_snapshot") @db.NVarChar(20)
+  precioTotalIngreso      Decimal? @map("precio_total_ingreso") @db.Decimal(20, 4)
+  costoUnitario           Decimal? @map("costo_unitario") @db.Decimal(38, 18)
+  legadoSinLote           Boolean  @default(false) @map("legado_sin_lote")
   documentoReferencia     String?  @map("documento_referencia") @db.NVarChar(150)
   motivo                  String?  @db.NVarChar(500)
   observaciones           String?  @db.NVarChar(1000)
@@ -1048,6 +1154,8 @@ model InventarioTransaccion {
   animal               ProduccionAnimal?         @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
   alimentacionDetalle  AlimentacionDetalle?      @relation(fields: [alimentacionDetalleId], references: [detalleAlimentacionId], onDelete: NoAction, onUpdate: NoAction)
   sanidadFuente        SanidadAplicacionFuente?  @relation(fields: [sanidadFuenteId], references: [fuenteSanidadId], onDelete: NoAction, onUpdate: NoAction)
+  unidadComercialRef   InventarioUnidadMedida?   @relation("InventarioUnidadComercial", fields: [unidadComercial], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
+  loteOriginado        InventarioLote?           @relation("InventarioLoteOrigen")
 
   @@index([inventarioProductoId])
   @@index([existenciaLoteId])

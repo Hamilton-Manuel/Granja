@@ -1,8 +1,12 @@
 import type { Request,Response } from "express";
+import { pipeline } from "node:stream/promises";
+import multer from "multer";
 import { z } from "zod";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
 import * as E from "./produccion.schemas.js";
 import * as S from "./produccion.service.js";
+import * as SF from "./produccion-fotos.service.js";
+import { PRODUCCION_FOTO_MAX_BYTES } from "./produccion-fotos.js";
 function Produccion_validar<T>(ObjEsquema:z.ZodType<T>,ObjValor:unknown):T{const r=ObjEsquema.safeParse(ObjValor);if(!r.success)throw new ErrorAplicacion(400,"VALIDACION_INVALIDA","Los datos proporcionados no son validos.");return r.data;}
 function Produccion_entradaServicio<T>(ObjValor:unknown):T{return ObjValor as T;}
 function Produccion_actor(Req:Request){if(!Req.ObjAutenticacion)throw new ErrorAplicacion(401,"NO_AUTENTICADO","Debe iniciar sesion.");return{IntUsuarioId:Req.ObjAutenticacion.IntUsuarioId,StrIp:Req.ip};}
@@ -23,6 +27,10 @@ export async function Produccion_editarLote(Req:Request,Res:Response){const p=Pr
 export async function Produccion_estadoLote(Req:Request,Res:Response){const p=Produccion_validar(E.ObjParametroLote,Req.params),b=Produccion_validar(E.ObjEstadoLote,Req.body);Res.json({datos:await S.Produccion_cambiarEstadoLote(p.loteProduccionId,b.estado,Produccion_actor(Req).IntUsuarioId,Req.ip)});}
 export async function Produccion_listarAnimales(Req:Request,Res:Response){const q=Produccion_validar(E.ObjConsultaAnimales,Req.query);Res.json(Produccion_pag(q,await S.Produccion_listarAnimales(Produccion_entradaServicio({IntPagina:q.pagina,IntLimite:q.limite,StrBusqueda:q.busqueda,StrEstado:q.estado,IntTipoAnimalId:q.tipoAnimalId,IntRazaId:q.razaId,IntLoteId:q.loteProduccionId,StrSexo:q.sexo}))));}
 export async function Produccion_obtenerAnimal(Req:Request,Res:Response){const p=Produccion_validar(E.ObjParametroAnimal,Req.params),dato=await S.Produccion_obtenerAnimal(p.animalId);if(!dato)throw new ErrorAplicacion(404,"ANIMAL_NO_ENCONTRADO","El animal no existe.");Res.json({datos:dato});}
+const ObjCargaFoto = multer({ storage: multer.memoryStorage(), limits: { fileSize: PRODUCCION_FOTO_MAX_BYTES, files: 1, fields: 0 } }).single("foto");
+export function Produccion_recibirFoto(Req:Request,Res:Response,Next:(ObjError?:unknown)=>void){ObjCargaFoto(Req,Res,(ObjError)=>{if(ObjError instanceof multer.MulterError){Next(new ErrorAplicacion(400,ObjError.code==="LIMIT_FILE_SIZE"?"FOTO_DEMASIADO_GRANDE":"MULTIPART_INVALIDO",ObjError.code==="LIMIT_FILE_SIZE"?"La fotografia no puede superar 5 MiB.":"La carga multipart no es valida."));return;}Next(ObjError);});}
+export async function Produccion_reemplazarFoto(Req:Request,Res:Response){const p=Produccion_validar(E.ObjParametroAnimal,Req.params);Res.status(201).json({datos:await SF.Produccion_reemplazarFoto(p.animalId,Req.file,Produccion_actor(Req).IntUsuarioId,Req.ip)});}
+export async function Produccion_descargarFoto(Req:Request,Res:Response){const p=Produccion_validar(E.ObjParametroAnimal,Req.params),dato=await SF.Produccion_descargarFotoPrincipal(p.animalId);if(dato.StrEtag&&Req.headers["if-none-match"]===dato.StrEtag){Res.status(304).end();return;}Res.setHeader("Content-Type","image/webp");Res.setHeader("Content-Length",String(dato.IntLongitud));Res.setHeader("Cache-Control","private");if(dato.StrEtag)Res.setHeader("ETag",dato.StrEtag);await pipeline(dato.ObjFlujo,Res);}
 export async function Produccion_editarAnimal(Req:Request,Res:Response){const p=Produccion_validar(E.ObjParametroAnimal,Req.params),b=Produccion_validar(E.ObjEditarAnimal,Req.body);Res.json({datos:await S.Produccion_editarAnimal(p.animalId,Produccion_entradaServicio(b),Produccion_actor(Req).IntUsuarioId,Req.ip)});}
 export async function Produccion_inicial(Req:Request,Res:Response){const b=Produccion_validar(E.ObjIngresoInicial,Req.body);Res.status(201).json({datos:await S.Produccion_registrarInicial(Produccion_entradaServicio({...b,...Produccion_actor(Req)}))});}
 export async function Produccion_nacimiento(Req:Request,Res:Response){const b=Produccion_validar(E.ObjNacimiento,Req.body);Res.status(201).json({datos:await S.Produccion_registrarNacimiento(Produccion_entradaServicio({...b,...Produccion_actor(Req)}))});}

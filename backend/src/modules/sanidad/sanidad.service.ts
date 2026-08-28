@@ -13,7 +13,6 @@ const ObjErrores: Record<string, [number, string]> = {
   PRODUCTO_NO_HABILITADO: [409, "El producto no está habilitado para Sanidad."],
   UNIDAD_DOSIS_INACTIVA: [409, "La unidad de dosis está inactiva."],
   VIA_ADMINISTRACION_INACTIVA: [409, "La vía de administración está inactiva."],
-  LOTE_INVENTARIO_REQUERIDO: [409, "Debe seleccionar el lote de Inventario."],
   LOTE_INVENTARIO_VENCIDO: [
     409,
     "El lote estaba vencido en la fecha efectiva.",
@@ -68,7 +67,7 @@ export async function Sanidad_registrar(
           alcanceDosis: "INDIVIDUAL" | "POR_ANIMAL" | "TOTAL_LOTE";
           fuentes: Array<{
             inventarioId: number;
-            loteInventarioId?: number | null | undefined;
+            loteInventarioId: number;
             cantidad: string;
           }>;
         }>;
@@ -196,7 +195,7 @@ export const Sanidad_destinosAnimales = R.Sanidad_destinosAnimales;
 export const Sanidad_destinosLotes = R.Sanidad_destinosLotes;
 export const Sanidad_almacenes = R.Sanidad_almacenes;
 export const Sanidad_existencias = R.Sanidad_existencias;
-export const Sanidad_lotes = R.Sanidad_lotes;
+export function Sanidad_lotes(IntProductoId:number,IntInventarioId:number,StrFecha?:string){return R.Sanidad_lotes(IntProductoId,IntInventarioId,StrFecha?Fecha_parsearFechaCivil(StrFecha.slice(0,10)):undefined);}
 export const Sanidad_diagnosticar = R.Sanidad_diagnosticar;
 export function Sanidad_formatearRespuesta(Obj: unknown, StrCampo?: string): unknown {
   if (Obj instanceof Prisma.Decimal) return Obj.toFixed(4);

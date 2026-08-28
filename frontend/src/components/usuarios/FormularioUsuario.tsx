@@ -18,6 +18,8 @@ const ObjDatosVacios: DatosCrearUsuario = { nombreCompleto: "", nombreUsuario: "
 export function FormularioUsuario({ StrModo, ObjUsuario, ArrRoles = [], BoolProcesando, Usuarios_cancelar, Usuarios_guardar }: PropiedadesFormularioUsuario) {
   const [ObjDatos, establecerDatos] = useState<DatosCrearUsuario>(ObjDatosVacios);
   const [ObjErrores, establecerErrores] = useState<ErroresFormularioUsuario>({});
+  const [StrNuevaContrasena, establecerNuevaContrasena] = useState("");
+  const [StrConfirmarNuevaContrasena, establecerConfirmarNuevaContrasena] = useState("");
 
   useEffect(() => {
     establecerDatos(ObjUsuario === undefined ? ObjDatosVacios : {
@@ -28,6 +30,8 @@ export function FormularioUsuario({ StrModo, ObjUsuario, ArrRoles = [], BoolProc
       rolId: ObjUsuario.rol.rolId,
     });
     establecerErrores({});
+    establecerNuevaContrasena("");
+    establecerConfirmarNuevaContrasena("");
   }, [ObjUsuario, StrModo]);
 
   function Usuarios_actualizarCampo(StrCampo: keyof DatosCrearUsuario, StrValor: string): void {
@@ -50,7 +54,14 @@ export function FormularioUsuario({ StrModo, ObjUsuario, ArrRoles = [], BoolProc
       );
       ObjErroresNuevos = ObjResultado.ObjErrores;
       ObjDatosEnviar = ObjResultado.ObjCambios;
-      if (Object.keys(ObjDatosEnviar).length === 0) ObjErroresNuevos.nombreCompleto = "No hay cambios para guardar.";
+      if (StrNuevaContrasena !== "" || StrConfirmarNuevaContrasena !== "") {
+        if (StrNuevaContrasena === "") ObjErroresNuevos.nuevaContrasena = "Ingrese la nueva contraseña.";
+        else if (StrConfirmarNuevaContrasena === "") ObjErroresNuevos.confirmarNuevaContrasena = "Confirme la nueva contraseña.";
+        else if (StrNuevaContrasena !== StrConfirmarNuevaContrasena) ObjErroresNuevos.confirmarNuevaContrasena = "Las contraseñas no coinciden.";
+        else if (StrNuevaContrasena.length < 8 || StrNuevaContrasena.length > 128) ObjErroresNuevos.nuevaContrasena = "La contraseña debe tener entre 8 y 128 caracteres.";
+        else ObjDatosEnviar.nuevaContrasena = StrNuevaContrasena;
+      }
+      if (Object.keys(ObjDatosEnviar).length === 0 && Object.keys(ObjErroresNuevos).length === 0) ObjErroresNuevos.nombreCompleto = "No hay cambios para guardar.";
     }
     establecerErrores(ObjErroresNuevos);
     if (Object.keys(ObjErroresNuevos).length > 0) return;
@@ -96,6 +107,19 @@ export function FormularioUsuario({ StrModo, ObjUsuario, ArrRoles = [], BoolProc
           </div>
         </>
       )}
+      {StrModo === "editar" && <>
+        <div className="campo-formulario">
+          <label htmlFor="usuario-editar-nuevaContrasena">Nueva contraseña</label>
+          <input id="usuario-editar-nuevaContrasena" type="password" value={StrNuevaContrasena} minLength={8} maxLength={128} autoComplete="new-password" placeholder="Ingrese una nueva contraseña" aria-invalid={ObjErrores.nuevaContrasena !== undefined} aria-describedby={ObjErrores.nuevaContrasena ? "error-editar-nuevaContrasena" : "ayuda-editar-nuevaContrasena"} onChange={(ObjEvento) => { establecerNuevaContrasena(ObjEvento.target.value); establecerErrores((ObjActual) => ({ ...ObjActual, nuevaContrasena: undefined, confirmarNuevaContrasena: undefined })); }} />
+          <small id="ayuda-editar-nuevaContrasena">Opcional. Debe tener entre 8 y 128 caracteres.</small>
+          {ObjErrores.nuevaContrasena && <span id="error-editar-nuevaContrasena" className="campo-error">{ObjErrores.nuevaContrasena}</span>}
+        </div>
+        <div className="campo-formulario">
+          <label htmlFor="usuario-editar-confirmarNuevaContrasena">Confirmar nueva contraseña</label>
+          <input id="usuario-editar-confirmarNuevaContrasena" type="password" value={StrConfirmarNuevaContrasena} maxLength={128} autoComplete="new-password" placeholder="Repita la nueva contraseña" aria-invalid={ObjErrores.confirmarNuevaContrasena !== undefined} aria-describedby={ObjErrores.confirmarNuevaContrasena ? "error-editar-confirmarNuevaContrasena" : undefined} onChange={(ObjEvento) => { establecerConfirmarNuevaContrasena(ObjEvento.target.value); establecerErrores((ObjActual) => ({ ...ObjActual, confirmarNuevaContrasena: undefined })); }} />
+          {ObjErrores.confirmarNuevaContrasena && <span id="error-editar-confirmarNuevaContrasena" className="campo-error">{ObjErrores.confirmarNuevaContrasena}</span>}
+        </div>
+      </>}
       <div className="modal-acciones">
         <button type="button" className="boton-secundario" disabled={BoolProcesando} onClick={Usuarios_cancelar}>Cancelar</button>
         <button type="submit" className="boton-primario" disabled={BoolProcesando}>{BoolProcesando ? "Guardando…" : "Guardar"}</button>
