@@ -1,17 +1,20 @@
 import type { DecimalInventario, LoteInventario, LoteResumen } from "../types/inventario.types";
 
-const IntEscala = 4;
-const IntFactor = 10n ** BigInt(IntEscala);
+const IntEscalaCaptura = 4;
+// Escala máxima persistida por Inventario: costo_unitario es DECIMAL(38,18).
+const IntEscalaPersistida = 18;
+const IntFactor = 10n ** BigInt(IntEscalaPersistida);
+const ObjDecimalPersistido = /^-?\d+(?:\.\d{1,18})?$/;
 
 export function Inventario_decimalValido(StrValor: string, BoolPermitirNegativo = false): boolean {
-  return new RegExp(`^${BoolPermitirNegativo ? "-?" : ""}\\d+(?:\\.\\d{1,${IntEscala}})?$`).test(StrValor.trim());
+  return new RegExp(`^${BoolPermitirNegativo ? "-?" : ""}\\d+(?:\\.\\d{1,${IntEscalaCaptura}})?$`).test(StrValor.trim());
 }
 
 export function Inventario_decimalEscalado(StrValor: DecimalInventario): bigint {
-  if (!Inventario_decimalValido(StrValor, true)) throw new RangeError("Decimal de Inventario no válido.");
+  if (!ObjDecimalPersistido.test(StrValor)) throw new RangeError("Decimal de Inventario no válido.");
   const BoolNegativo = StrValor.startsWith("-");
   const [StrEntero, StrFraccion = ""] = StrValor.replace("-", "").split(".");
-  const IntValor = BigInt(StrEntero) * IntFactor + BigInt(StrFraccion.padEnd(IntEscala, "0"));
+  const IntValor = BigInt(StrEntero) * IntFactor + BigInt(StrFraccion.padEnd(IntEscalaPersistida, "0"));
   return BoolNegativo ? -IntValor : IntValor;
 }
 
@@ -21,7 +24,7 @@ export function Inventario_formatearDecimal(StrValor: DecimalInventario | null):
   const BoolNegativo = IntValor < 0n;
   const IntAbsoluto = BoolNegativo ? -IntValor : IntValor;
   const StrEntero = (IntAbsoluto / IntFactor).toString();
-  const StrFraccion = (IntAbsoluto % IntFactor).toString().padStart(IntEscala, "0").replace(/0+$/, "");
+  const StrFraccion = (IntAbsoluto % IntFactor).toString().padStart(IntEscalaPersistida, "0").replace(/0+$/, "");
   return `${BoolNegativo ? "−" : ""}${StrEntero}${StrFraccion ? `.${StrFraccion}` : ""}`;
 }
 

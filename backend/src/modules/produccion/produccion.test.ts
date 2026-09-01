@@ -58,3 +58,17 @@ test("Produccion protege y reduce el lookup de proveedores para compras", () => 
   assert.match(StrRepositorio, /select:\{proveedorId:true,codigo:true,nombre:true,nombreComercial:true,activo:true\}/);
   for (const StrCampoSensible of ["nit:true", "numeroDocumento:true", "correo:true", "telefono:true", "direccion:true", "observaciones:true"]) assert.equal(StrRepositorio.includes(StrCampoSensible), false);
 });
+
+test("Ficha tecnica usa contrato fotografico minimo y excluye modulos administrativos", () => {
+  const StrRepositorio = readFileSync(new URL("./produccion-ficha.repository.ts", import.meta.url), "utf8");
+  const StrServicio = readFileSync(new URL("./produccion-ficha.service.ts", import.meta.url), "utf8");
+  const StrRutas = readFileSync(new URL("./produccion.routes.ts", import.meta.url), "utf8");
+  assert.match(StrRutas, /\/animales\/:animalId\/ficha-tecnica",Middleware_requerirPermiso\("PRODUCCION_CONSULTAR"\)/);
+  assert.match(StrServicio, /tieneFoto: ObjAnimal\.fotos\.length > 0/);
+  assert.match(StrRepositorio, /lt: ObjAsignacion\.fechaFin/);
+  assert.match(StrRepositorio, /estado: "CONFIRMADA", animalId: null/);
+  for (const StrProhibido of ["alimentacionRegistro", "alimentacionDetalle", "ventaRegistro", "ventaDetalle", "fuentes:", "usuario:", "blobNombre", "mimeType", "tamanoBytes"]) {
+    assert.equal(StrRepositorio.includes(StrProhibido), false, `La ficha no debe consultar ${StrProhibido}`);
+    assert.equal(StrServicio.includes(StrProhibido), false, `La ficha no debe exponer ${StrProhibido}`);
+  }
+});

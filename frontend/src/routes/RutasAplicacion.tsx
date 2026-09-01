@@ -21,6 +21,7 @@ import { LayoutProduccion } from "../components/produccion/LayoutProduccion";
 import { PaginaResumenProduccion } from "../pages/produccion/PaginaResumenProduccion";
 import { PaginaLotesProduccion } from "../pages/produccion/PaginaLotesProduccion";
 import { PaginaAnimalesProduccion } from "../pages/produccion/PaginaAnimalesProduccion";
+import { PaginaFichaTecnicaAnimal } from "../pages/produccion/PaginaFichaTecnicaAnimal";
 import { PaginaIngresosProduccion } from "../pages/produccion/PaginaIngresosProduccion";
 import { PaginaTrasladosProduccion } from "../pages/produccion/PaginaTrasladosProduccion";
 import { PaginaMedicionesProduccion } from "../pages/produccion/PaginaMedicionesProduccion";
@@ -48,6 +49,8 @@ import { useSesion } from "../hooks/useSesion";
 import { RutaProtegida } from "./RutaProtegida";
 import { RutaConPermiso } from "./RutaConPermiso";
 import { RutaSoloInvitados } from "./RutaSoloInvitados";
+import { LayoutReportes } from "../components/reportes/LayoutReportes";
+import { PaginaReporte } from "../pages/reportes/PaginaReporte";
 
 export function RutasAplicacion() {
   const { StrEstado, ObjError, Autenticacion_reintentarSesion } = useSesion();
@@ -102,6 +105,7 @@ export function RutasAplicacion() {
               <Route index element={<PaginaResumenProduccion />} />
               <Route path="lotes" element={<PaginaLotesProduccion />} />
               <Route path="animales" element={<PaginaAnimalesProduccion />} />
+              <Route path="animales/:animalId/ficha" element={<PaginaFichaTecnicaAnimal />} />
               <Route element={<RutaConPermiso ArrPermisosAlguno={["PRODUCCION_INGRESOS_INICIALES_CREAR", "PRODUCCION_NACIMIENTOS_CREAR", "PRODUCCION_COMPRAS_CREAR"]} />}><Route path="ingresos" element={<PaginaIngresosProduccion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="PRODUCCION_TRASLADOS_CREAR" />}><Route path="traslados" element={<PaginaTrasladosProduccion />} /></Route>
               <Route path="mediciones" element={<PaginaMedicionesProduccion />} />
@@ -134,6 +138,16 @@ export function RutasAplicacion() {
               <Route element={<RutaConPermiso StrPermiso="VENTAS_REGISTRAR" />}><Route path="registrar" element={<PaginaRegistrarVenta />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="VENTAS_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoVentas />} /></Route>
               <Route path=":ventaId/recibo" element={<PaginaReciboVenta />} />
+            </Route>
+          </Route>
+          <Route element={<RutaConPermiso ArrPermisosAlguno={["REPORTES_INVENTARIO_CONSULTAR", "REPORTES_PRODUCCION_CONSULTAR", "REPORTES_SANIDAD_CONSULTAR", "REPORTES_VENTAS_CONSULTAR", "REPORTES_COSTOS_CONSULTAR"]} />}>
+            <Route path="/reportes" element={<LayoutReportes />}>
+              <Route index element={<Navigate to="inventario/existencias" replace />} />
+              <Route element={<RutaConPermiso StrPermiso="REPORTES_INVENTARIO_CONSULTAR" />}><Route path="inventario/existencias" element={<PaginaReporte StrRuta="inventario/existencias" StrTitulo="Existencias" BoolPeriodo={false}/>} /><Route path="inventario/movimientos" element={<PaginaReporte StrRuta="inventario/movimientos" StrTitulo="Movimientos"/>}/></Route>
+              <Route element={<RutaConPermiso StrPermiso="REPORTES_PRODUCCION_CONSULTAR" />}><Route path="produccion/censo" element={<PaginaReporte StrRuta="produccion/censo" StrTitulo="Censo y animales por lote" BoolPeriodo={false}/>} /><Route path="produccion/actividad" element={<PaginaReporte StrRuta="produccion/actividad" StrTitulo="Altas y salidas"/>}/><Route path="produccion/mediciones" element={<PaginaReporte StrRuta="produccion/mediciones" StrTitulo="Mediciones"/>}/></Route>
+              <Route element={<RutaConPermiso StrPermiso="REPORTES_SANIDAD_CONSULTAR" />}><Route path="sanidad/aplicaciones" element={<PaginaReporte StrRuta="sanidad/aplicaciones" StrTitulo="Aplicaciones sanitarias"/>}/></Route>
+              <Route element={<RutaConPermiso StrPermiso="REPORTES_VENTAS_CONSULTAR" />}><Route path="ventas" element={<PaginaReporte StrRuta="ventas" StrTitulo="Ventas y animales vendidos"/>}/></Route>
+              <Route element={<RutaConPermiso StrPermiso="REPORTES_COSTOS_CONSULTAR" />}><Route path="costos" element={<PaginaReporte StrRuta="costos" StrTitulo="Costos internos"/>}/></Route>
             </Route>
           </Route>
           <Route path="*" element={<PaginaNoEncontrada />} />

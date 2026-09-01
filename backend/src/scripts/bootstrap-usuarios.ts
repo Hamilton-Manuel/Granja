@@ -28,6 +28,7 @@ import {
 import { ArrCatalogoPermisosAlimentacion, ArrPermisosAlimentacionOperador } from "../modules/alimentacion/alimentacion.constants.js";
 import { ArrCatalogoPermisosSanidad, ArrPermisosSanidadOperador, ArrTiposSanidad, ArrViasSanidad, ArrUnidadesSanidad } from "../modules/sanidad/sanidad.constants.js";
 import { ArrCatalogoPermisosVentas, ArrPermisosVentasOperador } from "../modules/ventas/ventas.constants.js";
+import { ArrCatalogoPermisosReportes } from "../modules/reportes/reportes.constants.js";
 import {
   ArrCatalogoPermisosUsuarios,
   ArrCodigosPermisosUsuarios,
@@ -53,6 +54,7 @@ const ArrCatalogoPermisosSistema = [
   ...ArrCatalogoPermisosAlimentacion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "ALIMENTACION" })),
   ...ArrCatalogoPermisosSanidad.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "SANIDAD" })),
   ...ArrCatalogoPermisosVentas.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "VENTAS" })),
+  ...ArrCatalogoPermisosReportes.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "REPORTES" })),
 ] as const;
 
 const ArrCodigosPermisosClientesProveedores = [

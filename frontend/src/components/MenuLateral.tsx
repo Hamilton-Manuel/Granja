@@ -7,8 +7,6 @@ interface PropiedadesMenuLateral {
   Autenticacion_cerrarMenu: () => void;
 }
 
-const ArrModulosFuturos = ["Reportes"];
-
 export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: PropiedadesMenuLateral) {
   const { Autenticacion_tienePermiso } = useSesion();
   const BoolMostrarUsuarios = Autenticacion_tienePermiso("USUARIOS_CONSULTAR");
@@ -20,6 +18,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
   const BoolMostrarAlimentacion = Autenticacion_tienePermiso("ALIMENTACION_CONSULTAR");
   const BoolMostrarSanidad = Autenticacion_tienePermiso("SANIDAD_CONSULTAR");
   const BoolMostrarVentas = Autenticacion_tienePermiso("VENTAS_CONSULTAR");
+  const BoolMostrarReportes = ["REPORTES_INVENTARIO_CONSULTAR", "REPORTES_PRODUCCION_CONSULTAR", "REPORTES_SANIDAD_CONSULTAR", "REPORTES_VENTAS_CONSULTAR", "REPORTES_COSTOS_CONSULTAR"].some(Autenticacion_tienePermiso);
 
   return (
     <>
@@ -58,11 +57,7 @@ export function MenuLateral({ BoolAbierto, Autenticacion_cerrarMenu }: Propiedad
           {BoolMostrarAlimentacion && <NavLink to="/alimentacion" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">A</span> Alimentación</NavLink>}
           {BoolMostrarSanidad && <NavLink to="/sanidad" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">S</span> Sanidad</NavLink>}
           {BoolMostrarVentas && <NavLink to="/ventas" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">V</span> Ventas</NavLink>}
-          {ArrModulosFuturos.map((StrModulo) => (
-            <span key={StrModulo} className="menu-opcion menu-opcion--deshabilitada" aria-disabled="true" title="Próximamente">
-              <span aria-hidden="true">•</span> {StrModulo} <small>Próximamente</small>
-            </span>
-          ))}
+          {BoolMostrarReportes && <NavLink to="/reportes" className={({ isActive: BoolActivo }) => `menu-opcion ${BoolActivo ? "menu-opcion--activa" : ""}`} onClick={Autenticacion_cerrarMenu}><span aria-hidden="true">R</span> Reportes</NavLink>}
         </nav>
         <div className="menu-pie">Rabinal, Baja Verapaz</div>
       </aside>

@@ -1,0 +1,6 @@
+import{Router}from"express";import{Middleware_requerirAutenticacion,Middleware_requerirPermiso}from"../../middleware/autenticacion.middleware.js";import*as C from"./reportes.controller.js";
+const Arr=[
+ ["/inventario/existencias","existencias","REPORTES_INVENTARIO_CONSULTAR"],["/inventario/movimientos","movimientos","REPORTES_INVENTARIO_CONSULTAR"],
+ ["/produccion/censo","censo","REPORTES_PRODUCCION_CONSULTAR"],["/produccion/actividad","actividad","REPORTES_PRODUCCION_CONSULTAR"],["/produccion/mediciones","mediciones","REPORTES_PRODUCCION_CONSULTAR"],
+ ["/sanidad/aplicaciones","sanidad","REPORTES_SANIDAD_CONSULTAR"],["/ventas","ventas","REPORTES_VENTAS_CONSULTAR"],["/costos","costos","REPORTES_COSTOS_CONSULTAR"]]as const;
+export function Reportes_crearRouter(){const R=Router();R.use(Middleware_requerirAutenticacion);R.get("/filtros/:categoria",(Req,Res,Next)=>{const P=`REPORTES_${String(Req.params.categoria).toUpperCase()}_CONSULTAR`;return Middleware_requerirPermiso(P)(Req,Res,Next)},C.Reportes_filtros);for(const[Path,Nombre,Permiso]of Arr){R.get(`${Path}/exportar.csv`,Middleware_requerirPermiso(Permiso),C.Reportes_exportar(Nombre));R.get(Path,Middleware_requerirPermiso(Permiso),C.Reportes_controlador(Nombre));}return R;}

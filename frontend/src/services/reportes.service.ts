@@ -1,0 +1,4 @@
+import { Api_solicitar } from "./api.service";
+export interface RespuestaReporte{ok:true;datos:Record<string,unknown>[];resumen?:Record<string,string|number>;paginacion:{pagina:number;limite:number;total:number}}
+export function Reportes_consultar(StrRuta:string,ObjParametros:URLSearchParams){return Api_solicitar<RespuestaReporte>(`/api/reportes/${StrRuta}?${ObjParametros.toString()}`)}
+export async function Reportes_descargarCsv(StrRuta:string,ObjParametros:URLSearchParams){const R=await fetch(`/api/reportes/${StrRuta}/exportar.csv?${ObjParametros.toString()}`,{credentials:"include"});if(!R.ok)throw new Error("No fue posible exportar el reporte.");const B=await R.blob(),U=URL.createObjectURL(B),A=document.createElement("a");A.href=U;A.download=`reporte-${StrRuta.replaceAll("/","-")}.csv`;A.click();URL.revokeObjectURL(U)}
