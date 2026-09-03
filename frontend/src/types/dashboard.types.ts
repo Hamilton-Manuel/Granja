@@ -1,0 +1,7 @@
+export type CategoriaDashboard = "produccion" | "inventario" | "ventas" | "sanidad" | "costos";
+export interface ProduccionDashboard { animalesActivos:number;lotesActivos:number;animalesPorEstado:Array<{estado:string;cantidad:number}>;animalesPorLote:Array<{loteProduccionId:number|null;codigo:string|null;nombre:string|null;cantidad:number}> }
+export interface InventarioDashboard { productosConExistencia:number;lotesConSaldo:number;existenciasBajoMinimo:number;lotesVencidos:number;lotesProximosVencer:number;proximosVencimientos:Array<{loteInventarioId:number;codigoLote:string;fechaVencimiento:string|null;unidadMedida:string;saldo:string;producto:{codigo:string;nombre:string}}> }
+export interface VentasDashboard { ventasConfirmadas:number;animalesVendidos:number;ingresoMes:string;tendencia:Array<{mes:string;cantidad:number;ingreso:string}> }
+export interface SanidadDashboard { aplicacionesConfirmadas:number;aplicacionesDirectas:number;aplicacionesGlobales:number }
+export interface CostosDashboard { costoAlimentacion:string;costoSanidad:string }
+export interface RespuestaDashboard { ok:true;datos:{periodo:{fechaDesde:string;fechaHasta:string;zonaHoraria:"America/Guatemala"};bloques:{produccion?:ProduccionDashboard;inventario?:InventarioDashboard;ventas?:VentasDashboard;sanidad?:SanidadDashboard;costos?:CostosDashboard};errores?:Partial<Record<CategoriaDashboard,{codigo:string;mensaje:string}>>} }

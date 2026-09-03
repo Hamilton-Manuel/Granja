@@ -73,7 +73,7 @@ describe("sesión y rutas", () => {
     expect(await screen.findByRole("heading", { name: "No fue posible comprobar su sesión" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Iniciar sesión" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    expect(await screen.findByText("Sesión activa")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Bienvenido a Granja El Chiflón" })).toBeInTheDocument();
   });
 
   it("recupera usuario, rol, permisos y deshabilita módulos futuros", async () => {
@@ -94,7 +94,7 @@ describe("sesión y rutas", () => {
     });
     vi.stubGlobal("fetch", ObjFetch);
     Autenticacion_renderizar("/inicio");
-    expect(await screen.findByText("Sesión activa")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Bienvenido a Granja El Chiflón" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("link", { name: /Usuarios/ }));
 
     expect(screen.queryByText("Comprobando su sesión…")).not.toBeInTheDocument();
@@ -218,7 +218,7 @@ describe("sesión y rutas", () => {
   it("redirige una sesión existente que intenta entrar a login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: ObjUsuario } })));
     Autenticacion_renderizar("/login");
-    expect(await screen.findByText("Sesión activa")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Bienvenido a Granja El Chiflón" })).toBeInTheDocument();
   });
 
   it("inicia sesión sin confundir el 401 del login con expiración", async () => {
@@ -247,7 +247,7 @@ describe("sesión y rutas", () => {
     await userEvent.type(screen.getByLabelText("Usuario o correo"), "admin");
     await userEvent.type(screen.getByLabelText("Contraseña"), "contrasena-segura");
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
-    expect(await screen.findByText("Sesión activa")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Bienvenido a Granja El Chiflón" })).toBeInTheDocument();
     const ObjSolicitudLogin = ObjFetch.mock.calls[1]?.[1] as RequestInit;
     expect(ObjSolicitudLogin.credentials).toBe("include");
     expect(ObjSolicitudLogin.body).toBe(JSON.stringify({ identificador: "admin", contrasena: "contrasena-segura" }));
@@ -283,7 +283,7 @@ describe("sesión y rutas", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", ObjFetch);
     Autenticacion_renderizar("/inicio");
-    await screen.findByText("Sesión activa");
+    await screen.findByRole("heading", { name: "Bienvenido a Granja El Chiflón" });
     await userEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
     await waitFor(() => expect(ObjFetch).toHaveBeenCalledTimes(2));

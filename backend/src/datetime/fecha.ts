@@ -95,6 +95,20 @@ export function Fecha_obtenerAhoraGuatemala(): Date {
   );
 }
 
+export function Fecha_obtenerRangoMesActualGuatemala(DtInstante = Fecha_obtenerInstanteActual()): {
+  DtInicio: Date;
+  DtFinExclusivo: Date;
+  DtFinInclusivo: Date;
+} {
+  const DtAhoraGuatemala = Fecha_convertirInstanteAAlmacenamientoGuatemala(DtInstante);
+  const IntAnio = DtAhoraGuatemala.getUTCFullYear();
+  const IntMes = DtAhoraGuatemala.getUTCMonth();
+  const DtInicio = new Date(Date.UTC(IntAnio, IntMes, 1));
+  const DtFinExclusivo = new Date(Date.UTC(IntAnio, IntMes + 1, 1));
+  const DtFinInclusivo = new Date(Date.UTC(IntAnio, IntMes + 1, 0));
+  return { DtInicio, DtFinExclusivo, DtFinInclusivo };
+}
+
 export function Fecha_convertirAlmacenamientoGuatemalaAInstante(
   DtFechaAlmacenada: Date,
 ): Date {
