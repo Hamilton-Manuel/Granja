@@ -32,7 +32,12 @@ export const ObjNacimiento = z.object({ loteDestinoId: ObjId, motivo: ObjTextoNu
 export const ObjCompra = z.object({ proveedorId: ObjId, loteDestinoId: ObjId, documentoReferencia: ObjTextoNullable(150), motivo: ObjTextoNullable(500), observaciones: ObjTextoNullable(1000), animales: z.array(ObjAnimalBase.extend({ costoAdquisicion: ObjDecimalNoNegativo }).strict()).min(1).max(500) }).strict();
 export const ObjTraslado = z.object({ loteOrigenId: ObjId, loteDestinoId: ObjId, animalIds: z.array(ObjId).min(1).max(500), motivo: z.string().trim().min(1).max(500), observaciones: ObjTextoNullable(1000) }).strict();
 export const ObjEstadoTerminal = z.object({ estado: z.enum(["FALLECIDO", "RETIRADO"]), motivo: z.string().trim().min(1).max(500), observaciones: ObjTextoNullable(1000) }).strict();
-export const ObjCrearMedicion = z.object({ animalId: ObjId, valor: z.string().regex(/^(?!0+(?:\.0{1,4})?$)\d{1,14}(?:\.\d{1,4})?$/), observaciones: ObjTextoNullable(1000) }).strict();
+const ObjDecimalPesoPositivo = z.string().regex(/^(?!0+(?:\.0{1,4})?$)\d{1,14}(?:\.\d{1,4})?$/);
+const ObjDecimalMedidaPositiva = z.string().regex(/^(?!0+(?:\.0{1,4})?$)\d{1,6}(?:\.\d{1,4})?$/);
+export const ObjCrearMedicion = z.discriminatedUnion("metodoObtencion", [
+  z.object({ animalId: ObjId, metodoObtencion: z.literal("BASCULA"), pesoKg: ObjDecimalPesoPositivo, observaciones: ObjTextoNullable(1000) }).strict(),
+  z.object({ animalId: ObjId, metodoObtencion: z.literal("ESTIMACION_SCHAEFFER"), perimetroToracicoCm: ObjDecimalMedidaPositiva, longitudCorporalCm: ObjDecimalMedidaPositiva, observaciones: ObjTextoNullable(1000) }).strict(),
+]);
 export const ObjCuerpoVacio = z.object({}).strict();
 
 export const ObjParametroTipo = z.object({ tipoAnimalId: ObjId }).strict();

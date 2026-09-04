@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { ArrCatalogoPermisosProduccion, ArrPermisosProduccionOperador, Produccion_canonicalizarCodigo } from "./produccion.constants.js";
 import { ObjCompra, ObjCrearLote, ObjCrearMedicion, ObjIngresoInicial, ObjNacimiento, ObjTraslado } from "./produccion.schemas.js";
+import { Produccion_calcularPesoSchaeffer, Produccion_convertirKgALb } from "./produccion-mediciones.js";
+import { Prisma } from "../../../generated/prisma/client.js";
 
 const ObjAnimal = { identificacion: "A-001", tipoAnimalId: 1, sexo: "HEMBRA" as const };
 
@@ -36,10 +38,14 @@ test("Produccion registra costo individual exacto en cada animal comprado", () =
 });
 
 test("Produccion limita PESO a medicion individual positiva", () => {
-  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, valor: "25.5000" }).success, true);
-  assert.equal(ObjCrearMedicion.safeParse({ loteProduccionId: 1, valor: "25.5000" }).success, false);
-  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, valor: "0.0000" }).success, false);
+  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, metodoObtencion:"BASCULA", pesoKg: "25.5000" }).success, true);
+  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, metodoObtencion:"ESTIMACION_SCHAEFFER", perimetroToracicoCm:"177", longitudCorporalCm:"198" }).success, true);
+  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, metodoObtencion:"ESTIMACION_SCHAEFFER", perimetroToracicoCm:"177", longitudCorporalCm:"198", pesoKg:"1" }).success, false);
+  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, metodoObtencion:"ESTIMACION_SCHAEFFER", perimetroToracicoCm:"0", longitudCorporalCm:"198" }).success, false);
+  assert.equal(ObjCrearMedicion.safeParse({ animalId: 1, metodoObtencion:"BASCULA", pesoKg:"NaN" }).success, false);
 });
+
+test("Produccion calcula Schaeffer y libras con Decimal",()=>{const DecKg=Produccion_calcularPesoSchaeffer(new Prisma.Decimal("177"),new Prisma.Decimal("198"));assert.equal(DecKg.toFixed(4),"572.3512");assert.equal(Produccion_convertirKgALb(DecKg).toFixed(4),"1261.8184");});
 
 test("Produccion traslado solo acepta lotes existentes y animales identificados", () => {
   assert.equal(ObjTraslado.safeParse({ loteOrigenId: 1, loteDestinoId: 2, animalIds: [1], motivo: "Reclasificacion" }).success, true);

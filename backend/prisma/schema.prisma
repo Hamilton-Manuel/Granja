@@ -674,15 +674,18 @@ model ProduccionHistorialEstado {
 }
 
 model ProduccionMedicion {
-  medicionId       Int      @id @default(autoincrement()) @map("medicion_id")
-  animalId         Int?     @map("animal_id")
-  loteProduccionId Int?     @map("lote_produccion_id")
-  usuarioId        Int      @map("usuario_id")
-  tipoMedicion     String   @map("tipo_medicion") @db.NVarChar(50)
-  valor            Decimal  @db.Decimal(18, 4)
-  unidadMedida     String   @map("unidad_medida") @db.NVarChar(30)
-  fechaMedicion    DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_medicion") @db.DateTime2
-  observaciones    String?  @db.NVarChar(1000)
+  medicionId          Int      @id @default(autoincrement()) @map("medicion_id")
+  animalId            Int?     @map("animal_id")
+  loteProduccionId    Int?     @map("lote_produccion_id")
+  usuarioId           Int      @map("usuario_id")
+  tipoMedicion        String   @map("tipo_medicion") @db.NVarChar(50)
+  valor               Decimal  @db.Decimal(18, 4)
+  unidadMedida        String   @map("unidad_medida") @db.NVarChar(30)
+  metodoObtencion     String?  @map("metodo_obtencion") @db.NVarChar(40)
+  perimetroToracicoCm Decimal? @map("perimetro_toracico_cm") @db.Decimal(10, 4)
+  longitudCorporalCm  Decimal? @map("longitud_corporal_cm") @db.Decimal(10, 4)
+  fechaMedicion       DateTime @default(dbgenerated("CONVERT(datetime2(7), (SYSUTCDATETIME() AT TIME ZONE 'UTC') AT TIME ZONE 'Central America Standard Time')")) @map("fecha_medicion") @db.DateTime2
+  observaciones       String?  @db.NVarChar(1000)
 
   animal  ProduccionAnimal?  @relation(fields: [animalId], references: [animalId], onDelete: NoAction, onUpdate: NoAction)
   lote    ProduccionLote?    @relation(fields: [loteProduccionId], references: [loteProduccionId], onDelete: NoAction, onUpdate: NoAction)

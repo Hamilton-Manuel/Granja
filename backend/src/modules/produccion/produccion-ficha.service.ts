@@ -1,4 +1,5 @@
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
+import { Produccion_agregarPesoLb } from "./produccion-mediciones.js";
 import * as R from "./produccion-ficha.repository.js";
 
 type Aplicacion = R.DatosFichaTecnica["ObjAnimal"]["sanidadAplicaciones"][number];
@@ -43,7 +44,7 @@ export function Produccion_construirFichaTecnica(ObjDatos: R.DatosFichaTecnica) 
   const ArrTrazabilidad = [
     ...(ObjOrigen ? [{ tipo: ObjOrigen.subtipoOperacion === "NACIMIENTO" ? "NACIMIENTO" : "ALTA", fecha: ObjOrigen.fechaOperacion, descripcion: `Origen: ${ObjOrigen.subtipoOperacion}.` }] : []),
     ...ObjAnimal.asignaciones.map((Obj, IntIndice) => ({ tipo: IntIndice === 0 ? "ASIGNACION_LOTE" : "CAMBIO_LOTE", fecha: Obj.fechaInicio, descripcion: IntIndice === 0 ? `Asignado al lote ${Obj.lote.codigo}.` : `Trasladado al lote ${Obj.lote.codigo}.` })),
-    ...ObjAnimal.mediciones.map((Obj) => ({ tipo: "MEDICION", fecha: Obj.fechaMedicion, descripcion: `${Obj.tipoMedicion}: ${Obj.valor.toString()} ${Obj.unidadMedida}.` })),
+    ...ObjAnimal.mediciones.map((Obj) => ({ tipo: "MEDICION", fecha: Obj.fechaMedicion, descripcion: `${Obj.metodoObtencion==="ESTIMACION_SCHAEFFER"?"Peso estimado":Obj.metodoObtencion==="BASCULA"?"Peso medido":"Peso historico"}: ${Obj.valor.toString()} ${Obj.unidadMedida}.` })),
     ...ArrSanidad.map((Obj) => ({ tipo: Obj.alcance === "LOTE" ? "SANIDAD_LOTE" : "SANIDAD_DIRECTA", fecha: Obj.fecha, descripcion: Obj.alcance === "LOTE" ? `${Obj.etiquetaAlcance}: ${Obj.tipo} (${Obj.lote?.codigo ?? "lote"}).` : `${Obj.etiquetaAlcance}: ${Obj.tipo}.` })),
     ...ObjAnimal.historialEstados.map((Obj) => ({ tipo: "CAMBIO_ESTADO", fecha: Obj.fechaCambio, descripcion: `${Obj.estadoAnterior ?? "REGISTRO"} → ${Obj.estadoNuevo}.` })),
   ].sort((A, B) => A.fecha.getTime() - B.fecha.getTime());
@@ -63,7 +64,7 @@ export function Produccion_construirFichaTecnica(ObjDatos: R.DatosFichaTecnica) 
     origen: ObjOrigen ? { tipo: ObjOrigen.subtipoOperacion, fecha: ObjOrigen.fechaOperacion } : null,
     loteActual: ObjAnimal.asignaciones.find((Obj) => Obj.estado === "VIGENTE")?.lote ?? null,
     asignaciones: ObjAnimal.asignaciones,
-    mediciones: ObjAnimal.mediciones,
+    mediciones: ObjAnimal.mediciones.map(Produccion_agregarPesoLb),
     sanidad: ArrSanidad,
     historialEstados: ObjAnimal.historialEstados,
     salida: ObjEstadoSalida ? { estado: ObjEstadoSalida.estadoNuevo, fecha: ObjEstadoSalida.fechaCambio } : null,

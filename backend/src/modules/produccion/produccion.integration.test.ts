@@ -36,7 +36,7 @@ test("Produccion integra ingresos, costos, traslado, medicion, reversion y recon
   assert.deepEqual(ArrCostos.map(ObjCosto => ObjCosto.costoAdquisicion?.toFixed(2)), ["4500.00", "4750.25"]);
 
   const IntAnimalId = ObjInicial.animales[0]!.animalId;
-  await Produccion.Produccion_registrarMedicion(IntAnimalId, "125.5000", null, ObjUsuario.usuarioId);
+  await Produccion.Produccion_registrarMedicion({animalId:IntAnimalId,metodoObtencion:"BASCULA",pesoKg:"125.5000",observaciones:null,IntUsuarioId:ObjUsuario.usuarioId});
   const ObjTraslado = await Produccion.Produccion_registrarTraslado({ loteOrigenId: ObjLoteA.loteProduccionId, loteDestinoId: ObjLoteB.loteProduccionId, animalIds: [IntAnimalId], motivo: "Prueba de traslado", IntUsuarioId: ObjUsuario.usuarioId });
   assert.equal(ObjTraslado.cantidad, 1);
   await Produccion.Produccion_revertirOperacion(ObjTraslado.operacionProduccionId, ObjUsuario.usuarioId);

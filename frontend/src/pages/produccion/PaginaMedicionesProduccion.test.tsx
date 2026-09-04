@@ -1,0 +1,17 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PaginaMedicionesProduccion } from "./PaginaMedicionesProduccion";
+import * as S from "../../services/produccion.service";
+
+let ArrMediciones:Record<string,unknown>[]=[];
+vi.mock("../../hooks/useSesion",()=>({useSesion:()=>({Autenticacion_tienePermiso:()=>true})}));
+vi.mock("../../hooks/useProduccionLista",()=>({Produccion_mensajeError:()=>"Error",useProduccionLista:()=>({ArrDatos:ArrMediciones,StrError:null,IntPagina:1,IntTotal:ArrMediciones.length,Produccion_recargar:vi.fn(),establecerPagina:vi.fn()})}));
+vi.mock("../../components/ui/Autocomplete",()=>({Autocomplete:({Autocomplete_seleccionar}:{Autocomplete_seleccionar:(Obj:unknown)=>void})=><button type="button" onClick={()=>Autocomplete_seleccionar({animalId:7,identificacion:"A-007",tipoAnimal:{nombre:"Bovino"},raza:null})}>Seleccionar animal</button>}));
+vi.mock("../../services/produccion.service",()=>({Produccion_registrarMedicion:vi.fn().mockResolvedValue({datos:{}}),Produccion_listarAnimales:vi.fn(),Produccion_listarMediciones:vi.fn()}));
+
+describe("mediciones de peso",()=>{
+  beforeEach(()=>{vi.clearAllMocks();ArrMediciones=[];});
+  it("previsualiza Schaeffer, conserva observaciones y habilita el registro",async()=>{render(<PaginaMedicionesProduccion/>);const ObjBoton=screen.getByRole("button",{name:"Registrar medición"});expect(ObjBoton).toBeDisabled();expect(screen.getByText("Ingrese las medidas para calcular el peso.")).toBeInTheDocument();fireEvent.click(screen.getByRole("button",{name:"Seleccionar animal"}));fireEvent.change(screen.getByLabelText("Perímetro torácico (cm)"),{target:{value:"177"}});fireEvent.change(screen.getByLabelText("Longitud corporal (cm)"),{target:{value:"198"}});fireEvent.change(screen.getByLabelText("Observaciones (opcional)"),{target:{value:"Control mensual"}});expect(screen.getByLabelText("Observaciones (opcional)")).toHaveValue("Control mensual");expect(screen.getByText("572.35 kg")).toBeInTheDocument();expect(screen.getByText("1,261.82 lb")).toBeInTheDocument();expect(ObjBoton).toBeEnabled();fireEvent.click(ObjBoton);await waitFor(()=>expect(S.Produccion_registrarMedicion).toHaveBeenCalledWith({animalId:7,metodoObtencion:"ESTIMACION_SCHAEFFER",perimetroToracicoCm:"177",longitudCorporalCm:"198",observaciones:"Control mensual"}));});
+  it("conserva captura por báscula y muestra su conversión",()=>{render(<PaginaMedicionesProduccion/>);fireEvent.change(screen.getByLabelText("Método de medición"),{target:{value:"BASCULA"}});fireEvent.change(screen.getByLabelText("Peso medido (kg)"),{target:{value:"100"}});expect(screen.queryByLabelText("Perímetro torácico (cm)")).not.toBeInTheDocument();expect(screen.getByText("100.00 kg")).toBeInTheDocument();expect(screen.getByText("220.46 lb")).toBeInTheDocument();});
+  it("mantiene el historial en tabla y tarjetas responsive",()=>{ArrMediciones=[{medicionId:1,animalId:7,tipoMedicion:"PESO",valor:"100.0000",pesoLb:"220.4623",unidadMedida:"KG",metodoObtencion:"BASCULA",perimetroToracicoCm:null,longitudCorporalCm:null,fechaMedicion:"2026-09-03T10:00:00-06:00",observaciones:"Control",animal:{identificacion:"A-007"}}];render(<PaginaMedicionesProduccion/>);expect(screen.getByRole("heading",{name:"Historial de mediciones"})).toBeInTheDocument();expect(screen.getAllByText("A-007")).toHaveLength(2);expect(screen.getAllByText("Control")).toHaveLength(2);});
+});

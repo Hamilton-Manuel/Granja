@@ -50,7 +50,7 @@ export async function Produccion_obtenerDatosFichaTecnica(IntAnimalId: number) {
         },
         mediciones: {
           orderBy: { fechaMedicion: "asc" },
-          select: { medicionId: true, tipoMedicion: true, valor: true, unidadMedida: true, fechaMedicion: true, observaciones: true },
+          select: { medicionId: true, tipoMedicion: true, valor: true, unidadMedida: true, metodoObtencion: true, perimetroToracicoCm: true, longitudCorporalCm: true, fechaMedicion: true, observaciones: true },
         },
         historialEstados: {
           orderBy: { fechaCambio: "asc" },
