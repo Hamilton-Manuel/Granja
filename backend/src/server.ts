@@ -6,14 +6,13 @@ import {
   BaseDatos_verificarConexion,
 } from "./database/prisma.js";
 import { Configuracion_obtenerEntorno } from "./config/configuracion-entorno.js";
-import { Almacenamiento_inicializar } from "./storage/almacenamiento-blob.js";
 
 let ObjServidor: Server | undefined;
 let BoolCierreEnCurso = false;
 
 async function Servidor_escuchar(IntPuerto: number): Promise<Server> {
   return new Promise((ObjResolver, ObjRechazar) => {
-    const ObjServidorHttp = ObjAplicacion.listen(IntPuerto);
+    const ObjServidorHttp = ObjAplicacion.listen(IntPuerto, "0.0.0.0");
 
     ObjServidorHttp.once("listening", () => ObjResolver(ObjServidorHttp));
     ObjServidorHttp.once("error", ObjRechazar);
@@ -27,22 +26,30 @@ async function Servidor_cerrar(StrSenal: string): Promise<void> {
 
   BoolCierreEnCurso = true;
   console.info(`Cierre solicitado por ${StrSenal}.`);
+  const ObjLimite = setTimeout(() => {
+    console.error("Se agotó el plazo de cierre del servidor.");
+    ObjServidor?.closeAllConnections();
+    process.exit(1);
+  }, 25_000);
+  ObjLimite.unref();
 
-  if (ObjServidor !== undefined) {
-    await new Promise<void>((ObjResolver, ObjRechazar) => {
-      ObjServidor?.close((ObjError) => {
-        if (ObjError !== undefined) {
-          ObjRechazar(ObjError);
-          return;
-        }
+  try {
+    if (ObjServidor !== undefined) {
+      await new Promise<void>((ObjResolver, ObjRechazar) => {
+        ObjServidor?.close((ObjError) => {
+          if (ObjError !== undefined) {
+            ObjRechazar(ObjError);
+            return;
+          }
 
-        ObjResolver();
+          ObjResolver();
+        });
       });
-    });
-  }
+    }
 
-  await BaseDatos_desconectar();
-  console.info("Servidor y conexión a base de datos cerrados correctamente.");
+    await BaseDatos_desconectar();
+    console.info("Servidor y conexión a base de datos cerrados correctamente.");
+  } finally { clearTimeout(ObjLimite); }
 }
 
 function Servidor_registrarSenales(): void {
@@ -66,7 +73,6 @@ export async function Servidor_iniciar(): Promise<void> {
     const ObjEntorno = Configuracion_obtenerEntorno();
 
     await BaseDatos_verificarConexion();
-    await Almacenamiento_inicializar();
     ObjServidor = await Servidor_escuchar(ObjEntorno.PORT);
     Servidor_registrarSenales();
 

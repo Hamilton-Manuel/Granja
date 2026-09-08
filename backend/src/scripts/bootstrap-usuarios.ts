@@ -292,7 +292,7 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
       });
     }
     return StrAccion;
-  });
+  }, { maxWait: 10_000, timeout: 120_000 });
 
   console.info(ObjResultado === undefined
     ? "Bootstrap ya estaba completo; no se realizaron cambios."
@@ -302,8 +302,8 @@ export async function Usuarios_ejecutarBootstrap(): Promise<void> {
 async function Usuarios_ejecutarBootstrapDesdeCli(): Promise<void> {
   try {
     await Usuarios_ejecutarBootstrap();
-  } catch (ObjError) {
-    console.error(ObjError instanceof Error ? ObjError.message : "No fue posible completar el bootstrap.");
+  } catch {
+    console.error("No fue posible completar el bootstrap. Revise la base esperada, identidad y catálogos.");
     process.exitCode = 1;
   } finally {
     await BaseDatos_desconectar();

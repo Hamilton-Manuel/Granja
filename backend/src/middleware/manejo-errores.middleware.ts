@@ -22,6 +22,11 @@ export function Middleware_manejarErrores(
   ObjRespuesta: Response,
   _ObjSiguiente: NextFunction,
 ): void {
+  if (ObjRespuesta.headersSent) {
+    console.error("La respuesta se interrumpió después de enviar encabezados.");
+    ObjRespuesta.destroy();
+    return;
+  }
   if (ObjError instanceof ErrorAplicacion) {
     ObjRespuesta.status(ObjError.IntEstadoHttp).json({
       error: {

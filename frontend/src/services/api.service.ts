@@ -1,4 +1,5 @@
 import { ErrorApi, type ErrorApiPublico } from "../types/api.types";
+import { Api_resolverUrl } from "./api-origen";
 
 interface OpcionesSolicitud extends Omit<RequestInit, "body" | "credentials"> {
   ObjCuerpo?: unknown;
@@ -51,7 +52,7 @@ export async function Api_solicitar<T = undefined>(
   }
 
   try {
-    const ObjRespuesta = await fetch(StrRuta, {
+    const ObjRespuesta = await fetch(Api_resolverUrl(StrRuta), {
       ...ObjOpcionesFetch,
       headers: ObjEncabezados,
       credentials: "include",
