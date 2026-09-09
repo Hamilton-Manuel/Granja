@@ -1,0 +1,509 @@
+name: Producción Azure
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      desplegar:
+        description: Desplegar los componentes cambiados (requiere base_sha)
+        type: boolean
+        default: false
+      base_sha:
+        description: SHA completo base del diff; sin base y sin despliegue se valida todo
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: granja-produccion
+  queue: max
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+  AZURE_BACKEND_APP: ${{ vars.AZURE_BACKEND_APP }}
+  AZURE_FRONTEND_APP: ${{ vars.AZURE_FRONTEND_APP }}
+  AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
+  BACKEND_FQDN: ${{ vars.BACKEND_FQDN }}
+
+jobs:
+  detectar-cambios:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      backend_changed: ${{ steps.cambios.outputs.backend_changed }}
+      frontend_changed: ${{ steps.cambios.outputs.frontend_changed }}
+      migrations_changed: ${{ steps.cambios.outputs.migrations_changed }}
+      schema_changed: ${{ steps.cambios.outputs.schema_changed }}
+      desplegar: ${{ steps.cambios.outputs.desplegar }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detectar cambios reales y comprobar migraciones
+        id: cambios
+        env:
+          SHA_ANTERIOR: ${{ github.event.before }}
+          SHA_BASE_MANUAL: ${{ inputs.base_sha }}
+          DESPLEGAR_MANUAL: ${{ inputs.desplegar }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/master ]]; then
+            echo '::error::Este workflow solo admite la rama master.'
+            exit 1
+          fi
+          BoolDesplegar=false
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            BoolDesplegar=true
+            StrBase="$SHA_ANTERIOR"
+            if [[ "$StrBase" == 0000000000000000000000000000000000000000 ]]; then
+              StrBase=$(git hash-object -t tree /dev/null)
+            fi
+          else
+            StrBase="$SHA_BASE_MANUAL"
+            if [[ "$DESPLEGAR_MANUAL" == true ]]; then
+              BoolDesplegar=true
+              if [[ -z "$StrBase" ]]; then
+                echo '::error::desplegar=true requiere base_sha explícito.'
+                exit 1
+              fi
+            fi
+            if [[ -z "$StrBase" ]]; then
+              StrBase=$(git hash-object -t tree /dev/null)
+              echo 'Validación completa sin base_sha; no se desplegará.'
+            else
+              if [[ ! "$StrBase" =~ ^[0-9a-fA-F]{40}$ ]] ||
+                 ! git cat-file -e "${StrBase}^{commit}" ||
+                 ! git merge-base --is-ancestor "$StrBase" "$GITHUB_SHA"; then
+                echo '::error::base_sha debe ser un SHA completo existente y ancestro del SHA seleccionado de master.'
+                exit 1
+              fi
+            fi
+          fi
+          # --no-renames considera también las rutas de origen de archivos movidos.
+          git diff --no-renames --name-only -z "$StrBase" "$GITHUB_SHA" -- > "$RUNNER_TEMP/granja-cambios"
+          BoolBackend=false
+          BoolFrontend=false
+          BoolMigraciones=false
+          BoolSchema=false
+          while IFS= read -r -d '' StrRuta; do
+            case "$StrRuta" in backend/*) BoolBackend=true ;; esac
+            case "$StrRuta" in frontend/*) BoolFrontend=true ;; esac
+            case "$StrRuta" in backend/prisma/migrations/*) BoolMigraciones=true ;; esac
+            case "$StrRuta" in backend/prisma/schema.prisma) BoolSchema=true ;; esac
+          done < "$RUNNER_TEMP/granja-cambios"
+          {
+            echo "backend_changed=$BoolBackend"
+            echo "frontend_changed=$BoolFrontend"
+            echo "migrations_changed=$BoolMigraciones"
+            echo "schema_changed=$BoolSchema"
+            echo "desplegar=$BoolDesplegar"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "Comparación: \`$StrBase\` → \`$GITHUB_SHA\`"
+            echo "Backend: $BoolBackend; frontend: $BoolFrontend; migraciones: $BoolMigraciones; schema: $BoolSchema."
+            echo "Despliegue habilitado: $BoolDesplegar."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$BoolSchema" == true && "$BoolMigraciones" == false ]]; then
+            echo '::error::schema.prisma cambió sin una migración versionada'
+            exit 1
+          fi
+          if [[ "$BoolBackend" == false && "$BoolFrontend" == false ]]; then
+            echo 'No hay componentes desplegables' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  validar-backend:
+    needs: detectar-cambios
+    if: needs.detectar-cambios.outputs.backend_changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Validar backend con SQL Server temporal del runner
+        working-directory: backend
+        env:
+          MIGRACIONES_CAMBIARON: ${{ needs.detectar-cambios.outputs.migrations_changed }}
+        run: |
+          set -euo pipefail
+          npm ci
+          # Credenciales efímeras: solo entorno de este proceso y contenedor local.
+          # Nunca escribirlas en GITHUB_ENV, GITHUB_OUTPUT, archivos o artefactos.
+          export MSSQL_SA_PASSWORD="Ci_$(openssl rand -hex 24)!aA1"
+          echo "::add-mask::$MSSQL_SA_PASSWORD"
+          export DATABASE_URL="sqlserver://127.0.0.1:1433;database=granja_ci;user=sa;password=${MSSQL_SA_PASSWORD};encrypt=true;trustServerCertificate=true"
+          echo "::add-mask::$DATABASE_URL"
+          export NODE_ENV=test
+          trap 'docker rm -f -v granja-sql-ci >/dev/null 2>&1 || true; unset DATABASE_URL MSSQL_SA_PASSWORD' EXIT
+          docker run --detach --name granja-sql-ci --platform linux/amd64 \
+            -e ACCEPT_EULA=Y -e MSSQL_PID=Developer -e MSSQL_SA_PASSWORD \
+            -p 127.0.0.1:1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-CU25-ubuntu-22.04 > /dev/null
+          BoolSqlListo=false
+          for IntIntento in {1..60}; do
+            if docker exec granja-sql-ci sh -c \
+              'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -l 2 -t 5 -Q "SELECT 1"' \
+              > /dev/null 2>&1; then
+              BoolSqlListo=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$BoolSqlListo" != true ]]; then
+            echo '::error::SQL Server temporal no quedó disponible.'
+            exit 1
+          fi
+          docker exec granja-sql-ci sh -c \
+            'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -l 5 -t 30 -Q "CREATE DATABASE granja_ci"'
+          npm run prisma:generate
+          # Preflight real exclusivamente sobre granja_ci en el SQL efímero local.
+          if [[ "$MIGRACIONES_CAMBIARON" == true ]]; then
+            npx prisma migrate deploy
+            npx prisma migrate status
+          fi
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Asegurar limpieza del SQL temporal
+        if: always()
+        run: docker rm -f -v granja-sql-ci > /dev/null 2>&1 || true
+
+  validar-frontend:
+    needs: detectar-cambios
+    if: needs.detectar-cambios.outputs.frontend_changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validar frontend
+        working-directory: frontend
+        env:
+          VITE_API_ORIGIN: https://${{ vars.BACKEND_FQDN }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_FQDN"
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+  desplegar-backend:
+    needs: [detectar-cambios, validar-backend, validar-frontend]
+    if: >-
+      ${{ always() && !cancelled() &&
+          needs.detectar-cambios.result == 'success' &&
+          needs.detectar-cambios.outputs.desplegar == 'true' &&
+          needs.detectar-cambios.outputs.backend_changed == 'true' &&
+          needs.validar-backend.result == 'success' &&
+          (needs.validar-frontend.result == 'success' ||
+           (needs.detectar-cambios.outputs.frontend_changed == 'false' && needs.validar-frontend.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Publicar backend y operaciones cuando corresponda
+        env:
+          MIGRACIONES_CAMBIARON: ${{ needs.detectar-cambios.outputs.migrations_changed }}
+        run: |
+          set -euo pipefail
+          LOGIN_SERVER=$(az acr show --name "$AZURE_ACR_NAME" --query loginServer -o tsv)
+          test -n "$LOGIN_SERVER"
+          echo "LOGIN_SERVER=$LOGIN_SERVER" >> "$GITHUB_ENV"
+          az acr login --name "$AZURE_ACR_NAME"
+          StrRepositorios=$(az acr repository list --name "$AZURE_ACR_NAME" -o json)
+          ArrImagenes=()
+          Construir_imagen() {
+            local StrRepositorio="$1" StrTarget="$2" StrTags
+            if jq -e --arg repo "$StrRepositorio" 'index($repo) != null' <<< "$StrRepositorios" > /dev/null; then
+              StrTags=$(az acr repository show-tags --name "$AZURE_ACR_NAME" --repository "$StrRepositorio" -o json)
+              if jq -e --arg sha "$GITHUB_SHA" 'index($sha) != null' <<< "$StrTags" > /dev/null; then
+                echo "Reutilizando imagen inmutable $StrRepositorio:$GITHUB_SHA"
+                return
+              fi
+            fi
+            docker build --platform linux/amd64 --target "$StrTarget" \
+              -t "$LOGIN_SERVER/$StrRepositorio:$GITHUB_SHA" backend
+            ArrImagenes+=("$LOGIN_SERVER/$StrRepositorio:$GITHUB_SHA")
+          }
+          Construir_imagen granja/backend runtime
+          if [[ "$MIGRACIONES_CAMBIARON" == true ]]; then
+            Construir_imagen granja/operaciones operaciones
+          fi
+          for StrImagen in "${ArrImagenes[@]}"; do
+            docker push "$StrImagen"
+          done
+      - name: Migrar y esperar la ejecución específica
+        if: needs.detectar-cambios.outputs.migrations_changed == 'true'
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          # No modificar argumentos, variables, identidad ni secretos del Job.
+          az containerapp job update --name "$AZURE_MIGRATION_JOB" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$LOGIN_SERVER/granja/operaciones:$GITHUB_SHA" --output none
+          StrEjecucion=$(az containerapp job start --name "$AZURE_MIGRATION_JOB" \
+            --resource-group "$AZURE_RESOURCE_GROUP" --query name -o tsv)
+          if [[ -z "$StrEjecucion" || "$StrEjecucion" == null ]]; then
+            echo '::error::Azure no devolvió el nombre de la ejecución de migración.'
+            exit 1
+          fi
+          echo "Migración: \`$StrEjecucion\`" >> "$GITHUB_STEP_SUMMARY"
+          IntLimite=$((SECONDS + 1200))
+          while (( SECONDS < IntLimite )); do
+            StrEstado=$(timeout 60s az containerapp job execution show \
+              --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" \
+              --job-execution-name "$StrEjecucion" --query properties.status -o tsv)
+            echo "Ejecución $StrEjecucion: $StrEstado"
+            case "$StrEstado" in
+              Succeeded) exit 0 ;;
+              Running|Processing) sleep 10 ;;
+              *) echo "::error::Migración detenida: estado $StrEstado. Backend bloqueado."; exit 1 ;;
+            esac
+          done
+          echo '::error::Timeout de migración (20 minutos). Backend bloqueado; comprobar la ejecución antes de reintentar.'
+          exit 1
+      - name: Actualizar solo imagen backend
+        run: |
+          set -euo pipefail
+          StrRevision=$(az containerapp update --name "$AZURE_BACKEND_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$LOGIN_SERVER/granja/backend:$GITHUB_SHA" \
+            --query properties.latestRevisionName -o tsv)
+          if [[ -z "$StrRevision" || "$StrRevision" == null ]]; then
+            echo '::error::Azure no devolvió latestRevisionName del backend.'
+            exit 1
+          fi
+          echo "REVISION_BACKEND=$StrRevision" >> "$GITHUB_ENV"
+      - name: Verificar la revisión concreta del backend
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          IntLimite=$((SECONDS + 600))
+          while (( SECONDS < IntLimite )); do
+            StrDetalle=$(timeout 60s az containerapp revision show \
+              --name "$AZURE_BACKEND_APP" --resource-group "$AZURE_RESOURCE_GROUP" \
+              --revision "$REVISION_BACKEND" \
+              --query '{nombre:name,imagenes:properties.template.containers[].image,aprovisionamiento:properties.provisioningState,salud:properties.healthState,ejecucion:properties.runningState,error:properties.provisioningError}' -o json)
+            if ! jq -e --arg revision "$REVISION_BACKEND" \
+              --arg imagen "$LOGIN_SERVER/granja/backend:$GITHUB_SHA" \
+              '.nombre == $revision and (.imagenes | index($imagen) != null)' <<< "$StrDetalle" > /dev/null; then
+              echo '::error::La revisión backend no corresponde a la imagen del SHA esperado.'
+              exit 1
+            fi
+            StrProvision=$(jq -r '.aprovisionamiento // ""' <<< "$StrDetalle")
+            StrSalud=$(jq -r '.salud // "None"' <<< "$StrDetalle")
+            StrEjecucion=$(jq -r '.ejecucion // ""' <<< "$StrDetalle")
+            StrError=$(jq -r '.error // ""' <<< "$StrDetalle")
+            echo "Revisión $REVISION_BACKEND: $StrProvision / $StrSalud / $StrEjecucion"
+            if [[ -n "$StrError" ]]; then
+              echo '::error::La revisión backend tiene un error de aprovisionamiento; consultar Azure.'
+              exit 1
+            fi
+            case "$StrProvision" in
+              Provisioned|Provisioning) ;;
+              *) echo "::error::Aprovisionamiento backend no válido: $StrProvision"; exit 1 ;;
+            esac
+            case "$StrSalud" in
+              Healthy|None) ;;
+              *) echo "::error::Salud backend no válida: $StrSalud"; exit 1 ;;
+            esac
+            case "$StrEjecucion" in
+              Running|Processing) ;;
+              *) echo "::error::Ejecución backend no válida: $StrEjecucion"; exit 1 ;;
+            esac
+            if [[ "$StrProvision" == Provisioned && "$StrSalud" == Healthy && "$StrEjecucion" == Running ]]; then
+              echo "Revisión backend verificada: \`$REVISION_BACKEND\` ($GITHUB_SHA)." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::error::Timeout verificando la revisión backend (10 minutos); frontend bloqueado.'
+          exit 1
+      - name: Esperar backend saludable
+        timeout-minutes: 7
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_FQDN"
+          IntLimite=$((SECONDS + 300))
+          while (( SECONDS < IntLimite )); do
+            StrHttp=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --connect-timeout 5 --max-time 15 "https://$BACKEND_FQDN/api/health") || StrHttp=000
+            if [[ "$StrHttp" == 2[0-9][0-9] ]]; then
+              echo "Backend saludable: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::error::Backend sin respuesta HTTP exitosa tras 5 minutos; frontend bloqueado.'
+          exit 1
+
+  desplegar-frontend:
+    needs: [detectar-cambios, validar-frontend, desplegar-backend]
+    if: >-
+      ${{ always() && !cancelled() &&
+          needs.detectar-cambios.result == 'success' &&
+          needs.detectar-cambios.outputs.desplegar == 'true' &&
+          needs.detectar-cambios.outputs.frontend_changed == 'true' &&
+          needs.validar-frontend.result == 'success' &&
+          (needs.desplegar-backend.result == 'success' ||
+           (needs.detectar-cambios.outputs.backend_changed == 'false' && needs.desplegar-backend.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Publicar frontend sin sobrescribir tags existentes
+        run: |
+          set -euo pipefail
+          LOGIN_SERVER=$(az acr show --name "$AZURE_ACR_NAME" --query loginServer -o tsv)
+          test -n "$LOGIN_SERVER"
+          test -n "$BACKEND_FQDN"
+          echo "LOGIN_SERVER=$LOGIN_SERVER" >> "$GITHUB_ENV"
+          az acr login --name "$AZURE_ACR_NAME"
+          StrRepositorios=$(az acr repository list --name "$AZURE_ACR_NAME" -o json)
+          if jq -e 'index("granja/frontend") != null' <<< "$StrRepositorios" > /dev/null; then
+            StrTags=$(az acr repository show-tags --name "$AZURE_ACR_NAME" --repository granja/frontend -o json)
+            if jq -e --arg sha "$GITHUB_SHA" 'index($sha) != null' <<< "$StrTags" > /dev/null; then
+              echo "Reutilizando imagen inmutable granja/frontend:$GITHUB_SHA"
+              exit 0
+            fi
+          fi
+          docker build --platform linux/amd64 --target runtime \
+            --build-arg "VITE_API_ORIGIN=https://$BACKEND_FQDN" \
+            -t "$LOGIN_SERVER/granja/frontend:$GITHUB_SHA" frontend
+          docker push "$LOGIN_SERVER/granja/frontend:$GITHUB_SHA"
+      - name: Actualizar solo imagen frontend
+        run: |
+          set -euo pipefail
+          StrRevision=$(az containerapp update --name "$AZURE_FRONTEND_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$LOGIN_SERVER/granja/frontend:$GITHUB_SHA" \
+            --query properties.latestRevisionName -o tsv)
+          if [[ -z "$StrRevision" || "$StrRevision" == null ]]; then
+            echo '::error::Azure no devolvió latestRevisionName del frontend.'
+            exit 1
+          fi
+          echo "REVISION_FRONTEND=$StrRevision" >> "$GITHUB_ENV"
+      - name: Verificar la revisión concreta del frontend
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          IntLimite=$((SECONDS + 600))
+          while (( SECONDS < IntLimite )); do
+            StrDetalle=$(timeout 60s az containerapp revision show \
+              --name "$AZURE_FRONTEND_APP" --resource-group "$AZURE_RESOURCE_GROUP" \
+              --revision "$REVISION_FRONTEND" \
+              --query '{nombre:name,imagenes:properties.template.containers[].image,aprovisionamiento:properties.provisioningState,salud:properties.healthState,ejecucion:properties.runningState,error:properties.provisioningError}' -o json)
+            if ! jq -e --arg revision "$REVISION_FRONTEND" \
+              --arg imagen "$LOGIN_SERVER/granja/frontend:$GITHUB_SHA" \
+              '.nombre == $revision and (.imagenes | index($imagen) != null)' <<< "$StrDetalle" > /dev/null; then
+              echo '::error::La revisión frontend no corresponde a la imagen del SHA esperado.'
+              exit 1
+            fi
+            StrProvision=$(jq -r '.aprovisionamiento // ""' <<< "$StrDetalle")
+            StrSalud=$(jq -r '.salud // "None"' <<< "$StrDetalle")
+            StrEjecucion=$(jq -r '.ejecucion // ""' <<< "$StrDetalle")
+            StrError=$(jq -r '.error // ""' <<< "$StrDetalle")
+            echo "Revisión $REVISION_FRONTEND: $StrProvision / $StrSalud / $StrEjecucion"
+            if [[ -n "$StrError" ]]; then
+              echo '::error::La revisión frontend tiene un error de aprovisionamiento; consultar Azure.'
+              exit 1
+            fi
+            case "$StrProvision" in
+              Provisioned|Provisioning) ;;
+              *) echo "::error::Aprovisionamiento frontend no válido: $StrProvision"; exit 1 ;;
+            esac
+            case "$StrSalud" in
+              Healthy|None) ;;
+              *) echo "::error::Salud frontend no válida: $StrSalud"; exit 1 ;;
+            esac
+            case "$StrEjecucion" in
+              Running|Processing) ;;
+              *) echo "::error::Ejecución frontend no válida: $StrEjecucion"; exit 1 ;;
+            esac
+            if [[ "$StrProvision" == Provisioned && "$StrSalud" == Healthy && "$StrEjecucion" == Running ]]; then
+              echo "Revisión frontend verificada: \`$REVISION_FRONTEND\` ($GITHUB_SHA)." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::error::Timeout verificando la revisión frontend (10 minutos).'
+          exit 1
+      - name: Esperar frontend saludable
+        timeout-minutes: 7
+        run: |
+          set -euo pipefail
+          StrFqdn=$(az containerapp show --name "$AZURE_FRONTEND_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
+          test -n "$StrFqdn"
+          IntLimite=$((SECONDS + 300))
+          while (( SECONDS < IntLimite )); do
+            StrHttp=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --connect-timeout 5 --max-time 15 "https://$StrFqdn/healthz") || StrHttp=000
+            if [[ "$StrHttp" == 2[0-9][0-9] ]]; then
+              echo "Frontend saludable: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::error::Frontend sin respuesta HTTP exitosa tras 5 minutos.'
+          exit 1
+
+  resultado:
+    needs: [detectar-cambios, validar-backend, validar-frontend, desplegar-backend, desplegar-frontend]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Resumir resultados y detectar fallos
+        env:
+          RESULTADOS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$RESULTADOS" | tee -a "$GITHUB_STEP_SUMMARY"
+          jq -e 'all(.[]; .result != "failure" and .result != "cancelled")' <<< "$RESULTADOS" > /dev/null
+          for StrComponente in backend frontend; do
+            BoolCambio=$(jq -r --arg clave "${StrComponente}_changed" '."detectar-cambios".outputs[$clave]' <<< "$RESULTADOS")
+            if [[ "$BoolCambio" == true ]]; then
+              jq -e --arg job "validar-$StrComponente" '.[$job].result == "success"' <<< "$RESULTADOS" > /dev/null
+              if [[ $(jq -r '."detectar-cambios".outputs.desplegar' <<< "$RESULTADOS") == true ]]; then
+                jq -e --arg job "desplegar-$StrComponente" '.[$job].result == "success"' <<< "$RESULTADOS" > /dev/null
+              fi
+            fi
+          done
