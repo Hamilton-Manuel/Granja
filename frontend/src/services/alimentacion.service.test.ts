@@ -11,6 +11,17 @@ function Alimentacion_respuesta(ObjDatos: unknown): Response {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("servicio Alimentación", () => {
+  it("consulta disponibilidad con contrato lógico y credenciales de sesión", async () => {
+    const ObjFetch=vi.fn().mockResolvedValue(Alimentacion_respuesta({datos:{formulaId:1,disponible:true,ingredientes:[],faltantes:[],mensaje:null}}));
+    vi.stubGlobal("fetch",ObjFetch);
+    const ObjEntrada={formulaId:1,fechaEfectiva:"2026-09-11T08:00:00.000-06:00"};
+    expect((await S.Alimentacion_consultarDisponibilidad(ObjEntrada)).disponible).toBe(true);
+    expect(ObjFetch.mock.calls[0]?.[0]).toBe("/api/alimentacion/disponibilidad");
+    const ObjOpciones=ObjFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(ObjOpciones.method).toBe("POST");
+    expect(ObjOpciones.credentials).toBe("include");
+    expect(JSON.parse(ObjOpciones.body as string)).toEqual(ObjEntrada);
+  });
   it("consulta el historial por identificación y filtros canónicos", async () => {
     const ObjFetch = vi.fn().mockResolvedValue(
       Alimentacion_respuesta({

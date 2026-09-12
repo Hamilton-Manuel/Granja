@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";import test from "node:test";import{ObjRegistrar,ObjConsulta}from"./alimentacion.schemas.js";import{ArrPermisosAlimentacionOperador,ArrCatalogoPermisosAlimentacion}from"./alimentacion.constants.js";import{readFile}from"node:fs/promises";
+test("formula acepta composición lógica y rechaza fuentes físicas enviadas",()=>{
+ const ObjBase={formulaId:1,fechaEfectiva:"2026-09-11T08:00:00.000-06:00",destino:{tipo:"ANIMAL",animalId:1},detalles:[{productoId:1,cantidad:"6.0000"}]};
+ assert.equal(ObjRegistrar.safeParse(ObjBase).success,true);
+ assert.equal(ObjRegistrar.safeParse({...ObjBase,detalles:[{...ObjBase.detalles[0],inventarioId:1,loteInventarioId:1}]}).success,false);
+ assert.equal(ObjRegistrar.safeParse({...ObjBase,formulaId:null}).success,false);
+});
 test("Alimentacion valida destino animal, lote y Decimal string",()=>{const r=ObjRegistrar.safeParse({fechaEfectiva:"2026-08-24T07:00:00.000-06:00",destino:{tipo:"ANIMAL",animalId:1},detalles:[{productoId:1,inventarioId:1,loteInventarioId:1,cantidad:"10.2500"}]});assert.equal(r.success,true);});
 test("Alimentacion rechaza cantidad cero y fuente tecnica inválida",()=>{assert.equal(ObjRegistrar.safeParse({fechaEfectiva:"2026-08-24T07:00:00.000-06:00",destino:{tipo:"LOTE",loteProduccionId:1},detalles:[{productoId:1,inventarioId:1,cantidad:"0.0000"}]}).success,false);});
 test("consulta conserva paginación",()=>{const q=ObjConsulta.parse({});assert.deepEqual({pagina:q.pagina,limite:q.limite},{pagina:1,limite:20});});

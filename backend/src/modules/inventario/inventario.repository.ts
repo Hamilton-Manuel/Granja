@@ -2,7 +2,16 @@ import { Prisma } from "../../../generated/prisma/client.js";
 import { BaseDatos_obtenerCliente } from "../../database/prisma.js";
 import { Fecha_obtenerAhoraGuatemala } from "../../datetime/fecha.js";
 
-async function Inventario_ejecutarSerializable<T>(Inventario_operacion:(ObjTx:Prisma.TransactionClient)=>Promise<T>,_ObjOpciones?:unknown):Promise<T>{for(let IntIntento=1;IntIntento<=3;IntIntento+=1){try{return await BaseDatos_obtenerCliente().$transaction(Inventario_operacion,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});}catch(ObjError){if(!(ObjError instanceof Prisma.PrismaClientKnownRequestError)||ObjError.code!=="P2034"||IntIntento===3)throw ObjError;}}throw new Error("TRANSACCION_NO_COMPLETADA");}
+export async function Inventario_ejecutarSerializable<T>(Inventario_operacion:(ObjTx:Prisma.TransactionClient)=>Promise<T>,_ObjOpciones?:unknown):Promise<T>{for(let IntIntento=1;IntIntento<=3;IntIntento+=1){try{return await BaseDatos_obtenerCliente().$transaction(Inventario_operacion,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});}catch(ObjError){if(!(ObjError instanceof Prisma.PrismaClientKnownRequestError)||ObjError.code!=="P2034"||IntIntento===3)throw ObjError;}}throw new Error("TRANSACCION_NO_COMPLETADA");}
+
+/** Fuentes físicas utilizables; la fecha es civil y la determina el módulo consumidor. */
+export function Inventario_filtroFuentesDisponibles(IntProductoId:number, DtFecha?:Date, IntInventarioId?:number):Prisma.InventarioExistenciaLoteWhereInput {
+  return {productoId:IntProductoId,existenciaActual:{gt:0},existencia:{...(IntInventarioId===undefined?{}:{inventarioId:IntInventarioId}),activo:true,existenciaActual:{gt:0},almacen:{activo:true},producto:{activo:true,manejaLotes:true}},lote:{activo:true,...(DtFecha?{OR:[{fechaVencimiento:null},{fechaVencimiento:{gte:DtFecha}}]}:{})}};
+}
+
+export function Inventario_buscarFuentesDisponiblesConTx(ObjTx:Prisma.TransactionClient,IntProductoId:number,DtFecha:Date) {
+  return ObjTx.inventarioExistenciaLote.findMany({where:Inventario_filtroFuentesDisponibles(IntProductoId,DtFecha),include:{existencia:true,lote:true},orderBy:[{existencia:{inventarioId:"asc"}},{lote:{codigoLote:"asc"}},{existenciaLoteId:"asc"}]});
+}
 
 const ObjSeleccionProductoResumen = { productoId: true, codigo: true, nombre: true, unidadMedida: true, manejaLotes: true, activo: true } satisfies Prisma.InventarioProductoSelect;
 const ObjSeleccionAlmacenResumen = { inventarioId: true, codigo: true, nombre: true, activo: true } satisfies Prisma.InventarioAlmacenSelect;

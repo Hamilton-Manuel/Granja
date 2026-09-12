@@ -107,8 +107,8 @@ export function PaginaFormulasAlimentacion() {
         <div>
           <h2>Fórmulas</h2>
           <p>
-            Plantillas opcionales; sus ingredientes pueden editarse antes de
-            confirmar cada alimentación.
+            Composición de productos y cantidades. El inventario se asigna
+            automáticamente al registrar cada alimentación.
           </p>
         </div>
         {P("ALIMENTACION_FORMULAS_CREAR") && (

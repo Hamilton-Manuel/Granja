@@ -80,3 +80,5 @@ export const Alimentacion_buscarLotesInventario = (IntProductoId: number, IntInv
   Api_solicitar<T.RespuestaDato<T.LoteFuenteAlimentacion[]>>(`/api/alimentacion/lotes-inventario?productoId=${IntProductoId}&inventarioId=${IntInventarioId}${StrFecha ? `&fechaAlimentacion=${encodeURIComponent(StrFecha)}` : ""}`).then((Obj) => Obj.datos);
 export const Alimentacion_registrar = (Obj: T.DatosRegistroAlimentacion) =>
   Api_solicitar<T.RespuestaDato<{ alimentacionId: number }>>("/api/alimentacion", { method: "POST", ObjCuerpo: Obj });
+
+export const Alimentacion_consultarDisponibilidad = (Obj:{formulaId:number;fechaEfectiva:string}) => Api_solicitar<T.RespuestaDato<T.DisponibilidadAlimentacion>>("/api/alimentacion/disponibilidad",{method:"POST",ObjCuerpo:Obj}).then(ObjRespuesta=>ObjRespuesta.datos);

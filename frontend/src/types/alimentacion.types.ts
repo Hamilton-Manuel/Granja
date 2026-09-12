@@ -101,5 +101,8 @@ export interface AlmacenAlimentacion { inventarioId:number; codigo:string; nombr
 export interface ExistenciaAlimentacion { inventarioId:number; productoId:number; cantidadDisponible:DecimalAlimentacion; unidadBase:string; almacen:{codigo:string;nombre:string}; }
 export interface LoteFuenteAlimentacion { loteInventarioId:number; codigoLote:string; cantidadDisponible:DecimalAlimentacion; fechaVencimiento:string|null; costoUnitario:DecimalAlimentacion|null; activo:boolean; }
 export interface DetalleRegistroAlimentacion { productoId:number; inventarioId:number; loteInventarioId:number; cantidad:DecimalAlimentacion; }
-export interface DatosRegistroAlimentacion { formulaId?:number|null; fechaEfectiva:string; destino:{tipo:"ANIMAL";animalId:number}|{tipo:"LOTE";loteProduccionId:number}; observaciones?:string|null; detalles:DetalleRegistroAlimentacion[]; }
+interface DatosRegistroBase { fechaEfectiva:string; destino:{tipo:"ANIMAL";animalId:number}|{tipo:"LOTE";loteProduccionId:number}; observaciones?:string|null; }
+export type DatosRegistroAlimentacion = DatosRegistroBase & ({formulaId:number;detalles:Array<{productoId:number;cantidad:DecimalAlimentacion}>}|{formulaId?:null;detalles:DetalleRegistroAlimentacion[]});
+export interface IngredienteDisponibilidad {productoId:number;nombre:string;cantidad:string;unidadMedida:string;disponible:string;atendible:boolean;}
+export interface DisponibilidadAlimentacion {formulaId:number;ingredientes:IngredienteDisponibilidad[];faltantes:IngredienteDisponibilidad[];disponible:boolean;mensaje:string|null;}
 export type ErrorAlimentacion = ErrorApi;

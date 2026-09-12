@@ -21,6 +21,9 @@
 .alimentacion-selector-destino input { width: auto; min-height: auto; }
 .alimentacion-linea-registro { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)) auto; gap: .75rem; align-items: end; padding: .85rem; border: 1px solid #e3d8bd; border-radius: .7rem; background: white; }
 .alimentacion-linea-registro > button { min-height: 2.65rem; }
+.alimentacion-ingrediente-fijo { grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr); }
+.alimentacion-disponibilidad { grid-column: 1 / -1; }
+.alimentacion-disponibilidad button { margin: 0 .5rem .5rem 0; }
 .alimentacion-observaciones { grid-column: 1 / -1; }
 .alimentacion-resumen-confirmacion { display: grid; gap: .75rem; }
 .alimentacion-resumen-confirmacion p { margin: 0; }

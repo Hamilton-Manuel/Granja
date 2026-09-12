@@ -11,6 +11,7 @@ export function Alimentacion_crearRouter() {
     Res.json = ((ObjDatos: unknown) => Alimentacion_json(Alimentacion_formatearRespuesta(ObjDatos))) as typeof Res.json;
     ObjSiguiente();
   });
+  ObjRouter.post("/disponibilidad", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_disponibilidad);
   ObjRouter.get("/destinos/animales", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_destinosAnimales);
   ObjRouter.get("/destinos/lotes", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_destinosLotes);
   ObjRouter.get("/almacenes", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_almacenes);
