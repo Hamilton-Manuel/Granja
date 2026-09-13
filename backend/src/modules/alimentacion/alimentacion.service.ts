@@ -1,5 +1,5 @@
 import { Prisma } from "../../../generated/prisma/client.js";
-import { Fecha_convertirAlmacenamientoGuatemalaAInstante,Fecha_formatearInstanteGuatemala,Fecha_parsearFechaCivil,Fecha_parsearFechaHoraGuatemala } from "../../datetime/fecha.js";
+import { Fecha_convertirAlmacenamientoGuatemalaAInstante,Fecha_convertirInstanteAAlmacenamientoGuatemala,Fecha_formatearInstanteGuatemala,Fecha_parsearFechaCivil,Fecha_parsearFechaHoraGuatemala } from "../../datetime/fecha.js";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
 import type { z } from "zod";
 import type { ObjRegistrar } from "./alimentacion.schemas.js";
@@ -45,12 +45,17 @@ async function Alimentacion_resolverFormulaConTx(ObjTx:Prisma.TransactionClient,
 }
 
 export async function Alimentacion_consultarDisponibilidad(Obj:{formulaId:number;fechaEfectiva:string}) {
-  try {return await R.Alimentacion_ejecutarTransaccion(async ObjTx=>(await Alimentacion_resolverFormulaConTx(ObjTx,await Alimentacion_exigirFormula(ObjTx,Obj.formulaId),Fecha_parsearFechaHoraGuatemala(Obj.fechaEfectiva))).ObjDisponibilidad);}
+  const DtFecha = Fecha_convertirInstanteAAlmacenamientoGuatemala(
+    Fecha_parsearFechaHoraGuatemala(Obj.fechaEfectiva),
+  );
+  try {return await R.Alimentacion_ejecutarTransaccion(async ObjTx=>(await Alimentacion_resolverFormulaConTx(ObjTx,await Alimentacion_exigirFormula(ObjTx,Obj.formulaId),DtFecha)).ObjDisponibilidad);}
   catch(ObjError){Alimentacion_error(ObjError);}
 }
 
 export async function Alimentacion_registrar(Obj:AlimentacionEntrada) {
-  const DtFecha=Fecha_parsearFechaHoraGuatemala(Obj.fechaEfectiva);
+  const DtFecha = Fecha_convertirInstanteAAlmacenamientoGuatemala(
+    Fecha_parsearFechaHoraGuatemala(Obj.fechaEfectiva),
+  );
   try {return await R.Alimentacion_ejecutarTransaccion(async ObjTx=>{
     if(Obj.destino.tipo==="ANIMAL") {
       const ObjAnimal=await R.Alimentacion_obtenerAnimalConTx(ObjTx,Obj.destino.animalId);

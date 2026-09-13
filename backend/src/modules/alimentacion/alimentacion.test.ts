@@ -1,4 +1,19 @@
 import assert from "node:assert/strict";import test from "node:test";import{ObjRegistrar,ObjConsulta}from"./alimentacion.schemas.js";import{ArrPermisosAlimentacionOperador,ArrCatalogoPermisosAlimentacion}from"./alimentacion.constants.js";import{readFile}from"node:fs/promises";
+import { Fecha_convertirInstanteAAlmacenamientoGuatemala, Fecha_formatearFechaCivil, Fecha_parsearFechaHoraGuatemala } from "../../datetime/fecha.js";
+import { Alimentacion_formatearRespuesta } from "./alimentacion.service.js";
+
+for (const StrHora of ["20:32", "23:55"]) {
+ test(`contrato temporal Alimentacion ${StrHora}: almacenamiento y respuesta conservan el dia civil`,async()=>{
+  const StrPeticion=`2026-09-11T${StrHora}:00.000-06:00`;
+  const DtCivil=Fecha_convertirInstanteAAlmacenamientoGuatemala(Fecha_parsearFechaHoraGuatemala(StrPeticion));
+  assert.equal(DtCivil.toISOString(),`2026-09-11T${StrHora}:00.000Z`);
+  assert.equal(Fecha_formatearFechaCivil(DtCivil),"2026-09-11");
+  const StrRespuesta=Alimentacion_formatearRespuesta(DtCivil) as unknown as string;
+  assert.equal(StrRespuesta,StrPeticion);
+  const { Fecha_formatearTimestampGuatemala } = await import(new URL("../../../../frontend/src/utils/fecha.ts",import.meta.url).href) as { Fecha_formatearTimestampGuatemala: (StrTimestamp:string)=>string };
+  assert.match(Fecha_formatearTimestampGuatemala(StrRespuesta),new RegExp(`11.*2026.*${StrHora}`));
+ });
+}
 test("formula acepta composición lógica y rechaza fuentes físicas enviadas",()=>{
  const ObjBase={formulaId:1,fechaEfectiva:"2026-09-11T08:00:00.000-06:00",destino:{tipo:"ANIMAL",animalId:1},detalles:[{productoId:1,cantidad:"6.0000"}]};
  assert.equal(ObjRegistrar.safeParse(ObjBase).success,true);

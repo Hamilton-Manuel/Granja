@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { before, after } from "node:test";
 import { randomBytes } from "node:crypto";
 import { BaseDatos_exigirBaseActual, BaseDatos_obtenerCliente } from "../../database/prisma.js";
-import { Fecha_formatearFechaCivil, Fecha_obtenerAhoraGuatemala } from "../../datetime/fecha.js";
+import { Fecha_formatearFechaCivil, Fecha_obtenerAhoraGuatemala, Fecha_parsearFechaCivil } from "../../datetime/fecha.js";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
 import { Usuarios_ejecutarBootstrap } from "../../scripts/bootstrap-usuarios.js";
 import { PruebasBaseDatos_crearTemporal, type BaseDatosTemporalPruebas } from "../../testing/base-datos-temporal.js";
@@ -50,6 +50,27 @@ async function Alimentacion_preparar(ArrCantidades:string[],ArrSaldos:string[]){
 async function Alimentacion_snapshot(){
  const ObjDb=BaseDatos_obtenerCliente();
  return {registros:await ObjDb.alimentacionRegistro.count(),detalles:await ObjDb.alimentacionDetalle.count(),movimientos:await ObjDb.inventarioTransaccion.count(),eventos:await ObjDb.produccionEvento.count(),bitacoras:await ObjDb.usuarioBitacora.count(),saldos:await ObjDb.inventarioExistencia.findMany({orderBy:{inventarioProductoId:"asc"}}),lotes:await ObjDb.inventarioExistenciaLote.findMany({orderBy:{existenciaLoteId:"asc"}})};
+}
+
+for (const StrHora of ["20:32", "23:55"]) {
+ test(`fecha efectiva ${StrHora}: conserva almacenamiento, respuesta, historial y vencimiento civil`,async()=>{
+  const ObjEntrada={...await Alimentacion_preparar(["1"],["10"]),fechaEfectiva:`2026-09-11T${StrHora}:00.000-06:00`};
+  const ObjDb=BaseDatos_obtenerCliente();
+  // Fixture exclusivamente en la base temporal: vence el mismo día del suministro.
+  await ObjDb.inventarioLote.updateMany({where:{productoId:ObjEntrada.detalles[0]!.productoId},data:{fechaVencimiento:Fecha_parsearFechaCivil("2026-09-11")}});
+  const ObjConsulta=await Alimentacion.Alimentacion_consultarDisponibilidad(ObjEntrada);
+  assert.equal(ObjConsulta.disponible,true);
+  const ObjRegistro=await Alimentacion.Alimentacion_registrar(ObjEntrada);
+  const ObjGuardado=await ObjDb.alimentacionRegistro.findUniqueOrThrow({where:{alimentacionId:ObjRegistro.alimentacionId}});
+  assert.equal(ObjGuardado.fechaAlimentacion.toISOString(),`2026-09-11T${StrHora}:00.000Z`);
+  assert.equal(ObjRegistro.eventos[0]!.fechaEvento.toISOString(),`2026-09-11T${StrHora}:00.000Z`);
+  const StrRespuesta=Alimentacion.Alimentacion_formatearRespuesta(ObjGuardado.fechaAlimentacion) as unknown as string;
+  assert.equal(StrRespuesta,ObjEntrada.fechaEfectiva);
+  const { Fecha_formatearTimestampGuatemala } = await import(new URL("../../../../frontend/src/utils/fecha.ts",import.meta.url).href) as { Fecha_formatearTimestampGuatemala: (StrTimestamp:string)=>string };
+  assert.match(Fecha_formatearTimestampGuatemala(StrRespuesta),new RegExp(`11.*2026.*${StrHora}`));
+  const ObjDiaSiguiente=await Alimentacion.Alimentacion_consultarDisponibilidad({...ObjEntrada,fechaEfectiva:`2026-09-12T${StrHora}:00.000-06:00`});
+  assert.equal(ObjDiaSiguiente.disponible,false);
+ });
 }
 
 test("cinco productos: fuentes reales, costos, fórmula intacta y reversión",async()=>{
