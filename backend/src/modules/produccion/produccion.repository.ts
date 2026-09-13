@@ -3,6 +3,53 @@ import { BaseDatos_obtenerCliente } from "../../database/prisma.js";
 import { Fecha_obtenerAhoraGuatemala } from "../../datetime/fecha.js";
 
 const ObjPrisma = () => BaseDatos_obtenerCliente();
+
+export interface RangoGananciaPeso { DtDesde?: Date; DtHastaExclusiva?: Date }
+function Produccion_filtroGananciaPeso(ObjRango: RangoGananciaPeso): Prisma.ProduccionMedicionWhereInput {
+  return { fechaMedicion: {
+    ...(ObjRango.DtDesde ? { gte: ObjRango.DtDesde } : {}),
+    ...(ObjRango.DtHastaExclusiva ? { lt: ObjRango.DtHastaExclusiva } : {}),
+  } };
+}
+const ObjSeleccionAnimalGanancia = { animalId: true, identificacion: true, estadoActual: true } satisfies Prisma.ProduccionAnimalSelect;
+const ObjSeleccionMedicionGanancia = {
+  medicionId: true, animalId: true, tipoMedicion: true, unidadMedida: true, valor: true, fechaMedicion: true, metodoObtencion: true,
+} satisfies Prisma.ProduccionMedicionSelect;
+
+export function Produccion_consultarGananciaAnimal(IntAnimalId: number, ObjRango: RangoGananciaPeso) {
+  return ObjPrisma().produccionAnimal.findUnique({ where: { animalId: IntAnimalId }, select: {
+    ...ObjSeleccionAnimalGanancia,
+    mediciones: { where: Produccion_filtroGananciaPeso(ObjRango), select: ObjSeleccionMedicionGanancia, orderBy: [{ fechaMedicion: "asc" }, { medicionId: "asc" }] },
+  } });
+}
+
+export function Produccion_consultarAsignacionGanancia(IntAsignacionId: number) {
+  return ObjPrisma().produccionAsignacionLote.findUnique({ where: { asignacionLoteId: IntAsignacionId }, include: {
+    animal: { select: ObjSeleccionAnimalGanancia },
+    lote: { select: { loteProduccionId: true, codigo: true, nombre: true, estado: true } },
+  } });
+}
+
+export async function Produccion_consultarGananciaLote(IntLoteId: number, ObjRango: RangoGananciaPeso) {
+  const ObjLote = await ObjPrisma().produccionLote.findUnique({ where: { loteProduccionId: IntLoteId }, select: {
+    loteProduccionId: true, codigo: true, nombre: true, estado: true,
+    asignaciones: { where: {
+      ...(ObjRango.DtHastaExclusiva ? { fechaInicio: { lt: ObjRango.DtHastaExclusiva } } : {}),
+      ...(ObjRango.DtDesde ? { OR: [{ fechaFin: null }, { fechaFin: { gt: ObjRango.DtDesde } }] } : {}),
+    }, include: { animal: { select: ObjSeleccionAnimalGanancia } }, orderBy: [{ animalId: "asc" }, { fechaInicio: "asc" }, { asignacionLoteId: "asc" }] },
+  } });
+  if (!ObjLote) return null;
+  const ArrIds = [...new Set(ObjLote.asignaciones.map(Obj => Obj.animalId))];
+  const [ArrMediciones, ArrAsignaciones] = await ObjPrisma().$transaction([
+    ObjPrisma().produccionMedicion.findMany({ where: { animalId: { in: ArrIds }, ...Produccion_filtroGananciaPeso(ObjRango) }, select: ObjSeleccionMedicionGanancia, orderBy: [{ fechaMedicion: "asc" }, { medicionId: "asc" }] }),
+    ObjPrisma().produccionAsignacionLote.findMany({ where: { animalId: { in: ArrIds } }, orderBy: [{ animalId: "asc" }, { fechaInicio: "asc" }] }),
+  ]);
+  return { ObjLote, ArrMediciones, ArrAsignaciones };
+}
+
+export function Produccion_consultarHistoriaAsignaciones(IntAnimalId: number) {
+  return ObjPrisma().produccionAsignacionLote.findMany({ where: { animalId: IntAnimalId } });
+}
 const ObjSeleccionLote = { loteProduccionId: true, tipoAnimalId: true, codigo: true, nombre: true, descripcion: true, fechaInicio: true, fechaCierre: true, estado: true, tipoAnimal: { select: { tipoAnimalId: true, nombre: true, activo: true } }, _count: { select: { asignaciones: { where: { estado: "VIGENTE" } } } } } as const;
 const ObjSeleccionAnimal = { animalId: true, tipoAnimalId: true, razaId: true, madreAnimalId: true, identificacion: true, sexo: true, fechaNacimiento: true, fechaIngreso: true, estadoActual: true, observaciones: true, tipoAnimal: { select: { tipoAnimalId: true, nombre: true, activo: true } }, raza: { select: { razaId: true, nombre: true, activo: true } }, madre: { select: { animalId: true, identificacion: true } }, asignaciones: { where: { estado: "VIGENTE" }, select: { asignacionLoteId: true, loteProduccionId: true, fechaInicio: true, lote: { select: { codigo: true, nombre: true, estado: true } } }, take: 1 } } as const;
 

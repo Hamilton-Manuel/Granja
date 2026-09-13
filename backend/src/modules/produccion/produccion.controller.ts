@@ -1,4 +1,5 @@
 import type { Request,Response } from "express";
+
 import { pipeline } from "node:stream/promises";
 import multer from "multer";
 import { z } from "zod";
@@ -8,6 +9,21 @@ import * as S from "./produccion.service.js";
 import * as SF from "./produccion-fotos.service.js";
 import * as SFT from "./produccion-ficha.service.js";
 import { PRODUCCION_FOTO_MAX_BYTES } from "./produccion-fotos.js";
+export async function Produccion_gananciaAnimal(Req: Request, Res: Response) {
+  const ObjParametro = Produccion_validar(E.ObjParametroGananciaAnimal, Req.params);
+  const ObjConsulta = Produccion_validar(E.ObjConsultaGananciaPeso, Req.query);
+  Res.json({ datos: await S.Produccion_analizarGananciaAnimal(ObjParametro.animalId, Produccion_entradaServicio(ObjConsulta)) });
+}
+export async function Produccion_gananciaLote(Req: Request, Res: Response) {
+  const ObjParametro = Produccion_validar(E.ObjParametroGananciaLote, Req.params);
+  const ObjConsulta = Produccion_validar(E.ObjConsultaGananciaPeso, Req.query);
+  Res.json({ datos: await S.Produccion_analizarGananciaLote(ObjParametro.loteProduccionId, Produccion_entradaServicio(ObjConsulta)) });
+}
+export async function Produccion_gananciaAsignacion(Req: Request, Res: Response) {
+  const ObjParametro = Produccion_validar(E.ObjParametroGananciaAsignacion, Req.params);
+  const ObjConsulta = Produccion_validar(E.ObjConsultaGananciaPeso, Req.query);
+  Res.json({ datos: await S.Produccion_analizarGananciaAsignacion(ObjParametro.asignacionLoteId, Produccion_entradaServicio(ObjConsulta)) });
+}
 function Produccion_validar<T>(ObjEsquema:z.ZodType<T>,ObjValor:unknown):T{const r=ObjEsquema.safeParse(ObjValor);if(!r.success)throw new ErrorAplicacion(400,"VALIDACION_INVALIDA","Los datos proporcionados no son validos.");return r.data;}
 function Produccion_entradaServicio<T>(ObjValor:unknown):T{return ObjValor as T;}
 function Produccion_actor(Req:Request){if(!Req.ObjAutenticacion)throw new ErrorAplicacion(401,"NO_AUTENTICADO","Debe iniciar sesion.");return{IntUsuarioId:Req.ObjAutenticacion.IntUsuarioId,StrIp:Req.ip};}

@@ -1,4 +1,14 @@
 import { z } from "zod";
+import { Fecha_parsearFechaCivil } from "../../datetime/fecha.js";
+
+const ObjFechaGanancia = z.string().refine(Str => {
+  try { Fecha_parsearFechaCivil(Str); return true; } catch { return false; }
+}, "Indique una fecha civil válida (YYYY-MM-DD).");
+export const ObjConsultaGananciaPeso = z.object({ fechaDesde: ObjFechaGanancia.optional(), fechaHasta: ObjFechaGanancia.optional() }).strict()
+  .refine(Obj => !Obj.fechaDesde || !Obj.fechaHasta || Obj.fechaDesde <= Obj.fechaHasta, "Desde no puede ser posterior a Hasta.");
+export const ObjParametroGananciaAnimal = z.object({ animalId: z.coerce.number().int().positive() }).strict();
+export const ObjParametroGananciaLote = z.object({ loteProduccionId: z.coerce.number().int().positive() }).strict();
+export const ObjParametroGananciaAsignacion = z.object({ asignacionLoteId: z.coerce.number().int().positive() }).strict();
 
 const ObjId = z.coerce.number().int().positive();
 const ObjTextoNullable = (IntMaximo: number) => z.string().trim().max(IntMaximo).transform((StrValor) => StrValor === "" ? null : StrValor).nullable().optional();

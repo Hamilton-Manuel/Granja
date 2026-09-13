@@ -1,4 +1,60 @@
 export type DecimalProduccion = string;
+
+export interface ConsultaGananciaPeso { fechaDesde?: string; fechaHasta?: string }
+export interface PesoGanancia { fechaMedicion: string; pesoKg: string; pesoLb: string }
+export interface ResumenGananciaPeso {
+  estado: "SIN_MEDICIONES" | "DATOS_INSUFICIENTES" | "CALCULADO" | "INCONSISTENTE";
+  cantidadMediciones: number;
+  primera: PesoGanancia | null;
+  ultima: PesoGanancia | null;
+  gananciaTotalKg: string | null;
+  gananciaTotalLb: string | null;
+  diasTotales: string | null;
+  gpdAcumuladaKg: string | null;
+  gpdAcumuladaLb: string | null;
+  ultimaGpdKg: string | null;
+  ultimaGpdLb: string | null;
+}
+export interface EvolucionGananciaPeso extends PesoGanancia {
+  medicionId: number;
+  metodoObtencion: string | null;
+  diasDesdeAnterior: string | null;
+  cambioKg: string | null;
+  cambioLb: string | null;
+  gpdPeriodoKg: string | null;
+  gpdPeriodoLb: string | null;
+  gananciaAcumuladaKg: string | null;
+  gananciaAcumuladaLb: string | null;
+  gpdAcumuladaKg: string | null;
+  gpdAcumuladaLb: string | null;
+}
+export interface IdentidadGananciaAnimal { animalId: number; identificacion: string; estadoActual: string }
+export interface IdentidadGananciaLote { loteProduccionId: number; codigo: string; nombre: string; estado: string }
+export interface AnalisisGananciaPeso {
+  animal: IdentidadGananciaAnimal;
+  permanencia: { asignacionLoteId: number; fechaInicio: string; fechaFin: string | null; lote: IdentidadGananciaLote } | null;
+  periodo: ConsultaGananciaPeso;
+  resumen: ResumenGananciaPeso;
+  evolucion: EvolucionGananciaPeso[];
+  incidencias: string[];
+  medicionesExcluidas: number;
+}
+export interface ResumenPermanenciaGanancia {
+  animal: IdentidadGananciaAnimal;
+  asignacionLoteId: number;
+  fechaInicio: string;
+  fechaFin: string | null;
+  resumen: ResumenGananciaPeso;
+  incidencias: string[];
+  medicionesExcluidas: number;
+}
+export interface AnalisisGananciaLote {
+  lote: IdentidadGananciaLote;
+  periodo: ConsultaGananciaPeso;
+  cantidades: { animales: number; permanencias: number; conDatosSuficientes: number; sinDatosSuficientes: number };
+  permanencias: ResumenPermanenciaGanancia[];
+  incidencias: string[];
+}
 export type SexoAnimal = "MACHO" | "HEMBRA" | "NO_DETERMINADO";
 export type EstadoAnimal = "ACTIVO" | "VENDIDO" | "FALLECIDO" | "RETIRADO";
 export type MetodoObtencionPeso = "BASCULA" | "ESTIMACION_SCHAEFFER";

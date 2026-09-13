@@ -1,9 +1,67 @@
 import { Prisma } from "../../../generated/prisma/client.js";
-import { Fecha_convertirAlmacenamientoGuatemalaAInstante, Fecha_formatearFechaCivil, Fecha_formatearInstanteGuatemala, Fecha_parsearFechaCivil } from "../../datetime/fecha.js";
+import { Fecha_convertirAlmacenamientoGuatemalaAInstante, Fecha_crearRangoDiaGuatemala, Fecha_formatearFechaCivil, Fecha_formatearInstanteGuatemala, Fecha_parsearFechaCivil } from "../../datetime/fecha.js";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
 import { Produccion_canonicalizarCodigo } from "./produccion.constants.js";
 import { Produccion_agregarPesoLb, Produccion_calcularPesoSchaeffer } from "./produccion-mediciones.js";
 import * as R from "./produccion.repository.js";
+import { Produccion_calcularGananciaPeso, Produccion_detectarPermanenciasInvalidas, Produccion_medicionesEnPermanencia, type PeriodoGanancia } from "./produccion-ganancia-peso.js";
+
+function Produccion_rangoGanancia(ObjPeriodo: PeriodoGanancia): R.RangoGananciaPeso {
+  return {
+    ...(ObjPeriodo.fechaDesde ? { DtDesde: Fecha_parsearFechaCivil(ObjPeriodo.fechaDesde) } : {}),
+    ...(ObjPeriodo.fechaHasta ? { DtHastaExclusiva: Fecha_crearRangoDiaGuatemala(ObjPeriodo.fechaHasta).DtFinExclusivoAlmacenamiento } : {}),
+  };
+}
+
+export async function Produccion_analizarGananciaAnimal(IntAnimalId: number, ObjPeriodo: PeriodoGanancia) {
+  const ObjAnimal = await R.Produccion_consultarGananciaAnimal(IntAnimalId, Produccion_rangoGanancia(ObjPeriodo));
+  if (!ObjAnimal) throw new ErrorAplicacion(404, "ANIMAL_NO_ENCONTRADO", "El animal no existe.");
+  const { mediciones: ArrMediciones, ...ObjIdentidad } = ObjAnimal;
+  return { animal: ObjIdentidad, permanencia: null, periodo: ObjPeriodo, ...Produccion_calcularGananciaPeso(ArrMediciones) };
+}
+
+export async function Produccion_analizarGananciaAsignacion(IntAsignacionId: number, ObjPeriodo: PeriodoGanancia) {
+  const ObjAsignacion = await R.Produccion_consultarAsignacionGanancia(IntAsignacionId);
+  if (!ObjAsignacion) throw new ErrorAplicacion(404, "ASIGNACION_NO_ENCONTRADA", "La permanencia no existe.");
+  const [ObjAnimal, ArrAsignaciones] = await Promise.all([
+    R.Produccion_consultarGananciaAnimal(ObjAsignacion.animalId, Produccion_rangoGanancia(ObjPeriodo)),
+    R.Produccion_consultarHistoriaAsignaciones(ObjAsignacion.animalId),
+  ]);
+  const BoolInvalida = Produccion_detectarPermanenciasInvalidas(ArrAsignaciones).has(IntAsignacionId);
+  const ObjAnalisis = Produccion_calcularGananciaPeso(BoolInvalida ? [] : Produccion_medicionesEnPermanencia(ObjAnimal?.mediciones ?? [], ObjAsignacion));
+  if (BoolInvalida) ObjAnalisis.incidencias.push("Permanencia con fechas inválidas o superpuestas; cálculo omitido.");
+  return { animal: ObjAsignacion.animal, permanencia: {
+    asignacionLoteId: IntAsignacionId, fechaInicio: ObjAsignacion.fechaInicio, fechaFin: ObjAsignacion.fechaFin, lote: ObjAsignacion.lote,
+  }, periodo: ObjPeriodo, ...ObjAnalisis, resumen: { ...ObjAnalisis.resumen, estado: BoolInvalida ? "INCONSISTENTE" as const : ObjAnalisis.resumen.estado } };
+}
+
+export async function Produccion_analizarGananciaLote(IntLoteId: number, ObjPeriodo: PeriodoGanancia) {
+  const ObjDatos = await R.Produccion_consultarGananciaLote(IntLoteId, Produccion_rangoGanancia(ObjPeriodo));
+  if (!ObjDatos) throw new ErrorAplicacion(404, "LOTE_NO_ENCONTRADO", "El lote no existe.");
+  const { asignaciones: ArrPermanencias, ...ObjLote } = ObjDatos.ObjLote;
+  const ObjInvalidas = Produccion_detectarPermanenciasInvalidas(ObjDatos.ArrAsignaciones);
+  const ObjPorAnimal = new Map<number, typeof ObjDatos.ArrMediciones>();
+  for (const ObjMedicion of ObjDatos.ArrMediciones) {
+    if (ObjMedicion.animalId === null) continue;
+    const ArrAnimal = ObjPorAnimal.get(ObjMedicion.animalId) ?? [];
+    ArrAnimal.push(ObjMedicion);
+    ObjPorAnimal.set(ObjMedicion.animalId, ArrAnimal);
+  }
+  const ArrResumenes = ArrPermanencias.map(ObjAsignacion => {
+    const BoolInvalida = ObjInvalidas.has(ObjAsignacion.asignacionLoteId);
+    const ObjAnalisis = Produccion_calcularGananciaPeso(BoolInvalida ? [] : Produccion_medicionesEnPermanencia(ObjPorAnimal.get(ObjAsignacion.animalId) ?? [], ObjAsignacion));
+    if (BoolInvalida) ObjAnalisis.incidencias.push("Permanencia con fechas inválidas o superpuestas; cálculo omitido.");
+    return { animal: ObjAsignacion.animal, asignacionLoteId: ObjAsignacion.asignacionLoteId,
+      fechaInicio: ObjAsignacion.fechaInicio, fechaFin: ObjAsignacion.fechaFin,
+      resumen: { ...ObjAnalisis.resumen, estado: BoolInvalida ? "INCONSISTENTE" as const : ObjAnalisis.resumen.estado },
+      incidencias: ObjAnalisis.incidencias, medicionesExcluidas: ObjAnalisis.medicionesExcluidas };
+  });
+  const IntCalculadas = ArrResumenes.filter(Obj => Obj.resumen.estado === "CALCULADO").length;
+  return { lote: ObjLote, periodo: ObjPeriodo, cantidades: {
+    animales: new Set(ArrPermanencias.map(Obj => Obj.animalId)).size, permanencias: ArrResumenes.length,
+    conDatosSuficientes: IntCalculadas, sinDatosSuficientes: ArrResumenes.length - IntCalculadas,
+  }, permanencias: ArrResumenes, incidencias: ArrResumenes.flatMap(Obj => Obj.incidencias.map(Str => `${Obj.animal.identificacion}, permanencia ${Obj.asignacionLoteId}: ${Str}`)) };
+}
 
 export function Produccion_formatearRespuesta<T>(ObjValor:T,StrClave=""):T { if(ObjValor instanceof Date)return(StrClave==="fechaNacimiento"?Fecha_formatearFechaCivil(ObjValor):Fecha_formatearInstanteGuatemala(Fecha_convertirAlmacenamientoGuatemalaAInstante(ObjValor))) as T;if(Array.isArray(ObjValor))return ObjValor.map(x=>Produccion_formatearRespuesta(x)) as T;if(ObjValor!==null&&typeof ObjValor==="object"&&!(ObjValor instanceof Prisma.Decimal))return Object.fromEntries(Object.entries(ObjValor).map(([k,v])=>[k,Produccion_formatearRespuesta(v,k)])) as T;return ObjValor; }
 const ObjErrores:Record<string,[number,string]>={LOTE_NO_ENCONTRADO:[404,"El lote no existe."],LOTE_CERRADO:[409,"El lote esta cerrado."],LOTE_NO_ESTA_VACIO:[409,"El lote contiene animales vigentes."],TIPO_LOTE_INCOMPATIBLE:[409,"El tipo del animal no corresponde al lote."],ANIMAL_NO_ENCONTRADO:[404,"El animal no existe."],ANIMAL_NO_ACTIVO:[409,"El animal no esta activo."],ANIMAL_SIN_ASIGNACION_VIGENTE:[409,"El animal no tiene asignacion vigente."],ANIMAL_NO_PERTENECE_LOTE:[409,"El animal no pertenece al lote origen."],TRASLADO_INVALIDO:[400,"Los lotes de origen y destino deben ser diferentes."],CONFLICTO_CONCURRENCIA:[409,"El animal fue modificado por otra operacion."],OPERACION_NO_ENCONTRADA:[404,"La operacion no existe."],OPERACION_YA_REVERTIDA:[409,"La operacion ya fue revertida."],REVERSION_NO_PERMITIDA:[409,"La operacion no puede revertirse en su estado actual."],OPERACION_INCONSISTENTE:[409,"La operacion no contiene un historial consistente."]};

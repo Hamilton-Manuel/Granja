@@ -289,3 +289,18 @@ describe("sesión y rutas", () => {
     await waitFor(() => expect(ObjFetch).toHaveBeenCalledTimes(2));
   });
 });
+
+
+describe("ruta de ganancia de peso", () => {
+  it("abre el analisis con PRODUCCION_CONSULTAR", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: ["PRODUCCION_CONSULTAR"] } } })));
+    Autenticacion_renderizar("/produccion/mediciones/ganancia");
+    expect(await screen.findByRole("heading", { name: /ganancia de peso/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Volver a Mediciones" })).toHaveAttribute("href", "/produccion/mediciones");
+  });
+  it("rechaza acceso directo sin permiso incluso con rol administrador", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Autenticacion_respuestaJson({ datos: { usuario: { ...ObjUsuario, permisos: [] } } })));
+    Autenticacion_renderizar("/produccion/mediciones/ganancia");
+    expect(await screen.findByRole("heading", { name: "Permiso insuficiente" })).toBeInTheDocument();
+  });
+});

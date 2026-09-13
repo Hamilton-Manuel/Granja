@@ -25,6 +25,7 @@ import { PaginaFichaTecnicaAnimal } from "../pages/produccion/PaginaFichaTecnica
 import { PaginaIngresosProduccion } from "../pages/produccion/PaginaIngresosProduccion";
 import { PaginaTrasladosProduccion } from "../pages/produccion/PaginaTrasladosProduccion";
 import { PaginaMedicionesProduccion } from "../pages/produccion/PaginaMedicionesProduccion";
+import { PaginaGananciaPesoProduccion } from "../pages/produccion/PaginaGananciaPesoProduccion";
 import { PaginaHistorialProduccion } from "../pages/produccion/PaginaHistorialProduccion";
 import { PaginaCatalogosProduccion } from "../pages/produccion/PaginaCatalogosProduccion";
 import { PaginaDiagnosticoProduccion } from "../pages/produccion/PaginaDiagnosticoProduccion";
@@ -109,6 +110,7 @@ export function RutasAplicacion() {
               <Route element={<RutaConPermiso ArrPermisosAlguno={["PRODUCCION_INGRESOS_INICIALES_CREAR", "PRODUCCION_NACIMIENTOS_CREAR", "PRODUCCION_COMPRAS_CREAR"]} />}><Route path="ingresos" element={<PaginaIngresosProduccion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="PRODUCCION_TRASLADOS_CREAR" />}><Route path="traslados" element={<PaginaTrasladosProduccion />} /></Route>
               <Route path="mediciones" element={<PaginaMedicionesProduccion />} />
+              <Route path="mediciones/ganancia" element={<PaginaGananciaPesoProduccion />} />
               <Route path="historial" element={<PaginaHistorialProduccion />} />
               <Route element={<RutaConPermiso ArrPermisosAlguno={["PRODUCCION_TIPOS_CREAR", "PRODUCCION_TIPOS_EDITAR", "PRODUCCION_TIPOS_CAMBIAR_ESTADO", "PRODUCCION_RAZAS_CREAR", "PRODUCCION_RAZAS_EDITAR", "PRODUCCION_RAZAS_CAMBIAR_ESTADO"]} />}><Route path="catalogos" element={<PaginaCatalogosProduccion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="PRODUCCION_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoProduccion />} /></Route>

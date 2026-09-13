@@ -2,6 +2,13 @@ import { Api_resolverUrl } from "./api-origen";
 import { Api_solicitar } from "./api.service";
 import type * as T from "../types/produccion.types";
 import { ErrorApi } from "../types/api.types";
+
+export const Produccion_analizarGananciaAnimal = (IntId: number, ObjConsulta: T.ConsultaGananciaPeso) =>
+  Api_solicitar<T.RespuestaDato<T.AnalisisGananciaPeso>>(`/api/produccion/mediciones/ganancia/animales/${IntId}?${Produccion_parametros(ObjConsulta)}`);
+export const Produccion_analizarGananciaLote = (IntId: number, ObjConsulta: T.ConsultaGananciaPeso) =>
+  Api_solicitar<T.RespuestaDato<T.AnalisisGananciaLote>>(`/api/produccion/mediciones/ganancia/lotes/${IntId}?${Produccion_parametros(ObjConsulta)}`);
+export const Produccion_analizarGananciaAsignacion = (IntId: number, ObjConsulta: T.ConsultaGananciaPeso) =>
+  Api_solicitar<T.RespuestaDato<T.AnalisisGananciaPeso>>(`/api/produccion/mediciones/ganancia/asignaciones/${IntId}?${Produccion_parametros(ObjConsulta)}`);
 function Produccion_parametros(ObjConsulta: object){const ObjParametros=new URLSearchParams();for(const[StrClave,ObjValor]of Object.entries(ObjConsulta))if(ObjValor!==undefined&&ObjValor!==null&&ObjValor!=="")ObjParametros.set(StrClave,String(ObjValor));return ObjParametros.toString()}
 function Produccion_listar<TDato>(StrRuta:string,ObjConsulta:object){return Api_solicitar<T.RespuestaLista<TDato>>(`${StrRuta}?${Produccion_parametros(ObjConsulta)}`)}
 export const Produccion_listarTipos=(Obj:T.ConsultaBase)=>Produccion_listar<T.TipoAnimal>("/api/produccion/tipos-animales",Obj);
