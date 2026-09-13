@@ -200,15 +200,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Validar frontend
         working-directory: frontend
-        env:
-          VITE_API_ORIGIN: https://${{ vars.BACKEND_FQDN }}
         run: |
           set -euo pipefail
           test -n "$BACKEND_FQDN"
           npm ci
           npm run typecheck
           npm test
-          npm run build
+          VITE_API_ORIGIN="https://${BACKEND_FQDN}" npm run build
 
   desplegar-backend:
     needs: [detectar-cambios, validar-backend, validar-frontend]

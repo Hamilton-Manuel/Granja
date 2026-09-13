@@ -18,6 +18,7 @@ export default defineConfig(({ command, mode }) => {
   },
   test: {
     environment: "jsdom",
+    env: { VITE_API_ORIGIN: "" },
     setupFiles: ["./src/tests/setup.ts"],
     css: true,
   },
