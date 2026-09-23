@@ -26,6 +26,7 @@ import {
   ArrPermisosProduccionOperador,
 } from "../modules/produccion/produccion.constants.js";
 import { ArrCatalogoPermisosAlimentacion, ArrPermisosAlimentacionOperador } from "../modules/alimentacion/alimentacion.constants.js";
+import { ArrCatalogoPermisosConcentrados } from "../modules/alimentacion/concentrados/concentrados.constants.js";
 import { ArrCatalogoPermisosSanidad, ArrPermisosSanidadOperador, ArrTiposSanidad, ArrViasSanidad, ArrUnidadesSanidad } from "../modules/sanidad/sanidad.constants.js";
 import { ArrCatalogoPermisosVentas, ArrPermisosVentasOperador } from "../modules/ventas/ventas.constants.js";
 import { ArrCatalogoPermisosReportes } from "../modules/reportes/reportes.constants.js";
@@ -52,6 +53,7 @@ const ArrCatalogoPermisosSistema = [
   ...ArrCatalogoPermisosInventario.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "INVENTARIO" })),
   ...ArrCatalogoPermisosProduccion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "PRODUCCION" })),
   ...ArrCatalogoPermisosAlimentacion.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "ALIMENTACION" })),
+  ...ArrCatalogoPermisosConcentrados.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "ALIMENTACION" })),
   ...ArrCatalogoPermisosSanidad.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "SANIDAD" })),
   ...ArrCatalogoPermisosVentas.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "VENTAS" })),
   ...ArrCatalogoPermisosReportes.map((ObjPermiso) => ({ ...ObjPermiso, StrModulo: "REPORTES" })),

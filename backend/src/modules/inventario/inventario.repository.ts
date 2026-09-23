@@ -1,8 +1,24 @@
 import { Prisma } from "../../../generated/prisma/client.js";
 import { BaseDatos_obtenerCliente } from "../../database/prisma.js";
 import { Fecha_obtenerAhoraGuatemala } from "../../datetime/fecha.js";
+import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
 
-export async function Inventario_ejecutarSerializable<T>(Inventario_operacion:(ObjTx:Prisma.TransactionClient)=>Promise<T>,_ObjOpciones?:unknown):Promise<T>{for(let IntIntento=1;IntIntento<=3;IntIntento+=1){try{return await BaseDatos_obtenerCliente().$transaction(Inventario_operacion,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});}catch(ObjError){if(!(ObjError instanceof Prisma.PrismaClientKnownRequestError)||ObjError.code!=="P2034"||IntIntento===3)throw ObjError;}}throw new Error("TRANSACCION_NO_COMPLETADA");}
+export async function Inventario_ejecutarSerializable<T>(
+  Inventario_operacion: (ObjTx: Prisma.TransactionClient) => Promise<T>,
+  ObjOpciones?: { isolationLevel?: Prisma.TransactionIsolationLevel; timeout?: number; maxWait?: number },
+): Promise<T> {
+  for (let IntIntento = 1; IntIntento <= 3; IntIntento += 1) {
+    try {
+      // El default Prisma de 5s puede vencer antes de que SQL Server detecte el deadlock.
+      return await BaseDatos_obtenerCliente().$transaction(Inventario_operacion, {
+        ...ObjOpciones, isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: ObjOpciones?.timeout ?? 30000,
+      });
+    } catch (ObjError) {
+      if (!(ObjError instanceof Prisma.PrismaClientKnownRequestError) || ObjError.code !== "P2034" || IntIntento === 3) throw ObjError;
+    }
+  }
+  throw new Error("TRANSACCION_NO_COMPLETADA");
+}
 
 /** Fuentes físicas utilizables; la fecha es civil y la determina el módulo consumidor. */
 export function Inventario_filtroFuentesDisponibles(IntProductoId:number, DtFecha?:Date, IntInventarioId?:number):Prisma.InventarioExistenciaLoteWhereInput {
@@ -161,8 +177,70 @@ export async function Inventario_obtenerResumen(DtHoy: Date, DtLimite: Date) {
 
 export type InventarioDatosMovimiento = { tipo: "SALIDA" | "AJUSTE"; subtipo: string; productoId: number; inventarioId: number; loteInventarioId: number; proveedorId?: number | undefined; cantidad: Prisma.Decimal; documentoReferencia?: string | undefined | null; motivo?: string | undefined | null; observaciones?: string | undefined | null; IntUsuarioId: number; StrIp?: string | undefined; animalId?: number | undefined | null; loteProduccionId?: number | undefined | null; alimentacionDetalleId?: number | undefined | null; sanidadFuenteId?: number | undefined | null };
 
+export type InventarioDatosEntradaConLote = { subtipo: "COMPRA" | "INVENTARIO_INICIAL" | "ELABORACION_INGRESO"; productoId: number; inventarioId: number; proveedorId?: number | undefined; cantidadComercial: Prisma.Decimal; unidadComercial: string; factorConversion: Prisma.Decimal; cantidadBase: Prisma.Decimal; unidadBase: string; precioTotalIngreso: Prisma.Decimal | null; costoUnitario: Prisma.Decimal; fechaFabricacion?: Date | null | undefined; fechaVencimiento?: Date | null | undefined; documentoReferencia?: string | null | undefined; motivo?: string | null | undefined; observaciones?: string | null | undefined; IntUsuarioId: number; StrIp?: string | undefined };
+
+/** Escrituras exactas para transformación. No altera las rutas de compras/consumos existentes. */
+async function Inventario_entradaElaboracionExactaConTx(ObjTx: Prisma.TransactionClient, ObjDatos: InventarioDatosEntradaConLote) {
+  const DtAhora = Fecha_obtenerAhoraGuatemala();
+  if (!ObjDatos.cantidadBase.gt(0) || ObjDatos.cantidadBase.decimalPlaces() > 6) throw new Error("ELABORACION_CANTIDAD_INVALIDA");
+  const ObjExistencia = await ObjTx.inventarioExistencia.upsert({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } }, create: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId }, update: {} });
+  if (!ObjExistencia.activo) throw new ErrorAplicacion(409, "EXISTENCIA_INACTIVA", "La existencia de destino está inactiva.");
+  const ObjLote = await ObjTx.inventarioLote.create({ data: { productoId: ObjDatos.productoId, unidadBaseSnapshot: ObjDatos.unidadBase,
+    costoUnitario: "0", fechaFabricacion: ObjDatos.fechaFabricacion ?? null, fechaVencimiento: ObjDatos.fechaVencimiento ?? null, observaciones: ObjDatos.observaciones ?? null } });
+  const ObjFuente = await ObjTx.inventarioExistenciaLote.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, loteInventarioId: ObjLote.loteInventarioId, productoId: ObjDatos.productoId } });
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_lotes SET costo_unitario=CAST(${ObjDatos.costoUnitario.toFixed(18)} AS DECIMAL(38,18)) WHERE lote_inventario_id=${ObjLote.loteInventarioId}`;
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_existencias_lotes SET existencia_actual=CAST(${ObjDatos.cantidadBase.toFixed(6)} AS DECIMAL(24,6)) WHERE existencia_lote_id=${ObjFuente.existenciaLoteId}`;
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_existencias SET existencia_actual=existencia_actual+CAST(${ObjDatos.cantidadBase.toFixed(6)} AS DECIMAL(24,6)),fecha_actualizacion=${DtAhora} WHERE inventario_producto_id=${ObjExistencia.inventarioProductoId}`;
+  // Marcadores dentro de la misma Tx: evita Number también al crear valores de máxima magnitud.
+  const ObjMovimiento = await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaLoteId: ObjFuente.existenciaLoteId, usuarioId: ObjDatos.IntUsuarioId,
+    tipoTransaccion: "INGRESO", subtipoTransaccion: "ELABORACION_INGRESO", cantidad: "1", cantidadComercial: "1", unidadComercial: ObjDatos.unidadComercial,
+    factorConversion: "1", unidadBaseSnapshot: ObjDatos.unidadBase, precioTotalIngreso: null, costoUnitario: "0", documentoReferencia: ObjDatos.documentoReferencia ?? null, observaciones: ObjDatos.observaciones ?? null } });
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET cantidad=CAST(${ObjDatos.cantidadBase.toFixed(6)} AS DECIMAL(24,6)),
+    cantidad_comercial=CAST(${ObjDatos.cantidadComercial.toFixed(6)} AS DECIMAL(24,6)),factor_conversion=CAST(${ObjDatos.factorConversion.toFixed(15)} AS DECIMAL(30,15)),
+    costo_unitario=CAST(${ObjDatos.costoUnitario.toFixed(18)} AS DECIMAL(38,18)) WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}`;
+  await ObjTx.inventarioLote.update({ where: { loteInventarioId: ObjLote.loteInventarioId }, data: { transaccionOrigenId: ObjMovimiento.transaccionInventarioId } });
+  await Inventario_bitacora(ObjTx, ObjDatos.IntUsuarioId, "INVENTARIO_INGRESO_REGISTRADO", `Movimiento ${ObjMovimiento.transaccionInventarioId}; lote ${ObjLote.codigoLote}.`, ObjDatos.StrIp);
+  return { ...ObjMovimiento, cantidad: ObjDatos.cantidadBase, cantidadComercial: ObjDatos.cantidadComercial,
+    factorConversion: new Prisma.Decimal(ObjDatos.factorConversion.toFixed(15)), costoUnitario: ObjDatos.costoUnitario,
+    lote: { ...ObjLote, costoUnitario: ObjDatos.costoUnitario, transaccionOrigenId: ObjMovimiento.transaccionInventarioId } };
+}
+
+async function Inventario_salidaElaboracionExactaConTx(ObjTx: Prisma.TransactionClient, ObjDatos: InventarioDatosMovimiento) {
+  if (ObjDatos.tipo !== "SALIDA" || !ObjDatos.cantidad.lt(0) || ObjDatos.cantidad.decimalPlaces() > 6) throw new Error("ELABORACION_CANTIDAD_INVALIDA");
+  const DtAhora = Fecha_obtenerAhoraGuatemala();
+  const ObjExistencia = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } } });
+  if (!ObjExistencia?.activo) throw new Error("STOCK_INSUFICIENTE");
+  const ObjFuente = await ObjTx.inventarioExistenciaLote.findUnique({ where: { inventarioProductoId_loteInventarioId: { inventarioProductoId: ObjExistencia.inventarioProductoId, loteInventarioId: ObjDatos.loteInventarioId } }, include: { lote: true } });
+  if (!ObjFuente || ObjFuente.productoId !== ObjDatos.productoId || !ObjFuente.lote.activo) throw new Error("FUENTE_INVENTARIO_INCONSISTENTE");
+  const StrCantidad = ObjDatos.cantidad.abs().toFixed(6);
+  const IntLotes = await ObjTx.$executeRaw`UPDATE dbo.inventario_existencias_lotes SET existencia_actual=existencia_actual-CAST(${StrCantidad} AS DECIMAL(24,6)),fecha_actualizacion=${DtAhora}
+    WHERE existencia_lote_id=${ObjFuente.existenciaLoteId} AND existencia_actual>=CAST(${StrCantidad} AS DECIMAL(24,6))`;
+  if (IntLotes !== 1) throw new Error("STOCK_INSUFICIENTE");
+  const IntSaldos = await ObjTx.$executeRaw`UPDATE dbo.inventario_existencias SET existencia_actual=existencia_actual-CAST(${StrCantidad} AS DECIMAL(24,6)),fecha_actualizacion=${DtAhora}
+    WHERE inventario_producto_id=${ObjExistencia.inventarioProductoId} AND activo=1 AND existencia_actual>=CAST(${StrCantidad} AS DECIMAL(24,6))`;
+  if (IntSaldos !== 1) throw new Error("STOCK_INSUFICIENTE");
+  const ObjMovimiento = await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjExistencia.inventarioProductoId, existenciaLoteId: ObjFuente.existenciaLoteId, usuarioId: ObjDatos.IntUsuarioId,
+    tipoTransaccion: "SALIDA", subtipoTransaccion: "ELABORACION_CONSUMO", cantidad: "-1", unidadBaseSnapshot: ObjFuente.lote.unidadBaseSnapshot, costoUnitario: "0", documentoReferencia: ObjDatos.documentoReferencia ?? null } });
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET cantidad=-CAST(${StrCantidad} AS DECIMAL(24,6)),costo_unitario=(SELECT costo_unitario FROM dbo.inventario_lotes WHERE lote_inventario_id=${ObjDatos.loteInventarioId}) WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}`;
+  await Inventario_bitacora(ObjTx, ObjDatos.IntUsuarioId, "INVENTARIO_SALIDA_REGISTRADA", `Movimiento ${ObjMovimiento.transaccionInventarioId}; elaboración.`, ObjDatos.StrIp);
+  const ArrCostos = await ObjTx.$queryRaw<Array<{ costo: string }>>`SELECT CONVERT(NVARCHAR(100),costo_unitario) costo FROM dbo.inventario_transacciones WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}`;
+  if (!ArrCostos[0]) throw new Error("FUENTE_INVENTARIO_INCONSISTENTE");
+  return { ...ObjMovimiento, cantidad: ObjDatos.cantidad, costoUnitario: new Prisma.Decimal(ArrCostos[0].costo) };
+}
+
+/** Mantiene el contrato publico de compras e inventario inicial. */
 export function Inventario_registrarEntradaConLote(ObjDatos: { subtipo: "COMPRA" | "INVENTARIO_INICIAL"; productoId: number; inventarioId: number; proveedorId?: number | undefined; cantidadComercial: Prisma.Decimal; unidadComercial: string; factorConversion: Prisma.Decimal; cantidadBase: Prisma.Decimal; unidadBase: string; precioTotalIngreso: Prisma.Decimal; costoUnitario: Prisma.Decimal; fechaFabricacion?: Date | null | undefined; fechaVencimiento?: Date | null | undefined; documentoReferencia?: string | null | undefined; motivo?: string | null | undefined; observaciones?: string | null | undefined; IntUsuarioId: number; StrIp?: string | undefined }) {
-  return Inventario_ejecutarSerializable(async (ObjTx) => {
+  return Inventario_ejecutarSerializable(ObjTx => Inventario_registrarEntradaConLoteConTx(ObjTx, ObjDatos));
+}
+
+/** El llamador valida las reglas y administra la transaccion completa. No abre otra transaccion. */
+export async function Inventario_registrarEntradaConLoteConTx(ObjTx: Prisma.TransactionClient, ObjDatos: InventarioDatosEntradaConLote) {
+    if (ObjDatos.subtipo === "ELABORACION_INGRESO") return Inventario_entradaElaboracionExactaConTx(ObjTx, ObjDatos);
+    // Dentro de la transacción serializable: compite de forma segura con la clasificación.
+    // Una clasificación inactiva tampoco habilita nuevas compras/inventarios iniciales.
+    if (await ObjTx.alimentacionConcentrado.findUnique({ where: { productoId: ObjDatos.productoId }, select: { concentradoId: true } })) {
+      throw new ErrorAplicacion(409, "CONCENTRADO_INGRESO_ORIGEN_RESTRINGIDO", "El concentrado solo admite nuevos ingresos de origen por elaboración.");
+    }
     const DtAhora = Fecha_obtenerAhoraGuatemala();
     const ObjExistencia = await ObjTx.inventarioExistencia.upsert({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } }, create: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId }, update: {} });
     const ObjLote = await ObjTx.inventarioLote.create({ data: { productoId: ObjDatos.productoId, proveedorId: ObjDatos.proveedorId ?? null, unidadBaseSnapshot: ObjDatos.unidadBase, costoUnitario: ObjDatos.costoUnitario, fechaFabricacion: ObjDatos.fechaFabricacion ?? null, fechaVencimiento: ObjDatos.fechaVencimiento ?? null, observaciones: ObjDatos.observaciones ?? null } });
@@ -174,10 +252,10 @@ export function Inventario_registrarEntradaConLote(ObjDatos: { subtipo: "COMPRA"
     await ObjTx.inventarioLote.update({ where: { loteInventarioId: ObjLote.loteInventarioId }, data: { transaccionOrigenId: ObjMovimiento.transaccionInventarioId } });
     await Inventario_bitacora(ObjTx, ObjDatos.IntUsuarioId, "INVENTARIO_INGRESO_REGISTRADO", `Movimiento ${ObjMovimiento.transaccionInventarioId}; lote ${ObjLote.codigoLote}.`, ObjDatos.StrIp);
     const [ObjMovimientoExacto,ObjLoteExacto]=await Promise.all([ObjTx.inventarioTransaccion.findUniqueOrThrow({where:{transaccionInventarioId:ObjMovimiento.transaccionInventarioId}}),ObjTx.inventarioLote.findUniqueOrThrow({where:{loteInventarioId:ObjLote.loteInventarioId}})]);return { ...ObjMovimientoExacto, lote: ObjLoteExacto };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function Inventario_aplicarMovimientoConTx(ObjTx: Prisma.TransactionClient, ObjDatos: InventarioDatosMovimiento) {
+    if (ObjDatos.subtipo === "ELABORACION_CONSUMO") return Inventario_salidaElaboracionExactaConTx(ObjTx, ObjDatos);
     const DtAhora = Fecha_obtenerAhoraGuatemala();
     const ObjExistencia = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioId_productoId: { inventarioId: ObjDatos.inventarioId, productoId: ObjDatos.productoId } } });
     if (!ObjExistencia) throw new Error("STOCK_INSUFICIENTE");
@@ -229,6 +307,9 @@ export function Inventario_registrarTransferencia(ObjDatos: { productoId: number
 }
 
 export async function Inventario_revertirMovimientoConTx(ObjTx: Prisma.TransactionClient, ObjMovimiento: Prisma.InventarioTransaccionGetPayload<object>, IntUsuarioId: number, DtAhora: Date) {
+  if (["ELABORACION_CONSUMO", "ELABORACION_INGRESO"].includes(ObjMovimiento.subtipoTransaccion)) {
+    throw new ErrorAplicacion(409, "ELABORACION_REVERSION_INDIVIDUAL_PROHIBIDA", "Los movimientos de elaboración no pueden revertirse individualmente; utilice la reversión integral.");
+  }
   const DecReversion = ObjMovimiento.cantidad.negated();
   if (ObjMovimiento.existenciaLoteId === null) throw new Error("MOVIMIENTO_LEGADO_SIN_LOTE");
   const ObjExistencia = await ObjTx.inventarioExistencia.findUnique({ where: { inventarioProductoId: ObjMovimiento.inventarioProductoId } });
@@ -240,6 +321,43 @@ export async function Inventario_revertirMovimientoConTx(ObjTx: Prisma.Transacti
   const ObjReversion=await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: ObjMovimiento.inventarioProductoId, existenciaLoteId: ObjMovimiento.existenciaLoteId, usuarioId: IntUsuarioId, tipoTransaccion: "AJUSTE", subtipoTransaccion: "REVERSION", cantidad: DecReversion, unidadBaseSnapshot: ObjMovimiento.unidadBaseSnapshot, costoUnitario: ObjMovimiento.costoUnitario, transaccionRevertidaId: ObjMovimiento.transaccionInventarioId, motivo: `Reversion del movimiento ${ObjMovimiento.transaccionInventarioId}.` } });
   await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET costo_unitario=(SELECT costo_unitario FROM dbo.inventario_transacciones WHERE transaccion_inventario_id=${ObjMovimiento.transaccionInventarioId}) WHERE transaccion_inventario_id=${ObjReversion.transaccionInventarioId}`;
   return ObjTx.inventarioTransaccion.findUniqueOrThrow({where:{transaccionInventarioId:ObjReversion.transaccionInventarioId}});
+}
+
+/** Exclusiva de la reversión integral: verifica pertenencia y estado; no es un bypass del endpoint individual. */
+export async function Inventario_compensarElaboracionConTx(ObjTx: Prisma.TransactionClient, IntElaboracionId: number, IntMovimientoId: number,
+  IntUsuarioId: number, StrMotivo: string, DtAhora: Date) {
+  const Arr = await ObjTx.$queryRaw<Array<{ existenciaId: number; fuenteId: number; cantidad: string; costo: string; unidad: string; subtipo: string }>>`
+    SELECT t.inventario_producto_id existenciaId,t.existencia_lote_id fuenteId,CONVERT(NVARCHAR(100),t.cantidad) cantidad,
+      CONVERT(NVARCHAR(100),t.costo_unitario) costo,t.unidad_base_snapshot unidad,t.subtipo_transaccion subtipo
+    FROM dbo.inventario_transacciones t
+    WHERE t.transaccion_inventario_id=${IntMovimientoId} AND t.existencia_lote_id IS NOT NULL AND t.costo_unitario IS NOT NULL
+      AND t.transaccion_revertida_id IS NULL AND NOT EXISTS(SELECT 1 FROM dbo.inventario_transacciones r WHERE r.transaccion_revertida_id=t.transaccion_inventario_id)
+      AND EXISTS(SELECT 1 FROM dbo.alimentacion_elaboraciones el WHERE el.elaboracion_id=${IntElaboracionId} AND el.estado=N'CONFIRMADA' AND
+        ((el.transaccion_ingreso_id=t.transaccion_inventario_id AND t.subtipo_transaccion=N'ELABORACION_INGRESO' AND t.cantidad>0)
+         OR EXISTS(SELECT 1 FROM dbo.alimentacion_elaboraciones_fuentes f JOIN dbo.alimentacion_elaboraciones_detalles d ON d.elaboracion_detalle_id=f.elaboracion_detalle_id
+           WHERE d.elaboracion_id=el.elaboracion_id AND f.transaccion_consumo_id=t.transaccion_inventario_id AND t.subtipo_transaccion=N'ELABORACION_CONSUMO' AND t.cantidad<0)))`;
+  const Obj = Arr[0];
+  if (!Obj || Arr.length !== 1) throw new ErrorAplicacion(409, "ELABORACION_HISTORIA_INCONSISTENTE", "El movimiento no pertenece a una elaboración confirmada o ya fue revertido.");
+  const DecimalExacto = Prisma.Decimal.clone({ precision: 100 });
+  const DecDelta = new DecimalExacto(Obj.cantidad).negated();
+  const StrMinimo = DecimalExacto.max(0, DecDelta.negated()).toFixed(6);
+  const StrMaximo = DecimalExacto.min("999999999999999999.999999", new DecimalExacto("999999999999999999.999999").sub(DecDelta)).toFixed(6);
+  // No se cambian estados/vencimientos: restituir un lote vencido o inactivo no lo habilita.
+  const IntFisicos = await ObjTx.$executeRaw`UPDATE dbo.inventario_existencias_lotes SET existencia_actual=existencia_actual+CAST(${DecDelta.toFixed(6)} AS DECIMAL(24,6)),fecha_actualizacion=${DtAhora}
+    WHERE existencia_lote_id=${Obj.fuenteId} AND inventario_producto_id=${Obj.existenciaId}
+      AND existencia_actual>=CAST(${StrMinimo} AS DECIMAL(24,6)) AND existencia_actual<=CAST(${StrMaximo} AS DECIMAL(24,6))`;
+  if (IntFisicos !== 1) throw new ErrorAplicacion(409, "ELABORACION_SALDO_REVERSION_INVALIDO", "El saldo físico no permite la reversión.");
+  const IntAgregados = await ObjTx.$executeRaw`UPDATE dbo.inventario_existencias SET existencia_actual=existencia_actual+CAST(${DecDelta.toFixed(6)} AS DECIMAL(24,6)),fecha_actualizacion=${DtAhora}
+    WHERE inventario_producto_id=${Obj.existenciaId} AND existencia_actual>=CAST(${StrMinimo} AS DECIMAL(24,6)) AND existencia_actual<=CAST(${StrMaximo} AS DECIMAL(24,6))`;
+  if (IntAgregados !== 1) throw new ErrorAplicacion(409, "ELABORACION_SALDO_REVERSION_INVALIDO", "El saldo agregado no permite la reversión.");
+  const ObjReversion = await ObjTx.inventarioTransaccion.create({ data: { inventarioProductoId: Obj.existenciaId, existenciaLoteId: Obj.fuenteId,
+    usuarioId: IntUsuarioId, tipoTransaccion: "AJUSTE", subtipoTransaccion: "REVERSION", cantidad: DecDelta.gt(0) ? "1" : "-1",
+    costoUnitario: "0", unidadBaseSnapshot: Obj.unidad, transaccionRevertidaId: IntMovimientoId, motivo: StrMotivo,
+    documentoReferencia: `ELABORACION-REVERSION-${IntElaboracionId}`, fechaTransaccion: DtAhora } });
+  await ObjTx.$executeRaw`UPDATE dbo.inventario_transacciones SET cantidad=CAST(${DecDelta.toFixed(6)} AS DECIMAL(24,6)),
+    costo_unitario=CAST(${Obj.costo} AS DECIMAL(38,18)) WHERE transaccion_inventario_id=${ObjReversion.transaccionInventarioId}`;
+  await Inventario_bitacora(ObjTx, IntUsuarioId, "INVENTARIO_ELABORACION_COMPENSADA", `Elaboración ${IntElaboracionId}; original ${IntMovimientoId}; reversión ${ObjReversion.transaccionInventarioId}.`);
+  return ObjReversion.transaccionInventarioId;
 }
 
 export function Inventario_revertirMovimiento(IntTransaccionId: number, IntUsuarioId: number, StrIp?: string | undefined) {

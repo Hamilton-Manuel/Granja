@@ -40,6 +40,11 @@ export type BaseDatosTemporalPruebas = {
 };
 
 export async function PruebasBaseDatos_crearTemporal(StrAmbito: string): Promise<BaseDatosTemporalPruebas> {
+  // El ejecutor aislado de Concentrados también ejecuta regresiones de Inventario/Alimentación.
+  if (process.env.CONCENTRADOS_PRUEBAS_INTERNAS === "1") {
+    const { PruebasBaseDatos_crearTemporalInternaConcentrados } = await import("./concentrados-temporal-interno.js");
+    return PruebasBaseDatos_crearTemporalInternaConcentrados();
+  }
   const StrAmbitoSeguro = StrAmbito.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   if (StrAmbitoSeguro.length === 0) throw new Error("BASE_PRUEBAS_AMBITO_INVALIDO");
 

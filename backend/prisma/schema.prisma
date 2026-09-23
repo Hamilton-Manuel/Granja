@@ -7,6 +7,168 @@ datasource db {
   provider = "sqlserver"
 }
 
+// Concentrados: estructura de fase 1. Sin activación de operaciones HTTP.
+model AlimentacionConcentrado {
+  concentradoId      Int                             @id @default(autoincrement()) @map("concentrado_id")
+  productoId         Int                             @unique @map("producto_id")
+  activo             Boolean                         @default(true)
+  usuarioId          Int                             @map("usuario_id")
+  fechaCreacion      DateTime                        @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion DateTime                        @map("fecha_actualizacion") @db.DateTime2
+  producto           InventarioProducto              @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  usuario            UsuarioCuenta                   @relation(fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  recetas            AlimentacionRecetaConcentrado[]
+
+  @@unique([concentradoId, productoId])
+  @@index([usuarioId])
+  @@map("alimentacion_concentrados")
+}
+
+model AlimentacionRecetaConcentrado {
+  recetaId               Int                                    @id @default(autoincrement()) @map("receta_id")
+  concentradoId          Int                                    @map("concentrado_id")
+  productoId             Int                                    @map("producto_id")
+  nombre                 String                                 @db.NVarChar(150)
+  descripcion            String?                                @db.NVarChar(500)
+  cantidadBase           Decimal                                @map("cantidad_base") @db.Decimal(24, 6)
+  unidadBase             String                                 @map("unidad_base") @db.NVarChar(20)
+  version                Int                                    @default(1)
+  activo                 Boolean                                @default(true)
+  usuarioId              Int                                    @map("usuario_id")
+  usuarioActualizacionId Int                                    @map("usuario_actualizacion_id")
+  fechaCreacion          DateTime                               @map("fecha_creacion") @db.DateTime2
+  fechaActualizacion     DateTime                               @map("fecha_actualizacion") @db.DateTime2
+  concentrado            AlimentacionConcentrado                @relation(fields: [concentradoId, productoId], references: [concentradoId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  unidad                 InventarioUnidadMedida                 @relation("RecetaConcentradoUnidad", fields: [unidadBase], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
+  usuario                UsuarioCuenta                          @relation("RecetaConcentradoCreador", fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  usuarioActualizacion   UsuarioCuenta                          @relation("RecetaConcentradoEditor", fields: [usuarioActualizacionId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  detalles               AlimentacionRecetaConcentradoDetalle[]
+  elaboraciones          AlimentacionElaboracion[]
+
+  @@unique([recetaId, productoId])
+  @@index([concentradoId, productoId])
+  @@index([unidadBase])
+  @@index([usuarioId])
+  @@index([usuarioActualizacionId])
+  @@map("alimentacion_recetas_concentrados")
+}
+
+model AlimentacionRecetaConcentradoDetalle {
+  recetaDetalleId Int                           @id @default(autoincrement()) @map("receta_detalle_id")
+  recetaId        Int                           @map("receta_id")
+  productoId      Int                           @map("producto_id")
+  cantidad        Decimal                       @db.Decimal(24, 6)
+  unidadMedida    String                        @map("unidad_medida") @db.NVarChar(20)
+  activo          Boolean                       @default(true)
+  receta          AlimentacionRecetaConcentrado @relation(fields: [recetaId], references: [recetaId], onDelete: NoAction, onUpdate: NoAction)
+  producto        InventarioProducto            @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  unidad          InventarioUnidadMedida        @relation("RecetaConcentradoIngredienteUnidad", fields: [unidadMedida], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([recetaId, productoId])
+  @@index([productoId])
+  @@index([unidadMedida])
+  @@map("alimentacion_recetas_concentrados_detalles")
+}
+
+model AlimentacionElaboracion {
+  elaboracionId           Int                              @id @default(autoincrement()) @map("elaboracion_id")
+  recetaId                Int                              @map("receta_id")
+  productoId              Int                              @map("producto_id")
+  versionReceta           Int                              @map("version_receta")
+  nombreRecetaSnapshot    String                           @map("nombre_receta_snapshot") @db.NVarChar(150)
+  codigoProductoSnapshot  String                           @map("codigo_producto_snapshot") @db.NVarChar(50)
+  nombreProductoSnapshot  String                           @map("nombre_producto_snapshot") @db.NVarChar(200)
+  cantidadBaseReceta      Decimal                          @map("cantidad_base_receta") @db.Decimal(24, 6)
+  unidadRecetaSnapshot    String                           @map("unidad_receta_snapshot") @db.NVarChar(20)
+  factorReferenciaReceta  Decimal                          @map("factor_referencia_receta") @db.Decimal(30, 15)
+  cantidadTeorica         Decimal                          @map("cantidad_teorica") @db.Decimal(24, 6)
+  cantidadReal            Decimal                          @map("cantidad_real") @db.Decimal(24, 6)
+  unidadCaptura           String                           @map("unidad_captura") @db.NVarChar(20)
+  factorReferenciaCaptura Decimal                          @map("factor_referencia_captura") @db.Decimal(30, 15)
+  cantidadTeoricaBase     Decimal                          @map("cantidad_teorica_base") @db.Decimal(24, 6)
+  cantidadRealBase        Decimal                          @map("cantidad_real_base") @db.Decimal(24, 6)
+  unidadBaseSnapshot      String                           @map("unidad_base_snapshot") @db.NVarChar(20)
+  factorReferenciaBase    Decimal                          @map("factor_referencia_base") @db.Decimal(30, 15)
+  costoTotal              Decimal                          @map("costo_total") @db.Decimal(38, 24)
+  costoUnitario           Decimal                          @map("costo_unitario") @db.Decimal(38, 18)
+  residualValoracion      Decimal                          @map("residual_valoracion") @db.Decimal(38, 24)
+  // Diferencias de conversión calculables desde cantidades y factores snapshots.
+  motivoDiferencia        String?                          @map("motivo_diferencia") @db.NVarChar(1000)
+  observaciones           String?                          @db.NVarChar(1000)
+  fechaEfectiva           DateTime                         @map("fecha_efectiva") @db.DateTime2
+  fechaCreacion           DateTime                         @map("fecha_creacion") @db.DateTime2
+  usuarioId               Int                              @map("usuario_id")
+  estado                  String                           @default("CONFIRMADA") @db.NVarChar(20)
+  usuarioReversionId      Int?                             @map("usuario_reversion_id")
+  fechaReversion          DateTime?                        @map("fecha_reversion") @db.DateTime2
+  motivoReversion         String?                          @map("motivo_reversion") @db.NVarChar(500)
+  claveIdempotencia       String                           @unique @map("clave_idempotencia") @db.UniqueIdentifier
+  hashSolicitud           String                           @map("hash_solicitud") @db.Char(64)
+  huellaPrevisualizacion  String                           @map("huella_previsualizacion") @db.Char(64)
+  loteInventarioId        Int                              @unique @map("lote_inventario_id")
+  existenciaDestinoId     Int                              @map("existencia_destino_id")
+  transaccionIngresoId    Int                              @unique @map("transaccion_ingreso_id")
+  receta                  AlimentacionRecetaConcentrado    @relation(fields: [recetaId, productoId], references: [recetaId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  lote                    InventarioLote                   @relation(fields: [loteInventarioId, productoId], references: [loteInventarioId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  existenciaDestino       InventarioExistenciaLote         @relation(fields: [existenciaDestinoId, loteInventarioId, productoId], references: [existenciaLoteId, loteInventarioId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  ingreso                 InventarioTransaccion            @relation(fields: [transaccionIngresoId, existenciaDestinoId], references: [transaccionInventarioId, existenciaLoteId], onDelete: NoAction, onUpdate: NoAction)
+  usuario                 UsuarioCuenta                    @relation("ElaboracionResponsable", fields: [usuarioId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  usuarioReversion        UsuarioCuenta?                   @relation("ElaboracionReversion", fields: [usuarioReversionId], references: [usuarioId], onDelete: NoAction, onUpdate: NoAction)
+  detalles                AlimentacionElaboracionDetalle[]
+
+  @@unique([transaccionIngresoId, existenciaDestinoId])
+  @@unique([loteInventarioId, productoId])
+  @@index([recetaId, productoId])
+  @@index([existenciaDestinoId, productoId])
+  @@index([fechaEfectiva])
+  @@index([estado])
+  @@index([usuarioId])
+  @@index([usuarioReversionId])
+  @@map("alimentacion_elaboraciones")
+}
+
+model AlimentacionElaboracionDetalle {
+  elaboracionDetalleId   Int                             @id @default(autoincrement()) @map("elaboracion_detalle_id")
+  elaboracionId          Int                             @map("elaboracion_id")
+  productoId             Int                             @map("producto_id")
+  codigoProductoSnapshot String                          @map("codigo_producto_snapshot") @db.NVarChar(50)
+  nombreProductoSnapshot String                          @map("nombre_producto_snapshot") @db.NVarChar(200)
+  cantidadReceta         Decimal                         @map("cantidad_receta") @db.Decimal(24, 6)
+  unidadRecetaSnapshot   String                          @map("unidad_receta_snapshot") @db.NVarChar(20)
+  factorReferenciaReceta Decimal                         @map("factor_referencia_receta") @db.Decimal(30, 15)
+  unidadBaseSnapshot     String                          @map("unidad_base_snapshot") @db.NVarChar(20)
+  factorReferenciaBase   Decimal                         @map("factor_referencia_base") @db.Decimal(30, 15)
+  cantidadConsumida      Decimal                         @map("cantidad_consumida") @db.Decimal(24, 6)
+  elaboracion            AlimentacionElaboracion         @relation(fields: [elaboracionId], references: [elaboracionId], onDelete: NoAction, onUpdate: NoAction)
+  producto               InventarioProducto              @relation(fields: [productoId], references: [productoId], onDelete: NoAction, onUpdate: NoAction)
+  fuentes                AlimentacionElaboracionFuente[]
+
+  @@unique([elaboracionId, productoId])
+  @@unique([elaboracionDetalleId, productoId])
+  @@index([productoId])
+  @@map("alimentacion_elaboraciones_detalles")
+}
+
+model AlimentacionElaboracionFuente {
+  elaboracionFuenteId    Int                            @id @default(autoincrement()) @map("elaboracion_fuente_id")
+  elaboracionDetalleId   Int                            @map("elaboracion_detalle_id")
+  productoId             Int                            @map("producto_id")
+  existenciaLoteId       Int                            @map("existencia_lote_id")
+  transaccionConsumoId   Int                            @unique @map("transaccion_consumo_id")
+  cantidadConsumida      Decimal                        @map("cantidad_consumida") @db.Decimal(24, 6)
+  costoUnitarioHistorico Decimal                        @map("costo_unitario_historico") @db.Decimal(38, 18)
+  costoTotal             Decimal                        @map("costo_total") @db.Decimal(38, 24)
+  detalle                AlimentacionElaboracionDetalle @relation(fields: [elaboracionDetalleId, productoId], references: [elaboracionDetalleId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  existenciaLote         InventarioExistenciaLote       @relation(fields: [existenciaLoteId, productoId], references: [existenciaLoteId, productoId], onDelete: NoAction, onUpdate: NoAction)
+  consumo                InventarioTransaccion          @relation(fields: [transaccionConsumoId, existenciaLoteId], references: [transaccionInventarioId, existenciaLoteId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([transaccionConsumoId, existenciaLoteId])
+  @@unique([elaboracionDetalleId, existenciaLoteId])
+  @@index([elaboracionDetalleId, productoId])
+  @@index([existenciaLoteId, productoId])
+  @@map("alimentacion_elaboraciones_fuentes")
+}
+
 // ======================================================
 // MÓDULO: USUARIOS
 // ======================================================
@@ -45,6 +207,12 @@ model UsuarioPermiso {
 }
 
 model UsuarioCuenta {
+  concentrados                AlimentacionConcentrado[]
+  recetasConcentradosCreadas  AlimentacionRecetaConcentrado[] @relation("RecetaConcentradoCreador")
+  recetasConcentradosEditadas AlimentacionRecetaConcentrado[] @relation("RecetaConcentradoEditor")
+  elaboracionesResponsable    AlimentacionElaboracion[]       @relation("ElaboracionResponsable")
+  elaboracionesRevertidas     AlimentacionElaboracion[]       @relation("ElaboracionReversion")
+
   usuarioId          Int      @id @default(autoincrement()) @map("usuario_id")
   rolId              Int      @map("rol_id")
   nombreCompleto     String   @map("nombre_completo") @db.NVarChar(200)
@@ -294,6 +462,9 @@ model InventarioCategoria {
 }
 
 model InventarioUnidadMedida {
+  recetasConcentrados      AlimentacionRecetaConcentrado[]        @relation("RecetaConcentradoUnidad")
+  ingredientesConcentrados AlimentacionRecetaConcentradoDetalle[] @relation("RecetaConcentradoIngredienteUnidad")
+
   unidadMedidaId     Int      @id @default(autoincrement()) @map("unidad_medida_id")
   codigo             String   @unique @db.NVarChar(20)
   nombre             String   @db.NVarChar(100)
@@ -312,6 +483,10 @@ model InventarioUnidadMedida {
 }
 
 model InventarioProducto {
+  concentrado                     AlimentacionConcentrado?
+  recetasConcentradosIngredientes AlimentacionRecetaConcentradoDetalle[]
+  elaboracionesIngredientes       AlimentacionElaboracionDetalle[]
+
   productoId         Int      @id @default(autoincrement()) @map("producto_id")
   categoriaId        Int      @map("categoria_id")
   codigo             String   @unique @db.NVarChar(50)
@@ -388,6 +563,8 @@ model InventarioExistencia {
 }
 
 model InventarioLote {
+  elaboracion AlimentacionElaboracion?
+
   loteInventarioId    Int       @id @default(autoincrement()) @map("lote_inventario_id")
   productoId          Int       @map("producto_id")
   proveedorId         Int?      @map("proveedor_id")
@@ -420,6 +597,9 @@ model InventarioLote {
 }
 
 model InventarioExistenciaLote {
+  elaboracionesDestino AlimentacionElaboracion[]
+  elaboracionesFuentes AlimentacionElaboracionFuente[]
+
   existenciaLoteId     Int      @id @default(autoincrement()) @map("existencia_lote_id")
   inventarioProductoId Int      @map("inventario_producto_id")
   loteInventarioId     Int      @map("lote_inventario_id")
@@ -440,6 +620,7 @@ model InventarioExistenciaLote {
   @@unique([existenciaLoteId, inventarioProductoId])
   @@unique([existenciaLoteId, inventarioProductoId, productoId])
   @@unique([existenciaLoteId, productoId])
+  @@unique([existenciaLoteId, loteInventarioId, productoId])
   @@index([loteInventarioId])
   @@index([productoId])
   @@map("inventario_existencias_lotes")
@@ -1120,6 +1301,9 @@ model VentaRecibo {
 // ======================================================
 
 model InventarioTransaccion {
+  elaboracionIngreso AlimentacionElaboracion?
+  elaboracionConsumo AlimentacionElaboracionFuente?
+
   transaccionInventarioId Int      @id @default(autoincrement()) @map("transaccion_inventario_id")
   inventarioProductoId    Int      @map("inventario_producto_id")
   existenciaLoteId        Int?     @map("existencia_lote_id")
@@ -1160,6 +1344,7 @@ model InventarioTransaccion {
   unidadComercialRef   InventarioUnidadMedida?   @relation("InventarioUnidadComercial", fields: [unidadComercial], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
   loteOriginado        InventarioLote?           @relation("InventarioLoteOrigen")
 
+  @@unique([transaccionInventarioId, existenciaLoteId])
   @@index([inventarioProductoId])
   @@index([existenciaLoteId])
   @@index([transferenciaId])

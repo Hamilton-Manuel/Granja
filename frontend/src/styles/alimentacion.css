@@ -51,6 +51,23 @@
 .alimentacion-correcto { background: #e9f5eb; }
 .alimentacion-alerta { background: #fff0e6; }
 
+.concentrados-contenido .alimentacion-tabla { display: block; }
+.concentrados-contenido .alimentacion-tabla td { overflow-wrap: anywhere; min-width: 7rem; }
+.concentrados-acciones { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.concentrados-ingrediente { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .65rem; align-items: end; }
+.concentrados-captura { margin: 0; min-width: 0; }
+.alimentacion-formulario.concentrados-captura { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 1rem; }
+.concentrados-captura > label, .concentrados-captura > .autocomplete { min-width: 0; }
+.concentrados-captura :is(input, select, textarea) { min-width: 0; max-width: 100%; font: inherit; }
+.concentrados-captura :is(select, textarea):focus-visible { outline: 3px solid rgba(49, 100, 72, .35); outline-offset: 2px; }
+@media (max-width: 1200px) { .alimentacion-formulario.concentrados-captura { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .alimentacion-formulario.concentrados-captura { grid-template-columns: minmax(0, 1fr); } }
+.concentrados-captura:disabled { opacity: .75; }
+.concentrados-contenido .alimentacion-resumen-confirmacion, .concentrados-balance dd { overflow-wrap: anywhere; }
+.concentrados-balance { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 1fr); gap: .5rem; }
+.concentrados-balance dd { margin: 0; }
+@media (max-width: 720px) { .concentrados-ingrediente { grid-template-columns: 1fr; } }
+
 @media (max-width: 900px) {
   .alimentacion-tabla { display: none; }
   .alimentacion-tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .8rem; }

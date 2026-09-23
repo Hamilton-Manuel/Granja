@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Middleware_requerirAutenticacion, Middleware_requerirPermiso } from "../../middleware/autenticacion.middleware.js";
 import * as C from "./alimentacion.controller.js";
 import { Alimentacion_formatearRespuesta } from "./alimentacion.service.js";
+import { Alimentacion_crearRouterConcentrados } from "./concentrados/concentrados.routes.js";
 
 export function Alimentacion_crearRouter() {
   const ObjRouter = Router();
@@ -11,6 +12,7 @@ export function Alimentacion_crearRouter() {
     Res.json = ((ObjDatos: unknown) => Alimentacion_json(Alimentacion_formatearRespuesta(ObjDatos))) as typeof Res.json;
     ObjSiguiente();
   });
+  ObjRouter.use("/concentrados", Alimentacion_crearRouterConcentrados());
   ObjRouter.post("/disponibilidad", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_disponibilidad);
   ObjRouter.get("/destinos/animales", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_destinosAnimales);
   ObjRouter.get("/destinos/lotes", Middleware_requerirPermiso("ALIMENTACION_REGISTRAR"), C.Alimentacion_destinosLotes);

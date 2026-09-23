@@ -6,13 +6,18 @@ import type { Server } from "node:http";
 import express from "express";
 
 import ObjAplicacion from "./app.js";
-import { BaseDatos_desconectar } from "./database/prisma.js";
+import { BaseDatos_desconectar, BaseDatos_obtenerCliente } from "./database/prisma.js";
 import { Middleware_manejarErrores } from "./middleware/manejo-errores.middleware.js";
 
 let ObjServidorPruebas: Server;
 let StrUrlBase: string;
+let ObjConsultaSqlOriginal: unknown;
 
 async function Api_iniciarServidorPruebas(): Promise<void> {
+  // Esta suite HTTP es unitaria: el health no debe conectar con la BD del .env.
+  const ObjPrisma = BaseDatos_obtenerCliente();
+  ObjConsultaSqlOriginal = Reflect.get(ObjPrisma, "$queryRaw");
+  Reflect.set(ObjPrisma, "$queryRaw", async () => [{ estado: 1 }]);
   await new Promise<void>((ObjResolver, ObjRechazar) => {
     ObjServidorPruebas = ObjAplicacion.listen(0, "127.0.0.1", (ObjError) => {
       if (ObjError !== undefined) {
@@ -40,13 +45,14 @@ async function Api_cerrarServidorPruebas(): Promise<void> {
     });
   });
 
+  Reflect.set(BaseDatos_obtenerCliente(), "$queryRaw", ObjConsultaSqlOriginal);
   await BaseDatos_desconectar();
 }
 
 before(Api_iniciarServidorPruebas);
 after(Api_cerrarServidorPruebas);
 
-test("GET /api/health comprueba SQL Server y responde saludable", async () => {
+test("GET /api/health responde saludable con la consulta SQL simulada", async () => {
   const ObjRespuesta = await fetch(`${StrUrlBase}/api/health`);
   const ObjContenido = (await ObjRespuesta.json()) as Record<string, unknown>;
 

@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useSesion } from "../../hooks/useSesion";
+import { ArrPermisosConcentrados } from "./ConcentradosCompartidos";
 export function LayoutAlimentacion() {
   const { Autenticacion_tienePermiso: P } = useSesion();
   const BoolFormulas = [
@@ -20,9 +21,10 @@ export function LayoutAlimentacion() {
         className="alimentacion-navegacion"
         aria-label="Secciones de Alimentación"
       >
-        <NavLink end to="/alimentacion">
+        {P("ALIMENTACION_CONSULTAR") && <NavLink end to="/alimentacion">
           Historial
-        </NavLink>
+        </NavLink>}
+        {ArrPermisosConcentrados.some(P) && <NavLink to="/alimentacion/concentrados">Concentrados</NavLink>}
         {P("ALIMENTACION_REGISTRAR") && (
           <NavLink to="/alimentacion/registrar">Registrar</NavLink>
         )}

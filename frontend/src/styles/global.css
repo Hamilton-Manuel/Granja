@@ -35,6 +35,9 @@ h2 { color: var(--verde-900); }
 .boton-secundario:hover:not(:disabled) { background: #d4e4d7; }
 button:disabled { cursor: not-allowed; opacity: 0.62; }
 .enlace-boton { display: inline-flex; align-items: center; text-decoration: none; }
+.acciones-tabla { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.acciones-tabla > :is(button, a) { display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; margin: 0; padding: .45rem .65rem; border-radius: .5rem; font-size: .8rem; line-height: 1.25; text-decoration: none; }
+.acciones-tabla > .boton-peligro:hover:not(:disabled) { background: #742727; }
 .estado-pantalla { align-items: center; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 2rem; text-align: center; }
 .indicador-carga { animation: giro 900ms linear infinite; border: 3px solid #cbd7ce; border-top-color: var(--verde-700); border-radius: 50%; height: 2.4rem; margin-bottom: 1rem; width: 2.4rem; }
 .estado-simbolo { align-items: center; background: #f5dddd; border-radius: 50%; color: var(--error); display: flex; font-size: 1.5rem; font-weight: 800; height: 3.5rem; justify-content: center; margin-bottom: 1rem; width: 3.5rem; }

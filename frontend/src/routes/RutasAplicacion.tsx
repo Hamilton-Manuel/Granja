@@ -30,6 +30,12 @@ import { PaginaHistorialProduccion } from "../pages/produccion/PaginaHistorialPr
 import { PaginaCatalogosProduccion } from "../pages/produccion/PaginaCatalogosProduccion";
 import { PaginaDiagnosticoProduccion } from "../pages/produccion/PaginaDiagnosticoProduccion";
 import { LayoutAlimentacion } from "../components/alimentacion/LayoutAlimentacion";
+import { LayoutConcentrados, ArrPermisosConcentrados } from "../components/alimentacion/ConcentradosCompartidos";
+import { PaginaEntradaConcentrados } from "../pages/alimentacion/PaginaConcentrados";
+import { PaginaRecetasConcentrados } from "../pages/alimentacion/PaginaRecetasConcentrados";
+import { PaginaElaborarConcentrado } from "../pages/alimentacion/PaginaElaborarConcentrado";
+import { PaginaHistorialConcentrados } from "../pages/alimentacion/PaginaHistorialConcentrados";
+import { PaginaDetalleConcentrado } from "../pages/alimentacion/PaginaDetalleConcentrado";
 import { PaginaHistorialAlimentacion } from "../pages/alimentacion/PaginaHistorialAlimentacion";
 import { PaginaRegistrarAlimentacion } from "../pages/alimentacion/PaginaRegistrarAlimentacion";
 import { PaginaFormulasAlimentacion } from "../pages/alimentacion/PaginaFormulasAlimentacion";
@@ -123,6 +129,21 @@ export function RutasAplicacion() {
               <Route element={<RutaConPermiso ArrPermisosAlguno={["ALIMENTACION_FORMULAS_CREAR", "ALIMENTACION_FORMULAS_EDITAR", "ALIMENTACION_FORMULAS_CAMBIAR_ESTADO"]} />}><Route path="formulas" element={<PaginaFormulasAlimentacion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_PRODUCTOS_GESTIONAR" />}><Route path="productos" element={<PaginaProductosAlimentacion />} /></Route>
               <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_RECONCILIACION_EJECUTAR" />}><Route path="diagnostico" element={<PaginaDiagnosticoAlimentacion />} /></Route>
+            </Route>
+          </Route>
+          <Route element={<RutaConPermiso ArrPermisosAlguno={ArrPermisosConcentrados} />}>
+            <Route path="/alimentacion/concentrados" element={<LayoutAlimentacion />}>
+              <Route element={<LayoutConcentrados />}>
+                <Route index element={<PaginaEntradaConcentrados />} />
+                <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_CONCENTRADOS_CONSULTAR" />}>
+                  <Route path="recetas" element={<PaginaRecetasConcentrados />} />
+                  <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_ELABORACIONES_REGISTRAR" />}><Route path="elaborar" element={<PaginaElaborarConcentrado />} /></Route>
+                </Route>
+                <Route element={<RutaConPermiso StrPermiso="ALIMENTACION_ELABORACIONES_CONSULTAR" />}>
+                  <Route path="historial" element={<PaginaHistorialConcentrados />} />
+                  <Route path="historial/:elaboracionId" element={<PaginaDetalleConcentrado />} />
+                </Route>
+              </Route>
             </Route>
           </Route>
           <Route element={<RutaConPermiso StrPermiso="SANIDAD_CONSULTAR" />}>

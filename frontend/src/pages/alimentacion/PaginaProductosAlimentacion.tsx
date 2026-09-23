@@ -138,6 +138,8 @@ export function PaginaProductosAlimentacion() {
         }
         StrMensaje="El historial y las fórmulas existentes se conservarán. El cambio afectará únicamente confirmaciones nuevas."
         StrConfirmar="Confirmar"
+        StrClaseConfirmar={ObjCambio?.habilitacionAlimentacion?.activo ? "boton-peligro" : "boton-primario"}
+        StrClaseCancelar={ObjCambio?.habilitacionAlimentacion?.activo ? "boton-secundario" : "boton-peligro"}
         BoolProcesando={BoolProcesando}
         Autenticacion_cancelar={() => establecerCambio(null)}
         Autenticacion_confirmar={() => void Alimentacion_cambiar()}

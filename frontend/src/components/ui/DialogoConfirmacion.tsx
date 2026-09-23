@@ -9,6 +9,7 @@ interface PropiedadesDialogoConfirmacion {
   Autenticacion_cancelar: () => void;
   Autenticacion_confirmar: () => void;
   StrClaseConfirmar?: string;
+  StrClaseCancelar?: string;
 }
 
 export function DialogoConfirmacion(ObjPropiedades: PropiedadesDialogoConfirmacion) {
@@ -16,7 +17,7 @@ export function DialogoConfirmacion(ObjPropiedades: PropiedadesDialogoConfirmaci
     <Modal BoolAbierto={ObjPropiedades.BoolAbierto} StrTitulo={ObjPropiedades.StrTitulo} Autenticacion_cerrar={ObjPropiedades.Autenticacion_cancelar}>
       <p className="dialogo-mensaje">{ObjPropiedades.StrMensaje}</p>
       <div className="modal-acciones">
-        <button type="button" className="boton-secundario" disabled={ObjPropiedades.BoolProcesando} onClick={ObjPropiedades.Autenticacion_cancelar}>Cancelar</button>
+        <button type="button" className={ObjPropiedades.StrClaseCancelar ?? "boton-secundario"} disabled={ObjPropiedades.BoolProcesando} onClick={ObjPropiedades.Autenticacion_cancelar}>Cancelar</button>
         <button type="button" className={ObjPropiedades.StrClaseConfirmar ?? "boton-peligro"} disabled={ObjPropiedades.BoolProcesando} onClick={ObjPropiedades.Autenticacion_confirmar}>
           {ObjPropiedades.BoolProcesando ? "Procesando…" : ObjPropiedades.StrConfirmar}
         </button>
