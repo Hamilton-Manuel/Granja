@@ -5,8 +5,67 @@ import { ArrCatalogoPermisosInventario, ArrPermisosInventarioOperador, Inventari
 import { ObjConsultaExistencias, ObjConsultaProductos, ObjConsultaTransferencias, ObjCrearAjuste, ObjCrearAlmacen, ObjCrearEntrada, ObjCrearProducto, ObjCrearSalida, ObjCrearTransferencia, ObjEditarLote, ObjEditarMinimo } from "./inventario.schemas.js";
 import { Inventario_calcularConversion, Inventario_validarProveedorLote, Inventario_validarProveedorOperacion } from "./inventario.service.js";
 import { ErrorAplicacion } from "../../errors/error-aplicacion.js";
+import { ObjCrearUnidad, ObjConsultaUnidades, ObjEstadoUnidad } from "./inventario.schemas.js";
+import { Inventario_validarUnidadActiva, Inventario_validarUnidadesConversion } from "./inventario.service.js";
 
 test("Inventario canonicaliza códigos manuales", () => assert.equal(Inventario_canonicalizarCodigo(" alm 01 "), "ALM01"));
+
+test("Unidades acepta factores exactos DECIMAL(30,15) y rechaza cero, negativos o dimensiones ajenas", () => {
+  const ObjBase = { codigo: "envase", nombre: "Envase", dimension: "VOLUMEN", factorReferencia: "250.123456789123456" };
+  assert.equal(ObjCrearUnidad.parse(ObjBase).factorReferencia, ObjBase.factorReferencia);
+  for (const StrFactor of ["0", "0.000", "-1", "1e3", "1.1234567891234567", "1000000000000000"]) assert.equal(ObjCrearUnidad.safeParse({ ...ObjBase, factorReferencia: StrFactor }).success, false);
+  assert.equal(ObjCrearUnidad.safeParse({ ...ObjBase, dimension: "OTRA" }).success, false);
+  assert.equal(ObjCrearUnidad.safeParse({ ...ObjBase, codigo: "m L" }).success, false);
+  assert.equal(ObjConsultaUnidades.safeParse({ dimension: "VOLUMEN", estado: "INACTIVO" }).success, true);
+});
+
+test("Estado de unidad no permite cambiar factor, dimensión ni código", () => {
+  assert.equal(ObjEstadoUnidad.safeParse({ activo: false }).success, true);
+  for (const ObjExtra of [{ factorReferencia: "5" }, { dimension: "PESO" }, { codigo: "nuevo" }]) assert.equal(ObjEstadoUnidad.safeParse({ activo: false, ...ObjExtra }).success, false);
+});
+
+test("Unidades inactivas se rechazan y las conversiones no cruzan dimensiones", () => {
+  assert.throws(() => Inventario_validarUnidadActiva({ activo: false }), { StrCodigo: "UNIDAD_INACTIVA" });
+  assert.throws(() => Inventario_validarUnidadActiva(null), { StrCodigo: "UNIDAD_INACTIVA" });
+  assert.doesNotThrow(() => Inventario_validarUnidadActiva({ activo: true }));
+  const ObjPeso = { activo: true, dimension: "PESO" }, ObjVolumen = { activo: true, dimension: "VOLUMEN" };
+  assert.throws(() => Inventario_validarUnidadesConversion(ObjPeso, ObjVolumen), { StrCodigo: "DIMENSION_UNIDAD_INCOMPATIBLE" });
+  assert.throws(() => Inventario_validarUnidadesConversion({ ...ObjVolumen, activo: false }, ObjVolumen), { StrCodigo: "UNIDAD_COMERCIAL_INVALIDA" });
+  assert.throws(() => Inventario_validarUnidadesConversion(ObjVolumen, { ...ObjVolumen, activo: false }), { StrCodigo: "UNIDAD_BASE_INVALIDA" });
+  assert.doesNotThrow(() => Inventario_validarUnidadesConversion(ObjVolumen, ObjVolumen));
+  assert.doesNotThrow(() => Inventario_validarUnidadesConversion(ObjPeso, ObjPeso));
+});
+
+test("Persistencia de unidad conserva el factor como texto exacto dentro de la transacción", async () => {
+  const { BaseDatos_obtenerCliente } = await import("../../database/prisma.js");
+  const { Inventario_crearUnidad } = await import("./inventario.repository.js");
+  const ObjDb = BaseDatos_obtenerCliente();
+  const Inventario_transaccionOriginal = Reflect.get(ObjDb, "$transaction");
+  const ArrEventos: string[] = [];
+  const StrFactor = "250.123456789123456";
+  const ObjTx = {
+    inventarioUnidadMedida: { create: async () => { ArrEventos.push("crear"); return { unidadMedidaId: 50, codigo: "envase" }; } },
+    $executeRaw: async (_ArrSql: TemplateStringsArray, StrValor: string, IntId: number) => { ArrEventos.push("factor"); assert.equal(StrValor, StrFactor); assert.equal(IntId, 50); },
+    usuarioBitacora: { create: async () => { ArrEventos.push("bitacora"); } },
+  };
+  Reflect.set(ObjDb, "$transaction", async (Inventario_accion: (Obj: unknown) => Promise<unknown>) => Inventario_accion(ObjTx));
+  try {
+    const ObjResultado = await Inventario_crearUnidad({ codigo: "envase", nombre: "Envase", dimension: "VOLUMEN", factorReferencia: StrFactor, IntUsuarioId: 1 });
+    assert.equal(ObjResultado.factorReferencia, StrFactor);
+    assert.deepEqual(ArrEventos, ["crear", "factor", "bitacora"]);
+  } finally { Reflect.set(ObjDb, "$transaction", Inventario_transaccionOriginal); }
+});
+
+test("Crear producto rechaza una unidad inactiva antes de persistir", async () => {
+  const { BaseDatos_obtenerCliente } = await import("../../database/prisma.js");
+  const { Inventario_crearProducto } = await import("./inventario.service.js");
+  const ObjDb = BaseDatos_obtenerCliente();
+  const Inventario_consultaOriginal = Reflect.get(ObjDb, "$queryRaw");
+  Reflect.set(ObjDb, "$queryRaw", async () => [{ codigo: "L", activo: false }]);
+  try {
+    await assert.rejects(Inventario_crearProducto({ codigo: "TEST", nombre: "Prueba", unidadMedida: "L", categoriaId: 1, manejaLotes: true, IntUsuarioId: 1 }), { StrCodigo: "UNIDAD_INACTIVA" });
+  } finally { Reflect.set(ObjDb, "$queryRaw", Inventario_consultaOriginal); }
+});
 test("Inventario define permisos únicos", () => assert.equal(new Set(ArrCatalogoPermisosInventario.map((Obj) => Obj.StrCodigo)).size, 21));
 test("Operador solo recibe cuatro permisos operativos", () => assert.deepEqual([...ArrPermisosInventarioOperador], ["INVENTARIO_CONSULTAR", "INVENTARIO_ENTRADAS_CREAR", "INVENTARIO_SALIDAS_CREAR", "INVENTARIO_TRANSFERENCIAS_CREAR"]));
 test("No existen subtipos de venta, devolución de cliente o producción", () => { const Arr = Object.values(ObjSubtiposInventario); assert.equal(Arr.includes("VENTA" as never), false); assert.equal(Arr.includes("DEVOLUCION_CLIENTE" as never), false); assert.equal(Arr.includes("PRODUCCION" as never), false); });
@@ -33,6 +92,17 @@ test("Almacén exige código manual", () => assert.equal(ObjCrearAlmacen.safePar
 test("Producto no acepta campos de stock", () => assert.equal(ObjCrearProducto.safeParse({ categoriaId: 1, codigo: "INS01", nombre: "Insumo", unidadMedida: "kg", manejaLotes: false, existenciaActual: 2 }).success, false));
 test("Transferencia exige lote, almacenes y cantidad positiva", () => { assert.equal(ObjCrearTransferencia.safeParse({ productoId: 1, inventarioOrigenId: 1, inventarioDestinoId: 2, loteInventarioId:1, cantidad: "1.5" }).success, true); assert.equal(ObjCrearTransferencia.safeParse({ productoId: 1, inventarioOrigenId: 1, inventarioDestinoId: 2, cantidad: "1.5" }).success, false); assert.equal(ObjCrearTransferencia.safeParse({ productoId: 1, inventarioOrigenId: 1, inventarioDestinoId: 2, loteInventarioId:1, cantidad: "0" }).success, false); });
 test("Decimal conserva comparación exacta", () => assert.equal(new Prisma.Decimal("0.1000").equals(new Prisma.Decimal("0.1")), true));
+
+test("Volumen: una caneca equivale exactamente a cinco galones estadounidenses", () => {
+  const DecGalon = new Prisma.Decimal("3785.411784");
+  const DecCaneca = new Prisma.Decimal("18927.05892");
+  assert.equal(DecCaneca.equals(DecGalon.mul(5)), true);
+  const ObjConversion = Inventario_calcularConversion(new Prisma.Decimal(1), DecCaneca, DecGalon, new Prisma.Decimal(1));
+  assert.equal(ObjConversion.DecFactorConversion.toFixed(12), "5.000000000000");
+  assert.equal(ObjConversion.DecCantidadBase.toFixed(6), "5.000000");
+  const ObjInversa = Inventario_calcularConversion(new Prisma.Decimal(5), DecGalon, DecCaneca, new Prisma.Decimal(1));
+  assert.equal(ObjInversa.DecCantidadBase.toFixed(6), "1.000000");
+});
 test("Código no forma parte de PATCH de producto", async () => { const { ObjEditarProducto } = await import("./inventario.schemas.js"); assert.equal(ObjEditarProducto.safeParse({ codigo: "OTRO" }).success, false); });
 test("No hay esquema DELETE", () => assert.equal(Object.keys(ObjSubtiposInventario).some((Str) => Str.includes("DELETE")), false));
 test("PATCH de lote no acepta fecha de fabricacion", () => { assert.equal(ObjEditarLote.safeParse({ fechaFabricacion: "2026-08-01" }).success, false); assert.equal(ObjEditarLote.safeParse({ fechaVencimiento: null }).success, true); });

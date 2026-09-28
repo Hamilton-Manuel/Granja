@@ -1,6 +1,9 @@
 export type DecimalInventario = string;
 export type EstadoFiltro = "ACTIVO" | "INACTIVO";
 export type TipoMovimiento = "INGRESO" | "SALIDA" | "AJUSTE";
+export type DimensionUnidadInventario = "PESO" | "VOLUMEN" | "UNIDADES";
+export interface DatosUnidadInventario { codigo: string; nombre: string; dimension: DimensionUnidadInventario; factorReferencia: string }
+export interface UnidadInventario extends DatosUnidadInventario { unidadMedidaId: number; activo: boolean }
 
 export interface PaginacionInventario { pagina: number; limite: number; total: number }
 export interface RespuestaLista<T> { datos: T[]; paginacion: PaginacionInventario }

@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { LoteInventario, ProductoInventario } from "../../types/inventario.types";
 import { FormularioOperacion } from "./FormularioOperacion";
+import { ArrUnidadesPrueba, ArrUnidadesVolumenConfirmadasPrueba } from "../../tests/unidadesInventario";
+
+vi.mock("../../hooks/useInventarioUnidades", () => ({ useInventarioUnidades: () => ({ ArrUnidades: [...ArrUnidadesPrueba, ...ArrUnidadesVolumenConfirmadasPrueba], BoolCargando: false, StrError: null }) }));
 
 vi.mock("../../services/inventario.service", () => ({ Inventario_listarLotes: vi.fn() }));
 import { Inventario_listarLotes } from "../../services/inventario.service";
@@ -22,6 +25,19 @@ function Inventario_renderizar(StrTipo: "INVENTARIO_INICIAL" | "COMPRA" = "INVEN
 }
 
 describe("saldo inicial de Inventario", () => {
+  it("ofrece gal y caneca para volumen y los excluye al seleccionar un producto de peso", async () => {
+    const ObjUsuario = userEvent.setup(); Inventario_renderizar("COMPRA");
+    await ObjUsuario.selectOptions(screen.getByLabelText("Producto"), "43");
+    expect(screen.getByRole("option", { name: "Galón (gal)" })).toBeVisible();
+    expect(screen.getByRole("option", { name: "Caneca (caneca)" })).toBeVisible();
+    expect(screen.queryByRole("option", { name: "Kilogramo (kg)" })).toBeNull();
+    await ObjUsuario.selectOptions(screen.getByLabelText("Unidad de medida"), "caneca");
+    expect(screen.getByLabelText("Unidad de medida")).toHaveValue("caneca");
+    await ObjUsuario.selectOptions(screen.getByLabelText("Producto"), "42");
+    expect(screen.queryByRole("option", { name: "Galón (gal)" })).toBeNull();
+    expect(screen.queryByRole("option", { name: "Caneca (caneca)" })).toBeNull();
+    expect(screen.getByRole("option", { name: "Kilogramo (kg)" })).toBeVisible();
+  });
   it("busca por código y nombre sin exponer IDs ni mostrar el select masivo", async () => {
     const ObjUsuario = userEvent.setup(); Inventario_renderizar();
     const ObjProducto = screen.getByRole("combobox", { name: "Producto" });

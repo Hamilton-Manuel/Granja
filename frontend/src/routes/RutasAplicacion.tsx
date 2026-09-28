@@ -99,7 +99,7 @@ export function RutasAplicacion() {
               <Route path="lotes" element={<PaginaLotesInventario />} />
               <Route path="movimientos" element={<PaginaMovimientosInventario />} />
               <Route path="transferencias" element={<PaginaTransferenciasInventario />} />
-              <Route element={<RutaConPermiso ArrPermisosAlguno={["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO"]} />}>
+              <Route element={<RutaConPermiso ArrPermisosAlguno={["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO", "INVENTARIO_PRODUCTOS_CREAR", "INVENTARIO_PRODUCTOS_CAMBIAR_ESTADO"]} />}>
                 <Route path="catalogos" element={<PaginaCatalogosInventario />} />
               </Route>
               <Route element={<RutaConPermiso StrPermiso="INVENTARIO_RECONCILIACION_EJECUTAR" />}>

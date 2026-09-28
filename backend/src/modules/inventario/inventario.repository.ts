@@ -56,6 +56,38 @@ export const Inventario_obtenerLote = (IntLoteId: number) => BaseDatos_obtenerCl
 export const Inventario_obtenerProveedorProducto = (IntProveedorId: number, IntProductoId: number) => BaseDatos_obtenerCliente().proveedorProducto.findUnique({ where: { proveedorId_productoId: { proveedorId: IntProveedorId, productoId: IntProductoId } }, include: { proveedor: true } });
 export const Inventario_obtenerProveedor = (IntProveedorId: number) => BaseDatos_obtenerCliente().proveedorRegistro.findUnique({ where: { proveedorId: IntProveedorId }, select: ObjSeleccionProveedorResumen });
 export async function Inventario_obtenerUnidad(StrCodigo:string){const Arr=await BaseDatos_obtenerCliente().$queryRaw<Array<{codigo:string;nombre:string;dimension:string;factorReferencia:string;activo:boolean}>>`SELECT codigo,nombre,dimension,CONVERT(NVARCHAR(100),factor_referencia) factorReferencia,activo FROM dbo.inventario_unidades_medida WHERE codigo=${StrCodigo}`;return Arr[0]??null;}
+
+interface InventarioUnidadCatalogo { unidadMedidaId: number; codigo: string; nombre: string; dimension: string; factorReferencia: string; activo: boolean }
+export async function Inventario_listarUnidades(Obj: { IntPagina: number; IntLimite: number; StrDimension?: string | undefined; BoolActivo?: boolean | undefined; StrBusqueda?: string | undefined }) {
+  const ArrFiltros: Prisma.Sql[] = [Prisma.sql`1=1`];
+  if (Obj.StrDimension !== undefined) ArrFiltros.push(Prisma.sql`dimension=${Obj.StrDimension}`);
+  if (Obj.BoolActivo !== undefined) ArrFiltros.push(Prisma.sql`activo=${Obj.BoolActivo}`);
+  if (Obj.StrBusqueda) ArrFiltros.push(Prisma.sql`(CHARINDEX(${Obj.StrBusqueda},codigo)>0 OR CHARINDEX(${Obj.StrBusqueda},nombre)>0)`);
+  const ObjFiltro = Prisma.join(ArrFiltros, " AND ");
+  const ObjDb = BaseDatos_obtenerCliente();
+  const [ArrDatos, ArrTotal] = await ObjDb.$transaction([
+    ObjDb.$queryRaw<InventarioUnidadCatalogo[]>(Prisma.sql`SELECT unidad_medida_id AS unidadMedidaId,codigo,nombre,dimension,CONVERT(NVARCHAR(100),factor_referencia) AS factorReferencia,activo
+      FROM dbo.inventario_unidades_medida WHERE ${ObjFiltro} ORDER BY dimension,unidad_medida_id OFFSET ${(Obj.IntPagina - 1) * Obj.IntLimite} ROWS FETCH NEXT ${Obj.IntLimite} ROWS ONLY`),
+    ObjDb.$queryRaw<Array<{ total: number }>>(Prisma.sql`SELECT COUNT(*) AS total FROM dbo.inventario_unidades_medida WHERE ${ObjFiltro}`),
+  ]);
+  return { datos: ArrDatos, total: ArrTotal[0]?.total ?? 0 };
+}
+export function Inventario_crearUnidad(Obj: { codigo: string; nombre: string; dimension: string; factorReferencia: string; IntUsuarioId: number; StrIp?: string | undefined }) {
+  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+    const ObjUnidad = await ObjTx.inventarioUnidadMedida.create({ data: { codigo: Obj.codigo, nombre: Obj.nombre, dimension: Obj.dimension, factorReferencia: new Prisma.Decimal(1) } });
+    // El driver SQL Server puede convertir Decimal a float: se persiste el factor exacto desde texto.
+    await ObjTx.$executeRaw`UPDATE dbo.inventario_unidades_medida SET factor_referencia=CAST(${Obj.factorReferencia} AS DECIMAL(30,15)) WHERE unidad_medida_id=${ObjUnidad.unidadMedidaId}`;
+    await Inventario_bitacora(ObjTx, Obj.IntUsuarioId, "INVENTARIO_UNIDAD_CREADA", `Unidad ${ObjUnidad.codigo}; dimensión ${Obj.dimension}; factor ${Obj.factorReferencia}.`, Obj.StrIp);
+    return { ...ObjUnidad, factorReferencia: Obj.factorReferencia };
+  });
+}
+export function Inventario_estadoUnidad(IntId: number, BoolActivo: boolean, IntUsuarioId: number, StrIp?: string | undefined) {
+  return BaseDatos_obtenerCliente().$transaction(async (ObjTx) => {
+    const ObjUnidad = await ObjTx.inventarioUnidadMedida.update({ where: { unidadMedidaId: IntId }, data: { activo: BoolActivo, fechaActualizacion: Fecha_obtenerAhoraGuatemala() }, select: { unidadMedidaId: true, codigo: true, activo: true } });
+    await Inventario_bitacora(ObjTx, IntUsuarioId, "INVENTARIO_UNIDAD_ESTADO", `Unidad ${ObjUnidad.codigo}; activo ${BoolActivo}.`, StrIp);
+    return ObjUnidad;
+  });
+}
 export const Inventario_obtenerExistencia = (IntInventarioProductoId: number) => BaseDatos_obtenerCliente().inventarioExistencia.findUnique({ where: { inventarioProductoId: IntInventarioProductoId } });
 export async function Inventario_productoTieneActividad(IntProductoId: number): Promise<boolean> {
   const ObjPrisma = BaseDatos_obtenerCliente();

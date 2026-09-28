@@ -9,6 +9,9 @@ function Inventario_parametros<T extends object>(ObjConsulta: T): string {
 function Inventario_listar<TDato, TConsulta extends object = object>(StrRuta: string, ObjConsulta: TConsulta): Promise<T.RespuestaLista<TDato>> { return Api_solicitar(`${StrRuta}?${Inventario_parametros(ObjConsulta)}`); }
 
 export const Inventario_obtenerResumen = () => Api_solicitar<T.RespuestaDato<T.ResumenInventario>>("/api/inventario/resumen");
+export const Inventario_listarUnidades = (ObjConsulta: T.ConsultaBase & { dimension?: T.DimensionUnidadInventario }) => Inventario_listar<T.UnidadInventario>("/api/inventario/unidades", ObjConsulta);
+export const Inventario_crearUnidad = (ObjDatos: T.DatosUnidadInventario) => Api_solicitar<T.RespuestaDato<T.UnidadInventario>>("/api/inventario/unidades", { method: "POST", ObjCuerpo: ObjDatos });
+export const Inventario_estadoUnidad = (IntId: number, BoolActivo: boolean) => Api_solicitar<T.RespuestaDato<Pick<T.UnidadInventario, "unidadMedidaId" | "codigo" | "activo">>>(`/api/inventario/unidades/${IntId}/estado`, { method: "PATCH", ObjCuerpo: { activo: BoolActivo } });
 export const Inventario_listarCategorias = (ObjConsulta: T.ConsultaBase) => Inventario_listar<T.CategoriaInventario>("/api/inventario/categorias", ObjConsulta);
 export const Inventario_crearCategoria = (ObjDatos: T.DatosCategoria) => Api_solicitar<T.RespuestaDato<T.CategoriaInventario>>("/api/inventario/categorias", { method: "POST", ObjCuerpo: ObjDatos });
 export const Inventario_editarCategoria = (IntId: number, ObjDatos: Partial<T.DatosCategoria>) => Api_solicitar<T.RespuestaDato<T.CategoriaInventario>>(`/api/inventario/categorias/${IntId}`, { method: "PATCH", ObjCuerpo: ObjDatos });

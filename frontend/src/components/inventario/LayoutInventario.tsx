@@ -5,7 +5,7 @@ import { useSesion } from "../../hooks/useSesion";
 export function LayoutInventario() {
   const { Autenticacion_tienePermiso } = useSesion();
   const ObjUbicacion = useLocation();
-  const BoolCatalogos = ["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO"].some(Autenticacion_tienePermiso);
+  const BoolCatalogos = ["INVENTARIO_CATEGORIAS_CREAR", "INVENTARIO_CATEGORIAS_EDITAR", "INVENTARIO_CATEGORIAS_CAMBIAR_ESTADO", "INVENTARIO_ALMACENES_CREAR", "INVENTARIO_ALMACENES_EDITAR", "INVENTARIO_ALMACENES_CAMBIAR_ESTADO", "INVENTARIO_PRODUCTOS_CREAR", "INVENTARIO_PRODUCTOS_CAMBIAR_ESTADO"].some(Autenticacion_tienePermiso);
   useEffect(() => {
     const ObjActivo = document.querySelector<HTMLElement>(".inventario-navegacion a[aria-current='page']");
     if (ObjActivo && typeof ObjActivo.scrollIntoView === "function") ObjActivo.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });

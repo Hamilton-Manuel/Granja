@@ -9,6 +9,19 @@ function Inventario_validar<T>(ObjEsquema: ZodType<T>, ObjValor: unknown): T { c
 function Inventario_actor(ObjSolicitud: Request) { if (!ObjSolicitud.ObjAutenticacion) throw new ErrorAplicacion(401, "NO_AUTENTICADO", "Debe iniciar sesión."); return { IntUsuarioId: ObjSolicitud.ObjAutenticacion.IntUsuarioId, StrIp: ObjSolicitud.ip }; }
 function Inventario_paginacion(ObjConsulta: { pagina: number; limite: number }, ObjResultado: { datos: unknown; total: number }) { return { datos: ObjResultado.datos, paginacion: { pagina: ObjConsulta.pagina, limite: ObjConsulta.limite, total: ObjResultado.total } }; }
 
+export async function Inventario_listarUnidades(Req: Request, Res: Response) {
+  const ObjConsulta = Inventario_validar(E.ObjConsultaUnidades, Req.query);
+  Res.json(Inventario_paginacion(ObjConsulta, await S.Inventario_listarUnidades({ IntPagina: ObjConsulta.pagina, IntLimite: ObjConsulta.limite, StrDimension: ObjConsulta.dimension, BoolActivo: ObjConsulta.estado === undefined ? undefined : ObjConsulta.estado === "ACTIVO", StrBusqueda: ObjConsulta.busqueda })));
+}
+export async function Inventario_crearUnidad(Req: Request, Res: Response) {
+  Res.status(201).json({ datos: await S.Inventario_crearUnidad({ ...Inventario_validar(E.ObjCrearUnidad, Req.body), ...Inventario_actor(Req) }) });
+}
+export async function Inventario_estadoUnidad(Req: Request, Res: Response) {
+  const ObjParametro = Inventario_validar(E.ObjParametroUnidad, Req.params);
+  const ObjDatos = Inventario_validar(E.ObjEstadoUnidad, Req.body);
+  Res.json({ datos: await S.Inventario_estadoUnidad(ObjParametro.unidadMedidaId, ObjDatos.activo, Inventario_actor(Req).IntUsuarioId, Req.ip) });
+}
+
 export async function Inventario_listarCategorias(Req: Request, Res: Response) { const Q = Inventario_validar(E.ObjConsultaInventario, Req.query); Res.json(Inventario_paginacion(Q, await S.Inventario_listarCategorias({ IntPagina: Q.pagina, IntLimite: Q.limite, StrBusqueda: Q.busqueda, BoolActivo: Q.estado === undefined ? undefined : Q.estado === "ACTIVO" }))); }
 export async function Inventario_crearCategoria(Req: Request, Res: Response) { const B = Inventario_validar(E.ObjCrearCategoria, Req.body); Res.status(201).json({ datos: await S.Inventario_crearCategoria({ ...B, ...Inventario_actor(Req) }) }); }
 export async function Inventario_editarCategoria(Req: Request, Res: Response) { const P = Inventario_validar(E.ObjParametroCategoria, Req.params); const B = Inventario_validar(E.ObjEditarCategoria, Req.body); Res.json({ datos: await S.Inventario_editarCategoria(P.categoriaId, B as Prisma.InventarioCategoriaUpdateInput, Inventario_actor(Req).IntUsuarioId, Req.ip) }); }

@@ -43,6 +43,17 @@ export const ObjEditarMinimo = z.object({ existenciaMinima: ObjDecimalNoNegativo
 export const ObjEditarLote = z.object({ fechaVencimiento: z.string().date().nullable().optional(), observaciones: ObjTextoOpcional(1000) }).strict().refine((Obj) => Object.keys(Obj).length > 0);
 export const ObjEstadoLote = ObjEstado;
 
+export const ObjDimensionUnidad = z.enum(["PESO", "VOLUMEN", "UNIDADES"]);
+export const ObjConsultaUnidades = ObjConsultaInventario.extend({ dimension: ObjDimensionUnidad.optional() }).strict();
+export const ObjParametroUnidad = z.object({ unidadMedidaId: ObjId }).strict();
+export const ObjEstadoUnidad = ObjEstado;
+export const ObjCrearUnidad = z.object({
+  codigo: z.string().trim().min(1).max(20).regex(/^[A-Za-z][A-Za-z0-9_-]*$/),
+  nombre: z.string().trim().min(1).max(100),
+  dimension: ObjDimensionUnidad,
+  factorReferencia: z.string().trim().regex(/^\d{1,15}(\.\d{1,15})?$/).refine((StrValor) => /[1-9]/.test(StrValor), "El factor debe ser mayor que cero."),
+}).strict();
+
 const ObjCantidadComercial = z.union([z.string(), z.number()]).transform(String).refine((StrValor) => /^\d{1,18}(\.\d{1,6})?$/.test(StrValor) && !/^0+(\.0+)?$/.test(StrValor));
 const ObjPrecioTotal = z.union([z.string(), z.number()]).transform(String).refine((StrValor) => /^\d{1,16}(\.\d{1,4})?$/.test(StrValor) && !/^0+(\.0+)?$/.test(StrValor));
 const ObjMovimientoBase = z.object({ productoId: ObjId, inventarioId: ObjId, loteInventarioId: ObjId, cantidad: ObjDecimalPositivo, proveedorId: ObjId.optional(), documentoReferencia: ObjTextoOpcional(150), motivo: ObjTextoOpcional(500), observaciones: ObjTextoOpcional(1000) });
