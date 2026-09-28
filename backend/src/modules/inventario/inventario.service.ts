@@ -66,7 +66,9 @@ export const Inventario_listarProductos = ObjRepositorio.Inventario_listarProduc
 export const Inventario_listarProveedores = ObjRepositorio.Inventario_listarProveedores;
 export const Inventario_listarProveedoresProductos = ObjRepositorio.Inventario_listarProveedoresProductos;
 export const Inventario_listarExistencias = ObjRepositorio.Inventario_listarExistencias;
-export const Inventario_listarLotes = ObjRepositorio.Inventario_listarLotes;
+export function Inventario_listarLotes(ObjConsulta: Parameters<typeof ObjRepositorio.Inventario_listarLotes>[0] & { StrOperacionSalida?: "MERMA" | "DISPOSICION" | "DEVOLUCION_PROVEEDOR" | undefined }) {
+  return ObjRepositorio.Inventario_listarLotes({ ...ObjConsulta, BoolDisponibles: !!ObjConsulta.StrOperacionSalida, DtFecha: ObjConsulta.StrOperacionSalida === "DEVOLUCION_PROVEEDOR" ? Fecha_parsearFechaCivil(Fecha_formatearFechaCivil(Fecha_obtenerAhoraGuatemala())) : undefined });
+}
 export const Inventario_listarMovimientos = ObjRepositorio.Inventario_listarMovimientos;
 export const Inventario_listarTransferencias = ObjRepositorio.Inventario_listarTransferencias;
 

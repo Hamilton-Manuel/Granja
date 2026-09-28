@@ -1,8 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { ProductoInventario } from "../../types/inventario.types";
+import type { LoteInventario, ProductoInventario } from "../../types/inventario.types";
 import { FormularioOperacion } from "./FormularioOperacion";
+
+vi.mock("../../services/inventario.service", () => ({ Inventario_listarLotes: vi.fn() }));
+import { Inventario_listarLotes } from "../../services/inventario.service";
 
 const ArrProductos: ProductoInventario[] = [
   { productoId: 41, categoriaId: 1, codigo: "ALM1", nombre: "Cebada", descripcion: null, unidadMedida: "lb", manejaLotes: false, activo: true, fechaCreacion: "", fechaActualizacion: "", categoria: { categoriaId: 1, nombre: "Alimentación", activo: true } },
@@ -85,5 +88,33 @@ describe("saldo inicial de Inventario", () => {
     await waitFor(() => expect(Inventario_guardar).toHaveBeenCalledWith({ productoId: 41, proveedorId: 81, inventarioId: 7, subtipo: "COMPRA", cantidadComercial: "10", unidadComercial: "lb", precioTotalIngreso: "3.25", fechaFabricacion: null, fechaVencimiento: null, documentoReferencia: null, motivo: null, observaciones: null }));
     Inventario_guardar.mockClear(); await ObjUsuario.click(screen.getByRole("button", { name: "Limpiar Proveedor" })); expect(ObjProveedorCampo).toHaveValue("");
     await ObjUsuario.click(screen.getByRole("button", { name: "Continuar" })); expect(Inventario_guardar).not.toHaveBeenCalled(); expect(screen.getByRole("alert")).toHaveTextContent("La compra requiere proveedor");
+  });
+});
+
+
+describe("lotes disponibles para salidas", () => {
+  it.each(["MERMA", "DISPOSICION"] as const)("%s excluye agotados y actualiza producto y almacén", async (StrTipo) => {
+    const ObjUsuario = userEvent.setup();
+    function Inventario_lote(IntId: number, StrSaldo: string, IntProductoId = 42, IntAlmacenId = 7): LoteInventario {
+      return { loteInventarioId: IntId, codigoLote: `INV${String(IntId).padStart(6, "0")}`, productoId: IntProductoId, activo: true, fechaFabricacion: null, fechaVencimiento: "2020-01-01", costoUnitario: "1", proveedorId: null, observaciones: null, producto: ArrProductos[1]!, proveedor: null, existencias: [{ existenciaLoteId: IntId, existenciaActual: StrSaldo, existencia: { inventarioId: IntAlmacenId, almacen: ArrAlmacenes[0]! } }] };
+    }
+    vi.mocked(Inventario_listarLotes).mockImplementation(async (ObjConsulta) => ({
+      datos: [Inventario_lote(1, "0"), Inventario_lote(6, "5"), Inventario_lote(7, "2", 42, 8), Inventario_lote(8, "2", 41), { ...Inventario_lote(9, "2"), activo: false }],
+      paginacion: { pagina: ObjConsulta.pagina, limite: 100, total: 5 },
+    }));
+    render(<FormularioOperacion StrTipo={StrTipo} ArrProductos={ArrProductos} ArrAlmacenes={[...ArrAlmacenes, { ...ArrAlmacenes[0]!, inventarioId: 8, codigo: "BOD2" }]} ArrProveedores={[]} ArrLotes={[]} BoolProcesando={false} Inventario_cancelar={vi.fn()} Inventario_guardar={vi.fn()} />);
+    await ObjUsuario.selectOptions(screen.getByLabelText("Producto"), "42");
+    await ObjUsuario.selectOptions(screen.getByLabelText("Almacén"), "7");
+    expect(await screen.findByRole("option", { name: /INV000006/ })).toBeVisible();
+    expect(screen.queryByRole("option", { name: /INV000001|INV000007|INV000008|INV000009/ })).toBeNull();
+    await ObjUsuario.selectOptions(screen.getByLabelText("Lote"), "6");
+    await ObjUsuario.selectOptions(screen.getByLabelText("Almacén"), "8");
+    expect(await screen.findByRole("option", { name: /INV000007/ })).toBeVisible();
+    expect(screen.queryByRole("option", { name: /INV000006/ })).toBeNull();
+    expect(screen.getByLabelText("Lote")).toHaveValue("0");
+    await ObjUsuario.selectOptions(screen.getByLabelText("Producto"), "41");
+    await ObjUsuario.selectOptions(screen.getByLabelText("Almacén"), "7");
+    expect(await screen.findByRole("option", { name: /INV000008/ })).toBeVisible();
+    expect(Inventario_listarLotes).toHaveBeenLastCalledWith(expect.objectContaining({ productoId: 41, inventarioId: 7, operacionSalida: StrTipo }));
   });
 });

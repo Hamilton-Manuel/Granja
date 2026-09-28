@@ -37,3 +37,39 @@ test("Código no forma parte de PATCH de producto", async () => { const { ObjEdi
 test("No hay esquema DELETE", () => assert.equal(Object.keys(ObjSubtiposInventario).some((Str) => Str.includes("DELETE")), false));
 test("PATCH de lote no acepta fecha de fabricacion", () => { assert.equal(ObjEditarLote.safeParse({ fechaFabricacion: "2026-08-01" }).success, false); assert.equal(ObjEditarLote.safeParse({ fechaVencimiento: null }).success, true); });
 test("Booleanos de query distinguen false", () => { assert.equal(ObjConsultaProductos.parse({ manejaLotes: "false" }).manejaLotes, false); assert.equal(ObjConsultaExistencias.parse({ bajoMinimo: "true" }).bajoMinimo, true); assert.equal(ObjConsultaTransferencias.safeParse({ revertida: "no" }).success, false); });
+
+test("Consulta de lotes para salida exige producto y almacén sin afectar historial", async () => {
+  const { ObjConsultaLotes } = await import("./inventario.schemas.js");
+  assert.equal(ObjConsultaLotes.safeParse({}).success, true);
+  assert.equal(ObjConsultaLotes.safeParse({ operacionSalida: "MERMA" }).success, false);
+  assert.equal(ObjConsultaLotes.safeParse({ operacionSalida: "DISPOSICION", productoId: 42, inventarioId: 7 }).success, true);
+});
+
+test("Fuentes disponibles filtra saldo positivo, actividad, producto y almacén", async () => {
+  const { Inventario_filtroFuentesDisponibles } = await import("./inventario.repository.js");
+  assert.deepEqual(Inventario_filtroFuentesDisponibles(42, undefined, 7), {
+    productoId: 42, existenciaActual: { gt: 0 },
+    existencia: { inventarioId: 7, activo: true, existenciaActual: { gt: 0 }, almacen: { activo: true }, producto: { activo: true, manejaLotes: true } },
+    lote: { activo: true },
+  });
+  const DtFecha = new Date("2026-09-28T00:00:00Z");
+  assert.deepEqual(Inventario_filtroFuentesDisponibles(42, DtFecha, 7).lote, { activo: true, OR: [{ fechaVencimiento: null }, { fechaVencimiento: { gte: DtFecha } }] });
+});
+
+test("Salida rechaza lote agotado entre selección y confirmación antes de escribir movimiento", async () => {
+  const { Inventario_aplicarMovimientoConTx } = await import("./inventario.repository.js");
+  let BoolMovimiento = false;
+  const ObjTx = {
+    inventarioExistencia: { findUnique: async () => ({ inventarioProductoId: 10 }) },
+    inventarioExistenciaLote: {
+      findUnique: async () => ({ existenciaLoteId: 6, productoId: 42 }),
+      updateMany: async (Obj: { where: { existenciaActual: { gte: Prisma.Decimal } } }) => {
+        assert.equal(Obj.where.existenciaActual.gte.toString(), "1");
+        return { count: 0 };
+      },
+    },
+    inventarioTransaccion: { create: async () => { BoolMovimiento = true; } },
+  } as unknown as Prisma.TransactionClient;
+  await assert.rejects(Inventario_aplicarMovimientoConTx(ObjTx, { productoId: 42, inventarioId: 7, loteInventarioId: 6, cantidad: new Prisma.Decimal("-1"), tipo: "SALIDA", subtipo: "MERMA", IntUsuarioId: 1 }), /STOCK_INSUFICIENTE/);
+  assert.equal(BoolMovimiento, false);
+});
