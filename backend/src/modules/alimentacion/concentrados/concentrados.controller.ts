@@ -31,8 +31,8 @@ export async function Alimentacion_catalogos(_ObjReq: Request, ObjRes: Response)
   ObjRes.json({ datos: await S.Alimentacion_catalogos() });
 }
 export async function Alimentacion_productos(ObjReq: Request, ObjRes: Response) {
-  const Obj = Alimentacion_validar(E.ObjConcentradoConsulta, ObjReq.query);
-  ObjRes.json({ datos: await S.Alimentacion_buscarProductos(Obj.busqueda ?? "") });
+  const Obj = Alimentacion_validar(E.ObjConcentradoConsultaProductos, ObjReq.query);
+  ObjRes.json({ datos: await S.Alimentacion_buscarProductos(Obj.busqueda ?? "", Obj.uso === "INGREDIENTE") });
 }
 export async function Alimentacion_historial(ObjReq: Request, ObjRes: Response) {
   ObjRes.json(await S.Alimentacion_historial(Alimentacion_validar(E.ObjConcentradoConsulta, ObjReq.query)));

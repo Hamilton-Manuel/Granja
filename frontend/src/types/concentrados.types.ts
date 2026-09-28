@@ -1,7 +1,7 @@
 export interface ProductoConcentrado { productoId: number; codigo: string; nombre: string; unidadMedida: string; activo: boolean }
 export interface Concentrado { concentradoId: number; productoId: number; activo: boolean; producto: Omit<ProductoConcentrado, "productoId"> }
 export interface AlmacenConcentrado { inventarioId: number; codigo: string; nombre: string }
-export interface CatalogosConcentrados { unidades: { codigo: string; factorReferencia: string }[]; almacenes: AlmacenConcentrado[] }
+export interface CatalogosConcentrados { unidades: { codigo: string; dimension: string; factorReferencia: string }[]; almacenes: AlmacenConcentrado[] }
 export interface ConsultaConcentrados { pagina: number; limite: number; busqueda?: string; concentradoId?: number }
 export interface ListaConcentrados<T> { datos: T[]; paginacion: { pagina: number; limite: number; total: number } }
 export interface IngredienteReceta { productoId: number; cantidad: string; unidadMedida: string }
@@ -26,7 +26,8 @@ export interface PreviaConcentrado {
   destino: AlmacenConcentrado; fechaEfectiva: string; cantidadTeorica: string; cantidadReal: string; unidadCaptura: string;
   cantidadTeoricaBase: string; cantidadRealBase: string;
   rendimiento: { diferencia: string; porcentaje: string; motivo: string | null };
-  balanceMasa: { unidad: string; ingredientesRequeridos: string; ingredientesDisponiblesAsignados: string; salidaTeorica: string; salidaReal: string; diferenciaEntradaSalida: string; residualCuantizacionSalida: string };
+  balanceMasa: { unidad: string; ingredientesRequeridos: string; ingredientesDisponiblesAsignados: string; salidaTeorica: string; salidaReal: string; diferenciaEntradaSalida: string; residualCuantizacionSalida: string } | null;
+  composicion: { dimension: string; unidad: string; ingredientesRequeridos: string; ingredientesDisponiblesAsignados: string }[];
   ingredientes: { productoId: number; codigo: string; nombre: string; unidadBase: string; cantidadRequerida: string; cantidadDisponible: string; cantidadFaltante: string; fuentes: FuentePreviaConcentrado[] }[];
   faltantes: { productoId: number; nombre: string; unidadBase: string; cantidadFaltante: string }[];
   costoDisponible: string;

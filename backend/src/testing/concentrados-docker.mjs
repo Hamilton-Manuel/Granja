@@ -25,7 +25,7 @@ try {
     "--mount", `type=bind,source=${resolve("../frontend/src/utils/fecha.ts")},target=/fecha-frontend.ts,readonly`,
     "--env", "DB_SA_PASSWORD", "--env", `CONCENTRADOS_CONTENEDOR_ID=${StrId}`,
     "--env", "NODE_ENV=test", "--entrypoint", "node", StrImagen, "/source/src/testing/concentrados-docker-interno.mjs",
-    ...(process.argv.includes("--reversion") ? ["--reversion"] : process.argv.includes("--confirmacion") ? ["--confirmacion"] : [])];
+    ...(process.argv.includes("--dimensiones") ? ["--dimensiones"] : process.argv.includes("--reversion") ? ["--reversion"] : process.argv.includes("--confirmacion") ? ["--confirmacion"] : [])];
   const ObjHijo = spawn("docker", ArrArgumentos, { stdio: "inherit", env: { ...process.env, DB_SA_PASSWORD: StrPassword }, windowsHide: true });
   ObjHijo.on("error", () => { console.error("No se pudo iniciar el contenedor temporal"); process.exitCode = 1; });
   ObjHijo.on("exit", IntCodigo => { process.exitCode = IntCodigo ?? 1; });

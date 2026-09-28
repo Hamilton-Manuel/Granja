@@ -10,10 +10,11 @@ import type { Concentrado, RecetaConcentrado, PreviaConcentrado, ElaboracionConc
 const ObjProducto = { productoId: 2, codigo: "MP-2", nombre: "Maíz", unidadMedida: "lb", activo: true };
 const ObjConcentrado: Concentrado = { concentradoId: 1, productoId: 1, activo: true, producto: { codigo: "CT-1", nombre: "Crecimiento", unidadMedida: "lb", activo: true } };
 const ObjReceta: RecetaConcentrado = { recetaId: 3, concentradoId: 1, productoId: 1, nombre: "Receta crecimiento", version: 2, activo: true, cantidadBase: "100.000000", unidadBase: "lb", descripcion: "Base", detalles: [{ recetaDetalleId: 4, productoId: 2, cantidad: "100.000001", unidadMedida: "lb", activo: true, producto: ObjProducto }] };
+const ObjMelaza = { productoId: 10, codigo: "ALI10", nombre: "Melaza", unidadMedida: "L", activo: true };
 const ObjAlmacen = { inventarioId: 7, codigo: "A-7", nombre: "Central" };
 const ObjPrevia: PreviaConcentrado = { disponible: true, reservaExistencias: false, huellaPrevisualizacion: "a".repeat(64), receta: { recetaId: 3, version: 2, nombre: "Receta crecimiento" }, productoTerminado: { productoId: 1, codigo: "CT-1", nombre: "Crecimiento", unidadBase: "lb" }, destino: ObjAlmacen,
   fechaEfectiva: "2026-09-22T09:30:00.000-06:00", cantidadTeorica: "500", cantidadReal: "490", unidadCaptura: "lb", cantidadTeoricaBase: "500.000000", cantidadRealBase: "490.000000",
-  rendimiento: { diferencia: "-10", porcentaje: "98", motivo: "Merma documentada" }, balanceMasa: { unidad: "g", ingredientesRequeridos: "226796.185", ingredientesDisponiblesAsignados: "226796.185", salidaTeorica: "226796.185", salidaReal: "222260.2613", diferenciaEntradaSalida: "4535.9237", residualCuantizacionSalida: "0" },
+  composicion: [], rendimiento: { diferencia: "-10", porcentaje: "98", motivo: "Merma documentada" }, balanceMasa: { unidad: "g", ingredientesRequeridos: "226796.185", ingredientesDisponiblesAsignados: "226796.185", salidaTeorica: "226796.185", salidaReal: "222260.2613", diferenciaEntradaSalida: "4535.9237", residualCuantizacionSalida: "0" },
   ingredientes: [{ productoId: 2, codigo: "MP-2", nombre: "Maíz", unidadBase: "lb", cantidadRequerida: "500.000005", cantidadDisponible: "600.000000", cantidadFaltante: "0.000000", fuentes: [{ existenciaLoteId: 11, inventarioId: 7, loteInventarioId: 9, codigoLote: "INV-9", existenciaActual: "600.000000", cantidad: "500.000005", costoUnitario: "2.123456789012345678", importe: "1061.728405123456784061728390", fechaVencimiento: null }] }], faltantes: [], costoDisponible: "1061.728405123456784061728390", costoEstimado: { total: "1061.728405123456784061728390", unitario: "2.166792663517258743", unidad: "lb", residualValoracion: "-0.000000000000000008271610" } };
 const ObjElaboracion: ElaboracionConcentrado = { elaboracionId: 42, recetaId: 3, productoId: 1, fechaEfectiva: ObjPrevia.fechaEfectiva, codigoProductoSnapshot: "CT-1", nombreProductoSnapshot: "Crecimiento histórico", nombreRecetaSnapshot: "Receta histórica", versionReceta: 2, estado: "CONFIRMADA", cantidadRealBase: "490.000000", unidadBaseSnapshot: "lb", costoTotal: ObjPrevia.costoEstimado!.total, costoUnitario: ObjPrevia.costoEstimado!.unitario, residualValoracion: ObjPrevia.costoEstimado!.residualValoracion,
   cantidadTeorica: "500.000000", cantidadReal: "490.000000", unidadCaptura: "lb", cantidadTeoricaBase: "500.000000", usuarioId: 1, usuario: { nombreCompleto: "Responsable de prueba" }, loteInventarioId: 20, transaccionIngresoId: 31, motivoDiferencia: "Merma documentada", observaciones: "Turno de mañana", fechaReversion: null, motivoReversion: null, lote: { codigoLote: "INV-20", fechaVencimiento: null }, almacenDestino: ObjAlmacen,
@@ -36,8 +37,8 @@ beforeEach(() => {
     const ObjCuerpo = ObjOpciones?.body ? JSON.parse(String(ObjOpciones.body)) as Record<string, unknown> : {};
     ArrSolicitudes.push({ ruta: StrRuta, metodo: StrMetodo, cuerpo: ObjCuerpo });
     if (StrRuta === "/api/usuarios/sesion") return Alimentacion_json({ datos: { usuario: { usuarioId: 1, nombreCompleto: "Responsable de prueba", nombreUsuario: "prueba", correo: "prueba@example.test", estado: "ACTIVO", rol: { rolId: 1, nombre: "OPERADOR" }, permisos: ArrPermisos } } });
-    if (StrRuta === `${StrBase}/catalogos`) return Alimentacion_json({ datos: { unidades: [{ codigo: "lb", factorReferencia: "453.59237" }, { codigo: "kg", factorReferencia: "1000" }, { codigo: "qq", factorReferencia: "45359.237" }, { codigo: "t", factorReferencia: "1000000" }], almacenes: [ObjAlmacen] } });
-    if (StrRuta === `${StrBase}/productos`) return Alimentacion_json({ datos: [ObjUrl.searchParams.get("busqueda")?.includes("Soya") ? { ...ObjProducto, productoId: 5, codigo: "MP-5", nombre: "Soya" } : ObjProducto] });
+    if (StrRuta === `${StrBase}/catalogos`) return Alimentacion_json({ datos: { unidades: [{ codigo: "lb", dimension: "PESO", factorReferencia: "453.59237" }, { codigo: "kg", dimension: "PESO", factorReferencia: "1000" }, { codigo: "qq", dimension: "PESO", factorReferencia: "45359.237" }, { codigo: "t", dimension: "PESO", factorReferencia: "1000000" }, { codigo: "mL", dimension: "VOLUMEN", factorReferencia: "1" }, { codigo: "L", dimension: "VOLUMEN", factorReferencia: "1000" }, { codigo: "gal", dimension: "VOLUMEN", factorReferencia: "3785.411784" }, { codigo: "caneca", dimension: "VOLUMEN", factorReferencia: "18927.05892" }], almacenes: [ObjAlmacen] } });
+    if (StrRuta === `${StrBase}/productos`) return Alimentacion_json({ datos: [ObjUrl.searchParams.get("busqueda")?.includes("Melaza") && ObjUrl.searchParams.get("uso") === "INGREDIENTE" ? ObjMelaza : ObjUrl.searchParams.get("busqueda")?.includes("Soya") ? { ...ObjProducto, productoId: 5, codigo: "MP-5", nombre: "Soya" } : ObjProducto] });
     if (StrRuta === StrBase) return Alimentacion_json(StrMetodo === "GET" ? Alimentacion_lista([ObjConcentrado]) : { datos: ObjConcentrado });
     if (StrRuta === `${StrBase}/1`) return Alimentacion_json({ datos: ObjConcentrado });
     if (StrRuta === `${StrBase}/1/estado`) return Alimentacion_json({ datos: { ...ObjConcentrado, activo: false } });
@@ -180,7 +181,7 @@ it("crea receta con múltiples ingredientes y cantidades string sin movimientos"
   expect(within(ObjModal).getByText(/NO modifica inventario/)).toBeInTheDocument();
   fireEvent.change(within(ObjModal).getByLabelText("Nombre de receta"), { target: { value: "Nueva mezcla" } });
   expect(within(ObjModal).queryByLabelText("Rendimiento base")).toBeNull();
-  expect(within(ObjModal).getByLabelText("Unidad del total")).toHaveValue("lb");
+  expect(within(ObjModal).getByLabelText("Unidad de la cantidad base")).toHaveValue("lb");
   await userEvent.click(within(ObjModal).getByRole("button", { name: "Agregar ingrediente" }));
   await userEvent.type(within(ObjModal).getByRole("combobox", { name: "Producto ingrediente 1" }), "Maíz");
   await userEvent.click(await within(ObjModal).findByRole("option", { name: /MP-2/ }));
@@ -196,6 +197,35 @@ it("crea receta con múltiples ingredientes y cantidades string sin movimientos"
   const ArrMutaciones = ArrSolicitudes.filter(Obj => Obj.metodo !== "GET");
   expect(ArrMutaciones).toEqual([{ ruta: `${StrBase}/recetas`, metodo: "POST", cuerpo: { concentradoId: 1, nombre: "Nueva mezcla", descripcion: "", cantidadBase: "105.000001", unidadBase: "lb", detalles: [{ productoId: 2, cantidad: "99.999999", unidadMedida: "lb" }, { productoId: 5, cantidad: "5.000002", unidadMedida: "lb" }] } }]);
 });
+it("receta mixta incluye Melaza, restringe unidades por ingrediente y exige base independiente", async () => {
+  Alimentacion_renderizar("/alimentacion/concentrados/recetas?concentradoId=1");
+  await userEvent.click(await screen.findByRole("button", { name: "Nueva receta" }));
+  const ObjModal = within(await screen.findByRole("dialog", { name: "Nueva receta" }));
+  fireEvent.change(ObjModal.getByLabelText("Nombre de receta"), { target: { value: "Mixta" } });
+  await userEvent.click(ObjModal.getByRole("button", { name: "Agregar ingrediente" }));
+  await userEvent.type(ObjModal.getByRole("combobox", { name: "Producto ingrediente 1" }), "Maíz");
+  await userEvent.click(await ObjModal.findByRole("option", { name: /MP-2/ }));
+  await userEvent.selectOptions(ObjModal.getByLabelText("Unidad ingrediente 1"), "qq");
+  fireEvent.change(ObjModal.getByLabelText("Cantidad ingrediente 1"), { target: { value: "5" } });
+  expect(within(ObjModal.getByLabelText("Unidad ingrediente 1")).queryByRole("option", { name: /Litro|caneca|gal/ })).toBeNull();
+  await userEvent.click(ObjModal.getByRole("button", { name: "Agregar ingrediente" }));
+  await userEvent.type(ObjModal.getByRole("combobox", { name: "Producto ingrediente 2" }), "Melaza");
+  await userEvent.click(await ObjModal.findByRole("option", { name: /ALI10.*Melaza/ }));
+  const ObjUnidad = ObjModal.getByLabelText("Unidad ingrediente 2") as HTMLSelectElement;
+  expect(ObjUnidad).toHaveValue("L");
+  expect(Array.from(ObjUnidad.options).map(Obj => Obj.value)).toEqual(["", "mL", "L", "gal", "caneca"]);
+  await userEvent.selectOptions(ObjUnidad, "caneca");
+  fireEvent.change(ObjModal.getByLabelText("Cantidad ingrediente 2"), { target: { value: "1" } });
+  expect(ObjModal.getByText("Peso total: 500 lb")).toBeVisible();
+  expect(ObjModal.getByText("Volumen total: 1 caneca")).toBeVisible();
+  expect(ObjModal.queryByText(/^Total de la receta:/)).toBeNull();
+  await userEvent.click(ObjModal.getByRole("button", { name: "Guardar receta" }));
+  expect(ArrSolicitudes.filter(Obj => Obj.metodo === "POST")).toHaveLength(0);
+  fireEvent.change(ObjModal.getByLabelText("Cantidad base del concentrado"), { target: { value: "1000" } });
+  await userEvent.click(ObjModal.getByRole("button", { name: "Guardar receta" }));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nueva receta" })).toBeNull());
+  expect(ArrSolicitudes.find(Obj => Obj.metodo === "POST")?.cuerpo).toMatchObject({ cantidadBase: "1000", unidadBase: "lb", detalles: [{ productoId: 2, cantidad: "5", unidadMedida: "qq" }, { productoId: 10, cantidad: "1", unidadMedida: "caneca" }] });
+});
 it("edita receta enviando su versión esperada y cambia estado con esa versión", async () => {
   Alimentacion_renderizar("/alimentacion/concentrados/recetas");
   await userEvent.click(await screen.findByRole("button", { name: "Editar" }));
@@ -203,7 +233,7 @@ it("edita receta enviando su versión esperada y cambia estado con esa versión"
   fireEvent.change(within(ObjModal).getByLabelText("Cantidad ingrediente 1"), { target: { value: "90.123456" } });
   await userEvent.click(within(ObjModal).getByRole("button", { name: "Guardar receta" }));
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Editar receta" })).toBeNull());
-  expect(ArrSolicitudes.find(Obj => Obj.metodo === "PATCH")?.cuerpo).toMatchObject({ versionEsperada: 2, cantidadBase: "90.123456", detalles: [{ productoId: 2, cantidad: "90.123456", unidadMedida: "lb" }] });
+  expect(ArrSolicitudes.find(Obj => Obj.metodo === "PATCH")?.cuerpo).toMatchObject({ versionEsperada: 2, cantidadBase: "100.000000", detalles: [{ productoId: 2, cantidad: "90.123456", unidadMedida: "lb" }] });
   await userEvent.click(screen.getByRole("button", { name: "Inactivar" }));
   await userEvent.click(within(await screen.findByRole("dialog", { name: "Inactivar receta" })).getByRole("button", { name: "Confirmar estado" }));
   await waitFor(() => expect(ArrSolicitudes.some(Obj => Obj.ruta.endsWith("/recetas/3/estado") && Obj.cuerpo.versionEsperada === 2 && Obj.cuerpo.activo === false)).toBe(true));

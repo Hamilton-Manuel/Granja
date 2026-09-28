@@ -10,7 +10,7 @@ import { Paginacion } from "../../components/ui/Paginacion";
 import { IndicadorCarga } from "../../components/ui/IndicadorCarga";
 import { UnidadConcentrado, Alimentacion_cantidadValida, Alimentacion_decimal, useConcentradosLista } from "../../components/alimentacion/ConcentradosCompartidos";
 import * as S from "../../services/concentrados.service";
-import { Alimentacion_totalReceta } from "../../utils/concentrados";
+import { Alimentacion_totalReceta, Alimentacion_composicionReceta, Alimentacion_unidadesIngrediente } from "../../utils/concentrados";
 import type { CatalogosConcentrados, Concentrado, ProductoConcentrado, RecetaConcentrado } from "../../types/concentrados.types";
 type LineaReceta = { IntClave: number; ObjProducto: ProductoConcentrado | null; StrCantidad: string; StrUnidad: string };
 
@@ -25,13 +25,16 @@ export function PaginaRecetasConcentrados() {
   const [StrNombre, establecerNombre] = useState("");
   const [StrDescripcion, establecerDescripcion] = useState("");
   const [StrUnidad, establecerUnidad] = useState("");
+  const [StrBaseManual, establecerBaseManual] = useState<string | null>(null);
   const [ArrLineas, establecerLineas] = useState<LineaReceta[]>([]);
   const [StrBusqueda, establecerBusqueda] = useState("");
   const [StrError, establecerError] = useState<string | null>(null);
   const [BoolProcesando, establecerProcesando] = useState(false);
   const [ObjEstado, establecerEstado] = useState<RecetaConcentrado | null>(null);
   const RefClave = useRef(0);
-  const StrCantidad = Alimentacion_totalReceta(ArrLineas.map(Obj => ({ productoId: Obj.ObjProducto?.productoId ?? 0, cantidad: Obj.StrCantidad, unidadMedida: Obj.StrUnidad })), StrUnidad, ObjCatalogos.unidades);
+  const StrTotal = Alimentacion_totalReceta(ArrLineas.map(Obj => ({ productoId: Obj.ObjProducto?.productoId ?? 0, cantidad: Obj.StrCantidad, unidadMedida: Obj.StrUnidad })), StrUnidad, ObjCatalogos.unidades);
+  const StrCantidad = StrBaseManual ?? StrTotal ?? "";
+  const ArrComposicion = Alimentacion_composicionReceta(ArrLineas.map(Obj => ({ productoId: Obj.ObjProducto?.productoId ?? 0, cantidad: Obj.StrCantidad, unidadMedida: Obj.StrUnidad })), StrUnidad, ObjCatalogos.unidades);
   useEffect(() => { let BoolVigente = true; void S.Alimentacion_catalogosConcentrados().then(Obj => { if (BoolVigente) establecerCatalogos(Obj); }).catch(E => { if (BoolVigente) establecerError(Alimentacion_mensajeError(E)); }); return () => { BoolVigente = false; }; }, []);
   async function Alimentacion_abrir(Obj: RecetaConcentrado | null) {
     establecerError(null); establecerProcesando(true);
@@ -43,6 +46,8 @@ export function PaginaRecetasConcentrados() {
       establecerNombre(ObjActual?.nombre ?? ""); establecerDescripcion(ObjActual?.descripcion ?? "");
       establecerUnidad(ObjActual?.unidadBase ?? ObjDestino?.producto.unidadMedida ?? "");
       establecerLineas(ObjActual?.detalles.map(D => ({ IntClave: ++RefClave.current, ObjProducto: { ...D.producto, productoId: D.productoId }, StrCantidad: D.cantidad, StrUnidad: D.unidadMedida })) ?? []);
+      const StrTotalActual = ObjActual ? Alimentacion_totalReceta(ObjActual.detalles, ObjActual.unidadBase, ObjCatalogos.unidades) : null;
+      establecerBaseManual(ObjActual && (!StrTotalActual || Alimentacion_decimal(StrTotalActual) !== Alimentacion_decimal(ObjActual.cantidadBase)) ? ObjActual.cantidadBase : null);
       establecerEdicion(ObjActual);
     } catch (E) { establecerError(Alimentacion_mensajeError(E)); } finally { establecerProcesando(false); }
   }
@@ -50,7 +55,8 @@ export function PaginaRecetasConcentrados() {
   async function Alimentacion_guardar(E: FormEvent) {
     E.preventDefault(); if (BoolProcesando) return;
     if (!ObjConcentrado || !ArrLineas.length || ArrLineas.some(Obj => !Obj.ObjProducto || !Alimentacion_cantidadValida(Obj.StrCantidad) || !Obj.StrUnidad)) { establecerError("Seleccione el concentrado y al menos un ingrediente. Use cantidades positivas con hasta seis decimales."); return; }
-    if (!StrCantidad) { establecerError("No se puede calcular el total: revise las unidades y que la suma sea positiva y esté dentro del rango permitido."); return; }
+    if (!Alimentacion_cantidadValida(StrCantidad)) { establecerError("Indique una cantidad base del concentrado positiva. Las dimensiones diferentes no se suman."); return; }
+    if (ArrLineas.some(Obj => !Alimentacion_unidadesIngrediente(Obj.ObjProducto!.unidadMedida, ObjCatalogos.unidades).some(U => U.codigo === Obj.StrUnidad))) { establecerError("Revise las unidades: deben ser compatibles con cada ingrediente."); return; }
     if (new Set(ArrLineas.map(Obj => Obj.ObjProducto!.productoId)).size !== ArrLineas.length) { establecerError("No repita ingredientes en la receta."); return; }
     establecerProcesando(true); establecerError(null);
     try {
@@ -72,7 +78,7 @@ export function PaginaRecetasConcentrados() {
     {IntConcentrado && <Link to="/alimentacion/concentrados/recetas">Ver todas las recetas</Link>}
     <form className="alimentacion-filtros" onSubmit={E => { E.preventDefault(); H.establecerConsulta({ ...H.ObjConsulta, pagina: 1, busqueda: StrBusqueda }); }}><label>Buscar receta<input value={StrBusqueda} maxLength={100} onChange={E => establecerBusqueda(E.target.value)} /></label><button className="boton-primario">Buscar</button></form>
     {(StrError || H.StrError) && <MensajeError StrMensaje={StrError ?? H.StrError!} />}
-    {H.BoolCargando ? <IndicadorCarga StrMensaje="Cargando recetas…" /> : <div className="alimentacion-tabla"><table><thead><tr><th>Receta</th><th>Total de la receta</th><th>Ingredientes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    {H.BoolCargando ? <IndicadorCarga StrMensaje="Cargando recetas…" /> : <div className="alimentacion-tabla"><table><thead><tr><th>Receta</th><th>Cantidad base del concentrado</th><th>Ingredientes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
       {H.ArrDatos.map(Obj => <tr key={Obj.recetaId}><td>{Obj.nombre}<small>Versión {Obj.version}</small>{Obj.descripcion}</td><td>{Alimentacion_decimal(Obj.cantidadBase)} {Obj.unidadBase}</td><td><ul className="alimentacion-detalles">{Obj.detalles.map(D => <li key={D.recetaDetalleId}>{D.producto.nombre}: {Alimentacion_decimal(D.cantidad)} {D.unidadMedida}</li>)}</ul></td><td>{Obj.activo ? "ACTIVA" : "INACTIVA"}</td><td className="acciones-tabla">
         {P("ALIMENTACION_RECETAS_GESTIONAR") && <><button className="boton-secundario" disabled={BoolProcesando} onClick={() => void Alimentacion_abrir(Obj)}>Editar</button><button className={Obj.activo ? "boton-peligro" : "boton-secundario"} disabled={BoolProcesando} onClick={() => establecerEstado(Obj)}>{Obj.activo ? "Inactivar" : "Activar"}</button></>}
         {Obj.activo && P("ALIMENTACION_ELABORACIONES_REGISTRAR") && <Link className="enlace-boton boton-primario" to={`/alimentacion/concentrados/elaborar?recetaId=${Obj.recetaId}`}>Elaborar</Link>}
@@ -88,13 +94,17 @@ export function PaginaRecetasConcentrados() {
         <label>Nombre de receta<input required maxLength={150} value={StrNombre} onChange={E => establecerNombre(E.target.value)} /></label>
         <label>Descripción<textarea maxLength={500} value={StrDescripcion} onChange={E => establecerDescripcion(E.target.value)} /></label>
         <fieldset><legend>Ingredientes</legend>{ArrLineas.map((Obj, IntIndice) => <div className="concentrados-ingrediente" key={Obj.IntClave}>
-          <Autocomplete StrEtiqueta={`Producto ingrediente ${IntIndice + 1}`} StrPlaceholder="Buscar materia prima" ObjSeleccion={Obj.ObjProducto} Autocomplete_buscar={S.Alimentacion_productosConcentrados} Autocomplete_etiqueta={Pr => `${Pr.codigo} · ${Pr.nombre} (${Pr.unidadMedida})`} Autocomplete_clave={Pr => Pr.productoId} Autocomplete_seleccionar={Pr => Alimentacion_linea(Obj.IntClave, { ObjProducto: Pr, StrUnidad: Pr?.unidadMedida ?? "" })} />
+          <Autocomplete StrEtiqueta={`Producto ingrediente ${IntIndice + 1}`} StrPlaceholder="Buscar materia prima" ObjSeleccion={Obj.ObjProducto} Autocomplete_buscar={S.Alimentacion_ingredientesConcentrados} Autocomplete_etiqueta={Pr => `${Pr.codigo} · ${Pr.nombre} (${Pr.unidadMedida})`} Autocomplete_clave={Pr => Pr.productoId} Autocomplete_seleccionar={Pr => Alimentacion_linea(Obj.IntClave, { ObjProducto: Pr, StrUnidad: Pr?.unidadMedida ?? "" })} />
           <label>Cantidad ingrediente {IntIndice + 1}<input required inputMode="decimal" value={Obj.StrCantidad} onChange={E => Alimentacion_linea(Obj.IntClave, { StrCantidad: E.target.value })} /></label>
-          <UnidadConcentrado StrEtiqueta={`Unidad ingrediente ${IntIndice + 1}`} StrValor={Obj.StrUnidad} ArrUnidades={ObjCatalogos.unidades} Alimentacion_cambiar={Str => Alimentacion_linea(Obj.IntClave, { StrUnidad: Str })} />
+          <UnidadConcentrado StrEtiqueta={`Unidad ingrediente ${IntIndice + 1}`} StrValor={Obj.StrUnidad} ArrUnidades={Alimentacion_unidadesIngrediente(Obj.ObjProducto?.unidadMedida ?? "", ObjCatalogos.unidades)} Alimentacion_cambiar={Str => Alimentacion_linea(Obj.IntClave, { StrUnidad: Str })} />
           <button type="button" onClick={() => establecerLineas(Arr => Arr.filter(X => X.IntClave !== Obj.IntClave))}>Quitar ingrediente {IntIndice + 1}</button>
         </div>)}<button type="button" disabled={ArrLineas.length >= 100} onClick={() => establecerLineas(Arr => [...Arr, { IntClave: ++RefClave.current, ObjProducto: null, StrCantidad: "", StrUnidad: "" }])}>Agregar ingrediente</button>
-          <UnidadConcentrado StrEtiqueta="Unidad del total" StrValor={StrUnidad} ArrUnidades={ObjCatalogos.unidades} Alimentacion_cambiar={establecerUnidad} />
-          <output aria-live="polite">Total de la receta: {StrCantidad ? `${Alimentacion_decimal(StrCantidad)} ${StrUnidad}` : "— (complete los ingredientes y la unidad)"}</output>
+          <UnidadConcentrado StrEtiqueta="Unidad de la cantidad base" StrValor={StrUnidad} ArrUnidades={ObjCatalogos.unidades.filter(Obj => Obj.dimension === "PESO")} Alimentacion_cambiar={Str => { establecerUnidad(Str); establecerBaseManual(""); }} />
+          <label>Cantidad base del concentrado<input required inputMode="decimal" value={StrCantidad} onChange={E => establecerBaseManual(E.target.value)} /></label>
+          <p>Concentrado terminado que corresponde a esta receta base. La elaboración escala cada ingrediente proporcionalmente; no convierte volumen a peso.</p>
+          {StrBaseManual !== null && StrTotal && <button type="button" onClick={() => establecerBaseManual(null)}>Usar total de ingredientes como base</button>}
+          {StrTotal && <output aria-live="polite">Total de la receta: {Alimentacion_decimal(StrTotal)} {StrUnidad}</output>}
+          {!StrTotal && ArrComposicion.map(Obj => <output key={Obj.StrDimension} aria-live="polite">{({ PESO: "Peso total", VOLUMEN: "Volumen total", UNIDADES: "Unidades totales" } as Record<string, string>)[Obj.StrDimension]}: {Obj.StrCantidad ? Alimentacion_decimal(Obj.StrCantidad) : "—"} {Obj.StrUnidad}</output>)}
         </fieldset>
         {StrError && <MensajeError StrMensaje={StrError} />}<button className="boton-primario" disabled={BoolProcesando}>Guardar receta</button>
       </form>

@@ -22,6 +22,7 @@ async function Alimentacion_productoPrueba(BoolClasificar = true, StrUnidad = "l
   const ObjDb = BaseDatos_obtenerCliente();
   const ObjCategoria = await ObjDb.inventarioCategoria.findFirstOrThrow({ where: { nombre: "Concentrados prueba" } });
   const ObjProducto = await ObjDb.inventarioProducto.create({ data: { codigo: `CONC-P-${++IntCaso}`, nombre: `Producto ${IntCaso}`, categoriaId: ObjCategoria.categoriaId, unidadMedida: StrUnidad } });
+  await ObjDb.alimentacionProductoHabilitado.create({ data: { productoId: ObjProducto.productoId, activo: true } });
   const ObjConcentrado = BoolClasificar ? await S.Alimentacion_clasificarConcentrado(ObjProducto.productoId, { IntUsuarioId }) : null;
   return { IntProductoId: ObjProducto.productoId, IntConcentradoId: ObjConcentrado?.concentradoId ?? 0 };
 }
@@ -43,6 +44,7 @@ before(async () => {
   IntUsuarioId = (await ObjDb.usuarioCuenta.findUniqueOrThrow({ where: { nombreUsuario: "concentrados_test" } })).usuarioId;
   const ObjCategoria = await ObjDb.inventarioCategoria.create({ data: { nombre: "Concentrados prueba" } });
   IntProductoId = (await ObjDb.inventarioProducto.create({ data: { codigo: "CONC-TEST", nombre: "Concentrado", categoriaId: ObjCategoria.categoriaId, unidadMedida: "lb" } })).productoId;
+  await ObjDb.alimentacionProductoHabilitado.create({ data: { productoId: IntProductoId, activo: true } });
   IntAlmacenId = (await ObjDb.inventarioAlmacen.create({ data: { codigo: "CONC-ALM", nombre: "Temporal" } })).inventarioId;
   const DtAhora = Fecha_obtenerAhoraGuatemala();
   IntConcentradoId = (await ObjDb.alimentacionConcentrado.create({ data: { productoId: IntProductoId, usuarioId: IntUsuarioId, fechaCreacion: DtAhora, fechaActualizacion: DtAhora } })).concentradoId;
@@ -252,7 +254,7 @@ test("HTTP usa permisos reales en elaboración, dependencias y reversión; healt
     assert.equal(ObjCatalogos.status, 200);
     const ObjCatalogosJson = await ObjCatalogos.json() as { datos: { unidades: Array<{ codigo: string }>; almacenes: Array<{ inventarioId: number }> } };
     assert.ok(ObjCatalogosJson.datos.unidades.some(Obj => Obj.codigo === "lb"));
-    assert.ok(!ObjCatalogosJson.datos.unidades.some(Obj => Obj.codigo === "L"));
+    assert.ok(ObjCatalogosJson.datos.unidades.some(Obj => Obj.codigo === "L"));
     assert.ok(ObjCatalogosJson.datos.almacenes.some(Obj => Obj.inventarioId === IntAlmacenId));
     assert.equal((await fetch(`${StrUrl}/api/alimentacion/concentrados/productos?busqueda=`, { headers: ObjHeaders })).status, 200);
     assert.equal((await fetch(`${StrUrl}/api/alimentacion/concentrados`, { method: "POST", headers: ObjHeaders, body: JSON.stringify({ productoId: IntProductoId }) })).status, 403);
@@ -395,8 +397,7 @@ test("previa SQL informa todos los faltantes y excluye vencidos, lotes/almacenes
     assert.deepEqual(ObjPrevia.faltantes.map(Obj => Obj.cantidadFaltante), ["50.000000", "50.000000"]);
   } finally { await ObjDb.inventarioAlmacen.update({ where: { inventarioId: IntAlmacenId }, data: { activo: true } }); }
   await ObjDb.inventarioProducto.update({ where: { productoId: ObjMateria.IntProductoId }, data: { activo: false } });
-  ObjPrevia = await S.Alimentacion_previsualizarElaboracion(ObjEntrada);
-  assert.equal(ObjPrevia.faltantes[0]!.cantidadFaltante, "50.000000");
+  await assert.rejects(S.Alimentacion_previsualizarElaboracion(ObjEntrada), { StrCodigo: "CONCENTRADOS_PRODUCTO_INVALIDO" });
 });
 test("previa SQL valida versión, estado, destino, unidad y datos antes de operar", async () => {
   const { ObjEntrada, ObjReceta } = await Alimentacion_previaPrueba();

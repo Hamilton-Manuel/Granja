@@ -32,8 +32,9 @@ before(async () => {
   await ObjDb.alimentacionFormula.create({ data: { nombre: "Fórmula intacta", cantidadBase: "1", unidadBase: "lb" } });
 });
 after(async () => { await ObjBase?.eliminar(); });
-async function Alimentacion_producto(BoolConcentrado = false) {
-  const Obj = await BaseDatos_obtenerCliente().inventarioProducto.create({ data: { codigo: `3B-${++IntCaso}`, nombre: `Producto ${IntCaso}`, categoriaId: IntCategoriaId, unidadMedida: "lb" } });
+async function Alimentacion_producto(BoolConcentrado = false, StrUnidad = "lb") {
+  const Obj = await BaseDatos_obtenerCliente().inventarioProducto.create({ data: { codigo: `3B-${++IntCaso}`, nombre: `Producto ${IntCaso}`, categoriaId: IntCategoriaId, unidadMedida: StrUnidad } });
+  await BaseDatos_obtenerCliente().alimentacionProductoHabilitado.create({ data: { productoId: Obj.productoId, activo: true } });
   const ObjClasificacion = BoolConcentrado ? await S.Alimentacion_clasificarConcentrado(Obj.productoId, { IntUsuarioId }) : null;
   return { ...Obj, concentradoId: ObjClasificacion?.concentradoId ?? 0 };
 }
@@ -69,6 +70,34 @@ async function Alimentacion_foto() {
     (SELECT * FROM dbo.usuarios_bitacora FOR JSON PATH) bitacora`;
 }
 function Alimentacion_esConflicto(ObjError: unknown) { return ObjError instanceof ErrorAplicacion && ObjError.IntEstadoHttp === 409; }
+
+test("receta mixta persiste, escala y elabora peso y volumen sin alterar dimensiones", async () => {
+  const ObjDb = BaseDatos_obtenerCliente();
+  await BaseDatos_exigirBaseActual(ObjBase!.StrNombre);
+  for (const ObjUnidad of [{ codigo: "gal", nombre: "Galón", factorReferencia: "3785.411784" }, { codigo: "caneca", nombre: "Caneca", factorReferencia: "18927.05892" }]) {
+    if (!await ObjDb.inventarioUnidadMedida.findUnique({ where: { codigo: ObjUnidad.codigo } })) await I.Inventario_crearUnidad({ ...ObjUnidad, dimension: "VOLUMEN", IntUsuarioId });
+  }
+  const ObjMaiz = await Alimentacion_producto(), ObjMelaza = await Alimentacion_producto(false, "L"), ObjTerminado = await Alimentacion_producto(true);
+  assert.equal((await S.Alimentacion_buscarProductos(ObjMelaza.codigo, true))[0]?.productoId, ObjMelaza.productoId);
+  await ObjDb.alimentacionProductoHabilitado.update({ where: { productoId: ObjMelaza.productoId }, data: { activo: false } });
+  assert.equal((await S.Alimentacion_buscarProductos(ObjMelaza.codigo, true)).length, 0);
+  await ObjDb.alimentacionProductoHabilitado.update({ where: { productoId: ObjMelaza.productoId }, data: { activo: true } });
+  await Alimentacion_entrada(ObjMaiz.productoId, "2000", "2000");
+  await I.Inventario_registrarEntrada({ subtipo: "INVENTARIO_INICIAL", productoId: ObjMelaza.productoId, inventarioId: IntAlmacenId, cantidadComercial: "100", unidadComercial: "L", precioTotalIngreso: "100", IntUsuarioId });
+  const ObjReceta = await S.Alimentacion_crearRecetaConcentrado({ concentradoId: ObjTerminado.concentradoId, nombre: "Peso y volumen", cantidadBase: "1000", unidadBase: "lb", detalles: [{ productoId: ObjMaiz.productoId, cantidad: "5", unidadMedida: "qq" }, { productoId: ObjMelaza.productoId, cantidad: "1", unidadMedida: "caneca" }] }, { IntUsuarioId });
+  const ObjHistoria = await Alimentacion_foto();
+  await assert.rejects(S.Alimentacion_crearRecetaConcentrado({ concentradoId: ObjTerminado.concentradoId, nombre: "Incompatible", cantidadBase: "1000", unidadBase: "lb", detalles: [{ productoId: ObjMelaza.productoId, cantidad: "1", unidadMedida: "qq" }] }, { IntUsuarioId }), (ObjError: unknown) => ObjError instanceof ErrorAplicacion && ObjError.StrCodigo === "CONCENTRADOS_UNIDAD_INVALIDA");
+  assert.deepEqual(await Alimentacion_foto(), ObjHistoria);
+  const ObjEntrada = { recetaId: ObjReceta.recetaId, versionReceta: 1, cantidadTeorica: "2000", cantidadReal: "2000", unidadCaptura: "lb", inventarioDestinoId: IntAlmacenId, fechaEfectiva: "2026-09-28T10:00:00.000-06:00" };
+  const ObjPrevia = await S.Alimentacion_previsualizarElaboracion(ObjEntrada);
+  assert.equal(ObjPrevia.balanceMasa, null);
+  assert.equal(ObjPrevia.ingredientes.find(Obj => Obj.productoId === ObjMaiz.productoId)?.cantidadRequerida, "1000.000000");
+  assert.equal(ObjPrevia.ingredientes.find(Obj => Obj.productoId === ObjMelaza.productoId)?.cantidadRequerida, "37.854118");
+  const ObjResultado = await Alimentacion_confirmarElaboracion({ ...ObjEntrada, claveIdempotencia: randomUUID(), huellaPrevisualizacion: ObjPrevia.huellaPrevisualizacion }, { IntUsuarioId });
+  const ObjDetalle = await S.Alimentacion_detalleElaboracion(ObjResultado.datos.elaboracionId);
+  assert.equal(ObjDetalle.detalles.find(Obj => Obj.productoId === ObjMelaza.productoId)?.unidadBaseSnapshot, "L");
+  assert.equal(ObjDetalle.cantidadRealBase, "2000.000000");
+});
 
 test("consultas para frontend conservan precisión, snapshots, paginación y no escriben", async () => {
   const ObjCaso = await Alimentacion_caso(), ObjDb = BaseDatos_obtenerCliente();
@@ -296,7 +325,7 @@ test("3C Alimentación bloquea la reversión hasta revertir explícitamente su c
   const ObjTipo = await Produccion.Produccion_crearTipo({ nombre: `Tipo 3C ${++IntCaso}`, IntUsuarioId });
   const ObjLote = await Produccion.Produccion_crearLote({ tipoAnimalId: ObjTipo.tipoAnimalId, codigo: `3C-P-${IntCaso}`, nombre: "Destino", IntUsuarioId });
   const ObjInicial = await Produccion.Produccion_registrarInicial({ loteDestinoId: ObjLote.loteProduccionId, animales: [{ identificacion: `3C-A-${IntCaso}`, tipoAnimalId: ObjTipo.tipoAnimalId, sexo: "HEMBRA" }], IntUsuarioId });
-  await ObjDb.alimentacionProductoHabilitado.create({ data: { productoId: ObjCaso.ObjProducto.productoId } });
+  await ObjDb.alimentacionProductoHabilitado.upsert({ where: { productoId: ObjCaso.ObjProducto.productoId }, create: { productoId: ObjCaso.ObjProducto.productoId }, update: { activo: true } });
   const ObjConsumo = await Alimentacion.Alimentacion_registrar({ destino: { tipo: "ANIMAL", animalId: ObjInicial.animales[0]!.animalId },
     fechaEfectiva: ObjCaso.ObjEntrada.fechaEfectiva, detalles: [{ productoId: ObjCaso.ObjProducto.productoId, inventarioId: IntAlmacenId, loteInventarioId: ObjCaso.ObjConfirmada.datos.loteInventarioId, cantidad: "10" }], IntUsuarioId });
   const ObjAntes = await Alimentacion_foto();

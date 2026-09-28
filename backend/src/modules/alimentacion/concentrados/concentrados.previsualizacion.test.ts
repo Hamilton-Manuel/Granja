@@ -17,7 +17,7 @@ function Alimentacion_caso() {
     receta: { recetaId: 1, version: 1, nombre: "Crecimiento", cantidadBase: "100", unidadBase: "lb", factor: "453.59237" },
     producto: { productoId: 2, codigo: "C", nombre: "Concentrado", unidadBase: "lb", factor: "453.59237" },
     destino: { inventarioId: 1, codigo: "A", nombre: "Almacén" }, factorCaptura: "453.59237",
-    ingredientes: [{ productoId: 1, codigo: "M", nombre: "Maíz", unidadBase: "lb", cantidadReceta: "100", unidadReceta: "lb",
+    ingredientes: [{ dimension: "PESO", productoId: 1, codigo: "M", nombre: "Maíz", unidadBase: "lb", cantidadReceta: "100", unidadReceta: "lb",
       factorBase: "453.59237", factorReceta: "453.59237", fuentes: [Alimentacion_fuente(1)] }],
   };
   return { ObjEntrada, ObjContexto };
@@ -29,7 +29,25 @@ test("previa escala por cantidad teórica; merma altera costo unitario, no ingre
   assert.equal(Obj.ingredientes[0]!.cantidadRequerida, "500.000000");
   assert.equal(Obj.costoEstimado?.unitario, "2.500000000000000000");
   assert.equal(Obj.rendimiento.porcentaje, "80");
-  assert.equal(Obj.balanceMasa.diferenciaEntradaSalida, "45359.237");
+  assert.equal(Obj.balanceMasa!.diferenciaEntradaSalida, "45359.237");
+});
+
+test("previa mixta escala cada dimensión por la base del concentrado sin convertir volumen a peso", () => {
+  const { ObjEntrada, ObjContexto } = Alimentacion_caso();
+  ObjContexto.receta.cantidadBase = "1000";
+  ObjEntrada.cantidadTeorica = ObjEntrada.cantidadReal = "2000";
+  ObjContexto.ingredientes[0]!.cantidadReceta = "500";
+  ObjContexto.ingredientes[0]!.fuentes = [Alimentacion_fuente(1, "3000")];
+  ObjContexto.ingredientes.push({ productoId: 3, codigo: "ALI10", nombre: "Melaza", dimension: "VOLUMEN", unidadBase: "L", cantidadReceta: "1", unidadReceta: "caneca", factorReceta: "18927.05892", factorBase: "1000", fuentes: [{ ...Alimentacion_fuente(2, "100"), unidadBase: "L" }] });
+  ObjContexto.ingredientes.push({ productoId: 4, codigo: "U", nombre: "Unidad", dimension: "UNIDADES", unidadBase: "unidad", cantidadReceta: "3", unidadReceta: "unidad", factorReceta: "1", factorBase: "1", fuentes: [{ ...Alimentacion_fuente(3, "10"), unidadBase: "unidad" }] });
+  const Obj = Alimentacion_calcularPrevisualizacion(ObjEntrada, ObjContexto);
+  assert.equal(Obj.ingredientes[0]!.cantidadRequerida, "1000.000000");
+  assert.equal(Obj.ingredientes[1]!.cantidadRequerida, "37.854118");
+  assert.equal(Obj.ingredientes[1]!.cantidadSinCuantizar, "37.85411784");
+  assert.equal(Obj.ingredientes[2]!.cantidadRequerida, "6.000000");
+  assert.equal(Obj.balanceMasa, null);
+  assert.deepEqual(Obj.composicion.map(C => [C.dimension, C.unidad, C.ingredientesRequeridos]), [["PESO", "g", "453592.37"], ["VOLUMEN", "mL", "37854.118"], ["UNIDADES", "unidad", "6"]]);
+  assert.equal(Obj.disponible, true);
 });
 test("previa convierte tonelada métrica y quintal según factores recibidos del catálogo", () => {
   const { ObjEntrada, ObjContexto } = Alimentacion_caso();
@@ -40,7 +58,7 @@ test("previa convierte tonelada métrica y quintal según factores recibidos del
   const Obj = Alimentacion_calcularPrevisualizacion(ObjEntrada, ObjContexto);
   assert.equal(Obj.ingredientes[0]!.cantidadRequerida, "2204.622622");
   assert.equal(Obj.cantidadRealBase, "2204.622622");
-  assert.equal(Obj.balanceMasa.salidaReal, "1000000");
+  assert.equal(Obj.balanceMasa!.salidaReal, "1000000");
 });
 test("previa cuantiza una vez a seis decimales, HALF_UP, después del escalado", () => {
   const { ObjEntrada, ObjContexto } = Alimentacion_caso();

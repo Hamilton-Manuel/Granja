@@ -14,6 +14,7 @@ export type AlimentacionFuentePrevia = {
 };
 export type AlimentacionIngredientePrevio = {
   productoId: number; codigo: string; nombre: string; unidadBase: string;
+  dimension: string;
   cantidadReceta: string; unidadReceta: string; factorReceta: string; factorBase: string;
   fuentes: AlimentacionFuentePrevia[];
 };
@@ -41,12 +42,18 @@ export function Alimentacion_calcularPrevisualizacion(ObjEntrada: AlimentacionEl
   const DecTeoricaBase = Alimentacion_cuantizar(Inventario_convertirCantidadSinCuantizar(new Prisma.Decimal(ObjEntrada.cantidadTeorica), new Prisma.Decimal(ObjContexto.factorCaptura), new Prisma.Decimal(ObjContexto.producto.factor)));
   const DecRealBase = Alimentacion_cuantizar(Inventario_convertirCantidadSinCuantizar(new Prisma.Decimal(ObjEntrada.cantidadReal), new Prisma.Decimal(ObjContexto.factorCaptura), new Prisma.Decimal(ObjContexto.producto.factor)));
   let DecMasaIngredientes = new DecimalExacto(0), DecMasaDisponible = new DecimalExacto(0), DecCostoDisponible = new DecimalExacto(0);
+  const ObjComposicion = new Map<string, { unidad: string; requerida: Prisma.Decimal; asignada: Prisma.Decimal }>();
   const ArrIngredientes = ObjContexto.ingredientes.map(ObjIngrediente => {
+    const StrReferencia = ({ PESO: "g", VOLUMEN: "mL", UNIDADES: "unidad" } as Record<string, string>)[ObjIngrediente.dimension];
+    if (!StrReferencia) throw new ErrorAplicacion(409, "CONCENTRADOS_UNIDAD_INVALIDA", "Dimensión de ingrediente no válida.");
+    const ObjTotal = ObjComposicion.get(ObjIngrediente.dimension) ?? { unidad: StrReferencia, requerida: new DecimalExacto(0), asignada: new DecimalExacto(0) };
+    ObjComposicion.set(ObjIngrediente.dimension, ObjTotal);
     // Todos los productos se calculan antes de dividir; solo se cuantiza el resultado operativo.
     const DecExacta = new DecimalExacto(ObjIngrediente.cantidadReceta).mul(ObjIngrediente.factorReceta)
       .mul(DecTeoricaMasa).div(DecBaseMasa.mul(ObjIngrediente.factorBase));
     const DecRequerida = Alimentacion_cuantizar(DecExacta);
-    DecMasaIngredientes = DecMasaIngredientes.add(DecRequerida.mul(ObjIngrediente.factorBase));
+    ObjTotal.requerida = ObjTotal.requerida.add(DecRequerida.mul(ObjIngrediente.factorBase));
+    if (ObjIngrediente.dimension === "PESO") DecMasaIngredientes = DecMasaIngredientes.add(DecRequerida.mul(ObjIngrediente.factorBase));
     let DecPendiente = new DecimalExacto(DecRequerida), DecDisponible = new DecimalExacto(0);
     const ObjSaldos = new Map<number, Prisma.Decimal>();
     const ArrFuentes = [];
@@ -62,7 +69,8 @@ export function Alimentacion_calcularPrevisualizacion(ObjEntrada: AlimentacionEl
       if (!DecCantidad.gt(0)) continue;
       const DecImporte = DecCantidad.mul(ObjFuente.costoUnitario);
       DecCostoDisponible = DecCostoDisponible.add(DecImporte);
-      DecMasaDisponible = DecMasaDisponible.add(DecCantidad.mul(ObjIngrediente.factorBase));
+      ObjTotal.asignada = ObjTotal.asignada.add(DecCantidad.mul(ObjIngrediente.factorBase));
+      if (ObjIngrediente.dimension === "PESO") DecMasaDisponible = DecMasaDisponible.add(DecCantidad.mul(ObjIngrediente.factorBase));
       DecPendiente = DecPendiente.sub(DecCantidad);
       ArrFuentes.push({ ...ObjFuente, cantidad: DecCantidad.toFixed(6), importe: DecImporte.toFixed(24) });
     }
@@ -93,10 +101,11 @@ export function Alimentacion_calcularPrevisualizacion(ObjEntrada: AlimentacionEl
     unidadCaptura: ObjEntrada.unidadCaptura, cantidadTeoricaBase: DecTeoricaBase.toFixed(6), cantidadRealBase: DecRealBase.toFixed(6),
     rendimiento: { diferencia: new DecimalExacto(ObjEntrada.cantidadReal).sub(ObjEntrada.cantidadTeorica).toString(),
       porcentaje: new DecimalExacto(ObjEntrada.cantidadReal).div(ObjEntrada.cantidadTeorica).mul(100).toString(), motivo: ObjEntrada.motivoDiferencia ?? null },
-    balanceMasa: { unidad: "g", ingredientesRequeridos: DecMasaIngredientes.toString(), ingredientesDisponiblesAsignados: DecMasaDisponible.toString(),
+    composicion: [...ObjComposicion].map(([dimension, Obj]) => ({ dimension, unidad: Obj.unidad, ingredientesRequeridos: Obj.requerida.toString(), ingredientesDisponiblesAsignados: Obj.asignada.toString() })),
+    balanceMasa: ObjContexto.ingredientes.every(Obj => Obj.dimension === "PESO") ? { unidad: "g", ingredientesRequeridos: DecMasaIngredientes.toString(), ingredientesDisponiblesAsignados: DecMasaDisponible.toString(),
       salidaTeorica: DecTeoricaMasa.toString(), salidaReal: DecRealMasa.toString(),
       diferenciaEntradaSalida: DecMasaIngredientes.sub(DecRealMasa).toString(),
-      residualCuantizacionSalida: DecRealBase.mul(ObjContexto.producto.factor).sub(DecRealMasa).toString() },
+      residualCuantizacionSalida: DecRealBase.mul(ObjContexto.producto.factor).sub(DecRealMasa).toString() } : null,
     ingredientes: ArrIngredientes, faltantes: ArrFaltantes,
     costoDisponible: DecCostoDisponible.toFixed(24),
     costoEstimado: ObjCosto ? { total: ObjCosto.StrCostoTotal, unitario: ObjCosto.StrCostoUnitario,

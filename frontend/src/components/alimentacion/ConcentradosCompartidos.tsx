@@ -27,8 +27,8 @@ export function Alimentacion_decimal(StrValor: string): string {
 export const Alimentacion_cantidadValida = (Str: string) => /^(?!0+(?:\.0+)?$)\d{1,18}(?:\.\d{1,6})?$/.test(Str);
 export function UnidadConcentrado({ StrEtiqueta, StrValor, ArrUnidades, Alimentacion_cambiar }: { StrEtiqueta: string; StrValor: string; ArrUnidades: CatalogosConcentrados["unidades"]; Alimentacion_cambiar: (Str: string) => void }) {
   return <label>{StrEtiqueta}<select required value={StrValor} onChange={E => Alimentacion_cambiar(E.target.value)}><option value="">Seleccione</option>
-    {StrValor && !ArrUnidades.some(Obj => Obj.codigo === StrValor) && <option value={StrValor}>{StrValor} (no disponible)</option>}
-    {ArrUnidades.map(Obj => <option key={Obj.codigo} value={Obj.codigo}>{ArrGruposUnidadesInventario[0].ArrUnidades.find(U => U.StrValor === Obj.codigo)?.StrEtiqueta ?? Obj.codigo}</option>)}
+    {StrValor && !ArrUnidades.some(Obj => Obj.codigo === StrValor) && <option value={StrValor} disabled>{StrValor} (no disponible)</option>}
+    {ArrUnidades.map(Obj => <option key={Obj.codigo} value={Obj.codigo}>{ArrGruposUnidadesInventario.map(G => G.ArrUnidades.find(U => U.StrValor === Obj.codigo)?.StrEtiqueta).find(Boolean) ?? Obj.codigo}</option>)}
   </select></label>;
 }
 export function ResumenConcentrado({ Obj }: { Obj: ElaboracionConcentrado }) {

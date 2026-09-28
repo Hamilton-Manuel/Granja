@@ -97,9 +97,26 @@ export async function PruebasBaseDatos_crearTemporalInternaConcentrados() {
       (SELECT * FROM dbo.inventario_existencias_lotes ORDER BY existencia_lote_id FOR JSON PATH) saldosLotes`;
     const ArrAntes = await Pruebas_historia();
     for (const StrMigracion of ArrDirectorios.filter(Str => Str >= "20260922120000_concentrados_fase1")) {
+      let ObjRecetaAnterior;
+      if (StrMigracion === "20260928160000_concentrados_ingredientes_dimensiones") {
+        const ObjFecha = new Date("2026-09-28T10:00:00Z");
+        const ObjTerminado = await ObjTemporal.inventarioProducto.create({ data: { codigo: "HIST-CON", nombre: "Concentrado temporal", categoriaId: ObjCategoria.categoriaId, unidadMedida: "lb" } });
+        const ObjConcentrado = await ObjTemporal.alimentacionConcentrado.create({ data: { productoId: ObjTerminado.productoId, usuarioId: ObjUsuario.usuarioId, fechaCreacion: ObjFecha, fechaActualizacion: ObjFecha } });
+        ObjRecetaAnterior = await ObjTemporal.alimentacionRecetaConcentrado.create({ data: {
+          concentradoId: ObjConcentrado.concentradoId, productoId: ObjTerminado.productoId,
+          nombre: "Receta previa exclusivamente peso", cantidadBase: "3", unidadBase: "lb",
+          usuarioId: ObjUsuario.usuarioId, usuarioActualizacionId: ObjUsuario.usuarioId,
+          fechaCreacion: ObjFecha, fechaActualizacion: ObjFecha,
+          detalles: { create: { productoId: ObjProducto.productoId, cantidad: "3", unidadMedida: "lb" } },
+        }, include: { detalles: true } });
+      }
       await cp(path.join("prisma/migrations", StrMigracion), path.join(StrMigraciones, StrMigracion), { recursive: true });
       await Pruebas_migrar(StrConfig);
       assert.deepEqual(await Pruebas_historia(), ArrAntes);
+      if (ObjRecetaAnterior) {
+        assert.deepEqual(await ObjTemporal.alimentacionRecetaConcentrado.findUnique({ where: { recetaId: ObjRecetaAnterior.recetaId }, include: { detalles: true } }), ObjRecetaAnterior);
+        console.log("Receta previa de peso y sus detalles intactos y válidos.");
+      }
       console.log("Migración aplicada; historia y costos intactos:", StrMigracion);
     }
     const ObjEstado = await ObjEjecutar(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "status", "--config", StrConfig], { env: { ...process.env } });

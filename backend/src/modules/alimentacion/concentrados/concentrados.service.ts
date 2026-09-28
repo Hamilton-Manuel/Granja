@@ -37,23 +37,23 @@ export async function Alimentacion_previsualizarConTx(ObjTx: Prisma.TransactionC
     const ObjDestino = await R.Alimentacion_destinoPrevisualizacionConTx(ObjTx, ObjEntrada.inventarioDestinoId);
     if (!ObjDestino?.activo) throw new ErrorAplicacion(409, "ELABORACION_DESTINO_INVALIDO", "El almacén de destino no existe o está inactivo.");
     const ArrUnidades = await R.Alimentacion_unidadesExactasConTx(ObjTx);
-    function Alimentacion_factor(StrUnidad: string) {
+    function Alimentacion_factor(StrUnidad: string, StrDimension = "PESO") {
       const ObjUnidad = ArrUnidades.find(Obj => Obj.codigo === StrUnidad);
-      if (!ObjUnidad?.activo || ObjUnidad.dimension !== "PESO" || !new Prisma.Decimal(ObjUnidad.factor).gt(0)) {
-        throw new ErrorAplicacion(409, "CONCENTRADOS_UNIDAD_INVALIDA", "Todas las unidades deben ser de masa y estar activas.");
+      if (!ObjUnidad?.activo || ObjUnidad.dimension !== StrDimension || !new Prisma.Decimal(ObjUnidad.factor).gt(0)) {
+        throw new ErrorAplicacion(409, "CONCENTRADOS_UNIDAD_INVALIDA", "La unidad debe estar activa y pertenecer a la dimensión del producto.");
       }
       return ObjUnidad.factor;
     }
     const DtDia = Fecha_parsearFechaCivil(ObjEntrada.fechaEfectiva.slice(0, 10));
     const ArrIngredientes: AlimentacionIngredientePrevio[] = [];
     for (const ObjDetalle of ObjReceta.detalles) {
-      const ObjIngrediente = await R.Alimentacion_productoConTx(ObjTx, ObjDetalle.productoId);
-      if (!ObjIngrediente) throw new ErrorAplicacion(409, "CONCENTRADOS_PRODUCTO_INVALIDO", "Un ingrediente no existe.");
+      const ObjIngrediente = await Alimentacion_exigirIngrediente(ObjTx, ObjDetalle.productoId);
       const BoolUtilizable = ObjIngrediente.activo && ObjIngrediente.manejaLotes && (ObjIngrediente.concentrado?.activo ?? true);
       const ArrFuentes = BoolUtilizable ? await R.Alimentacion_fuentesPrevisualizacionConTx(ObjTx, ObjDetalle.productoId, DtDia) : [];
       ArrIngredientes.push({ productoId: ObjIngrediente.productoId, codigo: ObjIngrediente.codigo, nombre: ObjIngrediente.nombre,
         unidadBase: ObjIngrediente.unidadMedida, cantidadReceta: ObjDetalle.cantidad.toString(), unidadReceta: ObjDetalle.unidadMedida,
-        factorReceta: Alimentacion_factor(ObjDetalle.unidadMedida), factorBase: Alimentacion_factor(ObjIngrediente.unidadMedida),
+        dimension: ObjIngrediente.unidad.dimension,
+        factorReceta: Alimentacion_factor(ObjDetalle.unidadMedida, ObjIngrediente.unidad.dimension), factorBase: Alimentacion_factor(ObjIngrediente.unidadMedida, ObjIngrediente.unidad.dimension),
         fuentes: ArrFuentes.map(Obj => ({ ...Obj, fechaVencimiento: Obj.fechaVencimiento ? Fecha_formatearFechaCivil(Obj.fechaVencimiento) : null })) });
     }
     const ObjContexto = {
@@ -104,6 +104,14 @@ async function Alimentacion_exigirUnidadMasa(ObjTx: Prisma.TransactionClient, St
     throw new ErrorAplicacion(409, "CONCENTRADOS_UNIDAD_INVALIDA", "La unidad debe ser de masa y estar activa en el catálogo.");
   }
 }
+async function Alimentacion_exigirIngrediente(ObjTx: Prisma.TransactionClient, IntProductoId: number) {
+  const ObjProducto = await R.Alimentacion_productoConTx(ObjTx, IntProductoId);
+  if (!ObjProducto?.activo || !ObjProducto.habilitacionAlimentacion?.activo || !ObjProducto.unidad.activo || !ObjProducto.unidad.factorReferencia.gt(0)) {
+    throw new ErrorAplicacion(409, "CONCENTRADOS_PRODUCTO_INVALIDO", "El ingrediente debe estar activo, habilitado en Alimentación y utilizar una unidad activa.");
+  }
+  if (ObjProducto.concentrado && !ObjProducto.concentrado.activo) throw new ErrorAplicacion(409, "CONCENTRADO_INGREDIENTE_INACTIVO", "Un concentrado ingrediente está inactivo.");
+  return ObjProducto;
+}
 async function Alimentacion_validarGrafo(ObjTx: Prisma.TransactionClient, IntRecetaSustituida?: number,
   ObjNueva?: { IntProductoTerminadoId: number; ArrIngredientesIds: number[] }) {
   const ArrRecetas = await R.Alimentacion_grafoConTx(ObjTx);
@@ -112,15 +120,17 @@ async function Alimentacion_validarGrafo(ObjTx: Prisma.TransactionClient, IntRec
   if (ObjNueva) ArrGrafo.push(ObjNueva);
   Alimentacion_exigirGrafoSinCiclos(ArrGrafo);
 }
-async function Alimentacion_validarReceta(ObjTx: Prisma.TransactionClient, ObjEntrada: AlimentacionRecetaConcentradoEntrada) {
+export async function Alimentacion_validarReceta(ObjTx: Prisma.TransactionClient, ObjEntrada: AlimentacionRecetaConcentradoEntrada) {
   const ObjConcentrado = await R.Alimentacion_concentradoConTx(ObjTx, ObjEntrada.concentradoId);
   if (!ObjConcentrado?.activo) throw new ErrorAplicacion(409, "CONCENTRADO_INACTIVO", "El concentrado no existe o está inactivo.");
   await Alimentacion_exigirProductoMasa(ObjTx, ObjConcentrado.productoId);
   await Alimentacion_exigirUnidadMasa(ObjTx, ObjEntrada.unidadBase);
   for (const ObjDetalle of ObjEntrada.detalles) {
-    const ObjProducto = await Alimentacion_exigirProductoMasa(ObjTx, ObjDetalle.productoId);
-    if (ObjProducto.concentrado && !ObjProducto.concentrado.activo) throw new ErrorAplicacion(409, "CONCENTRADO_INGREDIENTE_INACTIVO", "Un concentrado ingrediente está inactivo.");
-    await Alimentacion_exigirUnidadMasa(ObjTx, ObjDetalle.unidadMedida);
+    const ObjProducto = await Alimentacion_exigirIngrediente(ObjTx, ObjDetalle.productoId);
+    const ObjUnidad = await R.Alimentacion_unidadConTx(ObjTx, ObjDetalle.unidadMedida);
+    if (!ObjUnidad?.activo || !ObjUnidad.factorReferencia.gt(0) || ObjUnidad.dimension !== ObjProducto.unidad.dimension) {
+      throw new ErrorAplicacion(409, "CONCENTRADOS_UNIDAD_INVALIDA", "La unidad del ingrediente debe estar activa y pertenecer a la dimensión del producto.");
+    }
   }
   return ObjConcentrado;
 }

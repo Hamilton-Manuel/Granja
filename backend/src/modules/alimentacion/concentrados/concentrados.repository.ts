@@ -10,14 +10,15 @@ export const Alimentacion_ejecutarConcentradosTx = Inventario_ejecutarSerializab
 export async function Alimentacion_catalogosConcentrados() {
   const ObjDb = BaseDatos_obtenerCliente();
   const [unidades, almacenes] = await Promise.all([
-    Alimentacion_unidadesExactasConTx(ObjDb).then(Arr => Arr.filter(Obj => Obj.activo && Obj.dimension === "PESO")
-      .map(Obj => ({ codigo: Obj.codigo, factorReferencia: Obj.factor }))),
+    Alimentacion_unidadesExactasConTx(ObjDb).then(Arr => Arr.filter(Obj => Obj.activo)
+      .map(Obj => ({ codigo: Obj.codigo, dimension: Obj.dimension, factorReferencia: Obj.factor }))),
     ObjDb.inventarioAlmacen.findMany({ where: { activo: true }, select: { inventarioId: true, codigo: true, nombre: true }, orderBy: { codigo: "asc" } }),
   ]);
   return { unidades, almacenes };
 }
-export function Alimentacion_productosConcentrados(StrBusqueda: string) {
-  return BaseDatos_obtenerCliente().inventarioProducto.findMany({ where: { activo: true, unidad: { activo: true, dimension: "PESO" },
+export function Alimentacion_productosConcentrados(StrBusqueda: string, BoolIngredientes = false) {
+  return BaseDatos_obtenerCliente().inventarioProducto.findMany({ where: { activo: true, unidad: { activo: true, ...(BoolIngredientes ? {} : { dimension: "PESO" }) },
+    ...(BoolIngredientes ? { habilitacionAlimentacion: { activo: true } } : {}),
     OR: [{ nombre: { contains: StrBusqueda } }, { codigo: { contains: StrBusqueda } }] },
     select: { productoId: true, codigo: true, nombre: true, unidadMedida: true, activo: true }, orderBy: { productoId: "asc" }, take: 20 });
 }
@@ -83,7 +84,7 @@ export function Alimentacion_grafoConTx(ObjTx: Prisma.TransactionClient) {
     detalles: { where: { activo: true }, select: { productoId: true } } } });
 }
 export function Alimentacion_productoConTx(ObjTx: Prisma.TransactionClient, IntProductoId: number) {
-  return ObjTx.inventarioProducto.findUnique({ where: { productoId: IntProductoId }, include: { unidad: true, concentrado: true } });
+  return ObjTx.inventarioProducto.findUnique({ where: { productoId: IntProductoId }, include: { unidad: true, concentrado: true, habilitacionAlimentacion: true } });
 }
 export function Alimentacion_unidadConTx(ObjTx: Prisma.TransactionClient, StrCodigo: string) {
   return ObjTx.inventarioUnidadMedida.findUnique({ where: { codigo: StrCodigo } });

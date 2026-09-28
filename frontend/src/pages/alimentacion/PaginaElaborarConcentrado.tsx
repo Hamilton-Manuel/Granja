@@ -103,7 +103,7 @@ export function PaginaElaborarConcentrado() {
         <label>Fecha y hora efectiva<input required type="datetime-local" value={StrFecha} onChange={E => establecerFecha(E.target.value)} /></label>
         <label>Cantidad a elaborar<input required inputMode="decimal" value={StrTeorica} onChange={E => establecerTeorica(E.target.value)} /></label>
         <label>Cantidad obtenida<input required inputMode="decimal" value={StrReal} onChange={E => establecerReal(E.target.value)} /></label>
-        <UnidadConcentrado StrEtiqueta="Unidad de elaboración" StrValor={StrUnidad} ArrUnidades={ObjCatalogos.unidades} Alimentacion_cambiar={establecerUnidad} />
+        <UnidadConcentrado StrEtiqueta="Unidad de elaboración" StrValor={StrUnidad} ArrUnidades={ObjCatalogos.unidades.filter(Obj => Obj.dimension === "PESO")} Alimentacion_cambiar={establecerUnidad} />
         <label>Almacén destino<select required value={StrDestino} onChange={E => establecerDestino(E.target.value)}><option value="">Seleccione</option>{ObjCatalogos.almacenes.map(Obj => <option key={Obj.inventarioId} value={Obj.inventarioId}>{Obj.codigo} · {Obj.nombre}</option>)}</select></label>
         <label>Vencimiento (si aplica)<input type="date" min={StrFecha.slice(0, 10)} value={StrVencimiento} onChange={E => establecerVencimiento(E.target.value)} /></label>
         <label>Justificación de diferencia<textarea maxLength={1000} value={StrMotivo} onChange={E => establecerMotivo(E.target.value)} /></label>
@@ -134,9 +134,9 @@ function VistaPreviaConcentrado({ Obj, ObjCatalogos }: { Obj: PreviaConcentrado;
     </li>)}</ul></td></tr>)}</tbody></table></div>
     <p>Costo estimado total: {Obj.costoEstimado ? `Q${D(Obj.costoEstimado.total)}` : "No calculable hasta cubrir todos los faltantes"}</p>
     {Obj.costoEstimado && <><p>Costo unitario estimado: Q{D(Obj.costoEstimado.unitario)} / {Obj.costoEstimado.unidad}</p><p>Residual de valoración: Q{D(Obj.costoEstimado.residualValoracion)}</p></>}
-    <details><summary>Balance de masa ({Obj.balanceMasa.unidad})</summary><dl className="concentrados-balance">
+    {Obj.balanceMasa ? <details><summary>Balance de masa ({Obj.balanceMasa.unidad})</summary><dl className="concentrados-balance">
       <dt>Ingredientes requeridos</dt><dd>{D(Obj.balanceMasa.ingredientesRequeridos)}</dd><dt>Ingredientes disponibles asignados</dt><dd>{D(Obj.balanceMasa.ingredientesDisponiblesAsignados)}</dd>
       <dt>Salida teórica</dt><dd>{D(Obj.balanceMasa.salidaTeorica)}</dd><dt>Salida real</dt><dd>{D(Obj.balanceMasa.salidaReal)}</dd><dt>Diferencia entrada/salida</dt><dd>{D(Obj.balanceMasa.diferenciaEntradaSalida)}</dd><dt>Residual de cuantización de salida</dt><dd>{D(Obj.balanceMasa.residualCuantizacionSalida)}</dd>
-    </dl></details>
+    </dl></details> : <div><p>Composición por dimensión. No se calcula un balance de masa entre dimensiones diferentes.</p><ul>{Obj.composicion.map(C => <li key={C.dimension}>{({ PESO: "Peso", VOLUMEN: "Volumen", UNIDADES: "Unidades" } as Record<string, string>)[C.dimension]}: {D(C.ingredientesRequeridos)} {C.unidad}</li>)}</ul></div>}
   </section>;
 }

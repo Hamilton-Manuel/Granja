@@ -18,7 +18,7 @@ process.chdir(StrTrabajo);
 process.env.DATABASE_URL = "sqlserver://127.0.0.1:1433;database=master;user=sa;password=" + process.env.DB_SA_PASSWORD + ";encrypt=true;trustServerCertificate=true";
 process.env.CONCENTRADOS_PRUEBAS_INTERNAS = "1";
 execFileSync(process.execPath, ["node_modules/prisma/build/index.js", "generate"], { stdio: "inherit" });
-const ArrSuites = process.argv.includes("--confirmacion") || process.argv.includes("--reversion") ? ["src/modules/alimentacion/concentrados/concentrados.confirmacion.integration.test.ts"] : [
+const ArrSuites = process.argv.includes("--dimensiones") ? ["src/modules/alimentacion/concentrados/concentrados.integration.test.ts", "src/modules/alimentacion/concentrados/concentrados.confirmacion.integration.test.ts"] : process.argv.includes("--confirmacion") || process.argv.includes("--reversion") ? ["src/modules/alimentacion/concentrados/concentrados.confirmacion.integration.test.ts"] : [
   "src/modules/alimentacion/concentrados/concentrados.confirmacion.integration.test.ts",
   "src/modules/alimentacion/concentrados/concentrados.integration.test.ts",
   "src/modules/inventario/inventario.fase0.integration.test.ts",

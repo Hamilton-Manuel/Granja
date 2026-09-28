@@ -5,6 +5,7 @@ import { Fecha_parsearFechaCivil, Fecha_parsearFechaHoraGuatemala } from "../../
 const ObjId = z.number().int().positive().max(2147483647);
 const ObjCantidad = z.string().regex(/^(?!0+(?:\.0+)?$)\d{1,18}(?:\.\d{1,6})?$/);
 const ObjUnidadPeso = z.enum(["g", "kg", "lb", "oz", "qq", "t"]);
+const ObjUnidadIngrediente = z.string().trim().min(1).max(20);
 const ObjObservaciones = z.string().trim().min(1).max(1000).optional();
 const ObjFechaEfectiva = z.string().refine(StrValor => {
   try { Fecha_parsearFechaHoraGuatemala(StrValor); return true; } catch { return false; }
@@ -25,6 +26,7 @@ export const ObjConcentradoConsulta = z.object({
   concentradoId: z.coerce.number().int().positive().max(2147483647).optional(),
 }).strict();
 export const ObjConcentradoRecetaParametro = z.object({ recetaId: z.coerce.number().int().positive().max(2147483647) }).strict();
+export const ObjConcentradoConsultaProductos = ObjConcentradoConsulta.extend({ uso: z.enum(["INGREDIENTE", "CLASIFICACION"]).default("CLASIFICACION") });
 export const ObjConcentradoRecetaEstado = z.object({ activo: z.boolean(), versionEsperada: ObjId }).strict();
 
 const ObjRecetaCampos = z.object({
@@ -34,7 +36,7 @@ const ObjRecetaCampos = z.object({
   cantidadBase: ObjCantidad,
   unidadBase: ObjUnidadPeso,
   detalles: z.array(z.object({
-    productoId: ObjId, cantidad: ObjCantidad, unidadMedida: ObjUnidadPeso,
+    productoId: ObjId, cantidad: ObjCantidad, unidadMedida: ObjUnidadIngrediente,
   }).strict()).min(1).max(100),
 }).strict();
 const Alimentacion_ingredientesUnicos = (ObjReceta: z.infer<typeof ObjRecetaCampos>) =>

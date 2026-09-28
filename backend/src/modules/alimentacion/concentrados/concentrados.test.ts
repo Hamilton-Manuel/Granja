@@ -8,12 +8,39 @@ import { Inventario_convertirCantidadSinCuantizar } from "../../inventario/inven
 import { PruebasBaseDatos_validarServidorConcentrados } from "../../../testing/concentrados-base-temporal.js";
 import { Alimentacion_exigirGrafoSinCiclos } from "./concentrados.politicas.js";
 import { ArrCatalogoPermisosConcentrados } from "./concentrados.constants.js";
+import { Alimentacion_validarReceta } from "./concentrados.service.js";
 
 const Alimentacion_decimal = (StrValor: string) => new Prisma.Decimal(StrValor);
 const ObjReceta = { concentradoId: 1, nombre: "Crecimiento", cantidadBase: "100", unidadBase: "lb",
   detalles: [{ productoId: 2, cantidad: "100", unidadMedida: "lb" }] };
 const ObjElaboracion = { recetaId: 1, versionReceta: 1, fechaEfectiva: "2026-09-22T10:00:00.000-06:00",
   cantidadTeorica: "100", cantidadReal: "100", unidadCaptura: "lb", inventarioDestinoId: 1 };
+
+test("receta mixta valida habilitación y unidades por dimensión, no por masa", async () => {
+  const ObjUnidades = new Map([
+    ["lb", { activo: true, dimension: "PESO", factorReferencia: new Prisma.Decimal("453.59237") }],
+    ["L", { activo: true, dimension: "VOLUMEN", factorReferencia: new Prisma.Decimal("1000") }],
+    ["caneca", { activo: true, dimension: "VOLUMEN", factorReferencia: new Prisma.Decimal("18927.05892") }],
+    ["unidad", { activo: true, dimension: "UNIDADES", factorReferencia: new Prisma.Decimal("1") }],
+  ]);
+  let BoolHabilitada = true, BoolActiva = true;
+  const ObjTx = {
+    alimentacionConcentrado: { findUnique: async () => ({ activo: true, productoId: 1 }) },
+    inventarioProducto: { findUnique: async (Obj: { where: { productoId: number } }) => ({ productoId: Obj.where.productoId, activo: BoolActiva, concentrado: null, habilitacionAlimentacion: { activo: BoolHabilitada }, unidad: ObjUnidades.get(Obj.where.productoId === 3 ? "L" : Obj.where.productoId === 4 ? "unidad" : "lb") }) },
+    inventarioUnidadMedida: { findUnique: async (Obj: { where: { codigo: string } }) => ObjUnidades.get(Obj.where.codigo) ?? null },
+  } as unknown as Prisma.TransactionClient;
+  const ObjMixta = { ...ObjReceta, cantidadBase: "1000", unidadBase: "lb" as const, detalles: [{ productoId: 2, cantidad: "500", unidadMedida: "lb" }, { productoId: 3, cantidad: "1", unidadMedida: "caneca" }, { productoId: 4, cantidad: "2", unidadMedida: "unidad" }] };
+  assert.equal(E.ObjConcentradoRecetaCrear.safeParse(ObjMixta).success, true);
+  await Alimentacion_validarReceta(ObjTx, ObjMixta);
+  await assert.rejects(Alimentacion_validarReceta(ObjTx, { ...ObjMixta, detalles: [{ productoId: 3, cantidad: "1", unidadMedida: "lb" }] }), { StrCodigo: "CONCENTRADOS_UNIDAD_INVALIDA" });
+  await assert.rejects(Alimentacion_validarReceta(ObjTx, { ...ObjMixta, detalles: [{ productoId: 2, cantidad: "1", unidadMedida: "caneca" }] }), { StrCodigo: "CONCENTRADOS_UNIDAD_INVALIDA" });
+  ObjUnidades.get("caneca")!.activo = false;
+  await assert.rejects(Alimentacion_validarReceta(ObjTx, ObjMixta), { StrCodigo: "CONCENTRADOS_UNIDAD_INVALIDA" });
+  ObjUnidades.get("caneca")!.activo = true; BoolHabilitada = false;
+  await assert.rejects(Alimentacion_validarReceta(ObjTx, ObjMixta), { StrCodigo: "CONCENTRADOS_PRODUCTO_INVALIDO" });
+  BoolHabilitada = true; BoolActiva = false;
+  await assert.rejects(Alimentacion_validarReceta(ObjTx, ObjMixta), { StrCodigo: "CONCENTRADOS_PRODUCTO_INVALIDO" });
+});
 
 test("grafo rechaza ciclos directos, indirectos y la unión de varias recetas", () => {
   assert.throws(() => Alimentacion_exigirGrafoSinCiclos([{ IntProductoTerminadoId: 1, ArrIngredientesIds: [1] }]), /circulares/);
